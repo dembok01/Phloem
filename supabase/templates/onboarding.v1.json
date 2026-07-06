@@ -1,0 +1,171 @@
+{
+  "key": "onboarding",
+  "version": 1,
+  "title": "Onboarding Health Questionnaire",
+  "sections": [
+    {
+      "id": "s1",
+      "title": "Personal",
+      "fields": [
+        { "id": "full_name", "type": "text", "label": "Full name", "required": true },
+        { "id": "age", "type": "number", "label": "Age", "required": true },
+        { "id": "gender", "type": "select", "label": "Gender", "required": true, "allowOther": true,
+          "options": [
+            { "value": "Male", "label": "Male" },
+            { "value": "Female", "label": "Female" },
+            { "value": "Other", "label": "Other" }
+          ] },
+        { "id": "occupation", "type": "text", "label": "Occupation", "required": true },
+        { "id": "city", "type": "text", "label": "City", "required": true },
+        { "id": "country", "type": "text", "label": "Country", "required": true },
+        { "id": "language", "type": "text", "label": "Preferred language", "required": true },
+        { "id": "weight_kg", "type": "number", "label": "Weight (kg)", "required": true },
+        { "id": "height_cm", "type": "number", "label": "Height (cm)" },
+        { "id": "contact_number", "type": "text", "label": "Contact number", "required": true },
+        { "id": "pin_code", "type": "text", "label": "PIN code" },
+        { "id": "relationship_to_caregiver", "type": "select", "label": "Relationship to caregiver", "required": true,
+          "options": [
+            { "value": "Self", "label": "Self" },
+            { "value": "Father", "label": "Father" },
+            { "value": "Mother", "label": "Mother" },
+            { "value": "Father-in-law", "label": "Father-in-law" },
+            { "value": "Mother-in-law", "label": "Mother-in-law" },
+            { "value": "Uncle", "label": "Uncle" },
+            { "value": "Aunt", "label": "Aunt" },
+            { "value": "Wife", "label": "Wife" },
+            { "value": "Husband", "label": "Husband" },
+            { "value": "Other", "label": "Other" }
+          ] },
+        { "id": "emergency_contact_name", "type": "text", "label": "Emergency contact name" },
+        { "id": "emergency_contact_phone", "type": "text", "label": "Emergency contact phone" },
+        { "id": "scheduling_contact", "type": "select", "label": "Who should we contact for scheduling?",
+          "options": [
+            { "value": "member", "label": "Member" },
+            { "value": "caregiver", "label": "Caregiver" }
+          ] },
+        { "id": "consent_info", "type": "info", "label": "How we use this information",
+          "text": "We collect this information to personalise your care program. It is shared only with your assigned care team on a need-to-know basis: your doctor sees your health answers, your nutritionist sees diet-related answers, and your trainer sees activity-related answers. Your contact details are never shared with clinicians. You can ask us to correct or delete your information at any time." },
+        { "id": "consent", "type": "boolean", "label": "I have read the notice above and consent to PHLOEM collecting and using this information for the member's care", "required": true }
+      ]
+    },
+    {
+      "id": "s2",
+      "title": "Medical History",
+      "fields": [
+        { "id": "conditions", "type": "repeat_group", "label": "Current medical conditions", "required": true,
+          "subfields": [
+            { "id": "condition", "type": "text", "label": "Condition" },
+            { "id": "duration", "type": "text", "label": "How long?" }
+          ] },
+        { "id": "surgeries_injuries", "type": "textarea", "label": "Past surgeries or injuries", "required": true },
+        { "id": "joint_pain", "type": "boolean", "label": "Any joint pain?", "required": true },
+        { "id": "painkillers_needed", "type": "text", "label": "Do they need painkillers for it? Which ones?",
+          "showIf": { "field": "joint_pain", "equals": true } },
+        { "id": "cardiac_eval_12mo", "type": "boolean", "label": "Cardiac evaluation in the past 12 months?", "required": true },
+        { "id": "vision_blurring", "type": "boolean", "label": "Any blurring of vision?", "required": true },
+        { "id": "ophthalmologist_consulted", "type": "text", "label": "Ophthalmologist consulted? Details",
+          "showIf": { "field": "vision_blurring", "equals": true } },
+        { "id": "medications", "type": "repeat_group", "label": "Current medications", "required": true,
+          "subfields": [
+            { "id": "name", "type": "text", "label": "Medicine" },
+            { "id": "dose", "type": "text", "label": "Dose" },
+            { "id": "frequency", "type": "text", "label": "Frequency" }
+          ] },
+        { "id": "seeing_doctor_currently", "type": "boolean", "label": "Currently seeing a doctor?", "required": true },
+        { "id": "alt_medicine", "type": "textarea", "label": "Any alternative medicine (Ayurveda, homeopathy, etc.)?" },
+        { "id": "hospitalizations", "type": "textarea", "label": "Past hospitalizations" },
+        { "id": "allergies", "type": "textarea", "label": "Allergies (medicines or otherwise)" },
+        { "id": "food_allergies", "type": "textarea", "label": "Food allergies or intolerances" },
+        { "id": "breathing_stamina", "type": "text", "label": "Any breathing or stamina issues?", "required": true },
+        { "id": "family_history", "type": "textarea", "label": "Family medical history", "required": true,
+          "hint": "e.g. stroke, heart attack, cancer, sudden deaths" }
+      ]
+    },
+    {
+      "id": "s3",
+      "title": "Lifestyle & Activity",
+      "fields": [
+        { "id": "activity_level", "type": "select", "label": "Overall activity level", "required": true,
+          "options": [
+            { "value": "Sedentary", "label": "Sedentary" },
+            { "value": "Lightly active", "label": "Lightly active" },
+            { "value": "Moderately active", "label": "Moderately active" },
+            { "value": "Very active", "label": "Very active" }
+          ] },
+        { "id": "sitting_hours", "type": "number", "label": "Hours spent sitting per day" },
+        { "id": "current_activities", "type": "textarea", "label": "Current physical activities (walking, yoga, etc.)", "required": true },
+        { "id": "activity_minutes", "type": "number", "label": "Minutes of activity per day" },
+        { "id": "limiting_factors", "type": "textarea", "label": "Anything that limits activity (pain, balance, fear of falls, etc.)", "required": true },
+        { "id": "smoking", "type": "boolean", "label": "Smoking?", "required": true },
+        { "id": "smoking_freq", "type": "text", "label": "How often?",
+          "showIf": { "field": "smoking", "equals": true } },
+        { "id": "alcohol", "type": "boolean", "label": "Alcohol?", "required": true },
+        { "id": "alcohol_freq", "type": "text", "label": "How often?",
+          "showIf": { "field": "alcohol", "equals": true } },
+        { "id": "sleep_hours", "type": "number", "label": "Hours of sleep per night", "required": true },
+        { "id": "activity_symptoms", "type": "multiselect", "label": "Any of these during activity?", "required": true,
+          "options": [
+            { "value": "Exertional chest pain", "label": "Exertional chest pain" },
+            { "value": "Breathlessness", "label": "Breathlessness" },
+            { "value": "Easy fatigue", "label": "Easy fatigue" },
+            { "value": "Worsening aches", "label": "Worsening aches" },
+            { "value": "Joint pain", "label": "Joint pain" },
+            { "value": "Dizziness", "label": "Dizziness" },
+            { "value": "None", "label": "None" }
+          ] }
+      ]
+    },
+    {
+      "id": "s4",
+      "title": "Diet & Nutrition",
+      "fields": [
+        { "id": "meal_routine", "type": "textarea", "label": "Typical daily meal routine", "required": true },
+        { "id": "diet_pref", "type": "multiselect", "label": "Diet preference", "allowOther": true,
+          "options": [
+            { "value": "Veg", "label": "Veg" },
+            { "value": "Non-veg", "label": "Non-veg" },
+            { "value": "Vegan", "label": "Vegan" },
+            { "value": "Keto", "label": "Keto" },
+            { "value": "Low-carb", "label": "Low-carb" },
+            { "value": "Intermittent fasting", "label": "Intermittent fasting" },
+            { "value": "Other", "label": "Other" }
+          ] },
+        { "id": "food_frequency", "type": "frequency_grid", "label": "How often do they eat…",
+          "rows": ["Fruits", "Vegetables", "Dairy", "Protein", "Processed foods", "Sweets"],
+          "cols": ["Daily", "Few times a week", "Rarely", "Never"] },
+        { "id": "water_liters", "type": "number", "label": "Water per day (litres)", "required": true },
+        { "id": "protein_grams", "type": "number", "label": "Approximate protein per day (grams)", "required": true }
+      ]
+    },
+    {
+      "id": "s5",
+      "title": "Goals",
+      "fields": [
+        { "id": "goals", "type": "multiselect", "label": "What are the goals?",
+          "options": [
+            { "value": "Weight loss", "label": "Weight loss" },
+            { "value": "Muscle strength", "label": "Muscle strength" },
+            { "value": "Mobility & flexibility", "label": "Mobility & flexibility" },
+            { "value": "Reduce joint pain", "label": "Reduce joint pain" },
+            { "value": "Cardiovascular health", "label": "Cardiovascular health" },
+            { "value": "Manage chronic condition", "label": "Manage chronic condition" },
+            { "value": "Energy & vitality", "label": "Energy & vitality" },
+            { "value": "Posture & balance", "label": "Posture & balance" },
+            { "value": "Stress relief", "label": "Stress relief" }
+          ] },
+        { "id": "reason", "type": "textarea", "label": "Why are you joining PHLOEM? What matters most?", "required": true },
+        { "id": "trainer_before", "type": "boolean", "label": "Worked with a trainer before?" },
+        { "id": "trainer_experience", "type": "scale_1_10", "label": "How was that experience?",
+          "showIf": { "field": "trainer_before", "equals": true } },
+        { "id": "preferred_slots", "type": "text", "label": "Preferred time slots for sessions", "required": true },
+        { "id": "focus_area", "type": "select", "label": "Preferred focus", "required": true,
+          "options": [
+            { "value": "Strength", "label": "Strength" },
+            { "value": "Mobility", "label": "Mobility" },
+            { "value": "Mix", "label": "Mix" }
+          ] },
+        { "id": "other_info", "type": "textarea", "label": "Anything else we should know?" }
+      ]
+    }
+  ]
+}

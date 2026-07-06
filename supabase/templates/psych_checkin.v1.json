@@ -1,0 +1,95 @@
+{
+  "key": "psych_checkin",
+  "version": 1,
+  "title": "Psychologist — Wellbeing Check-in",
+  "meta": { "confidential": true, "visibility": "admin+psychologist" },
+  "sections": [
+    {
+      "id": "s1",
+      "title": "Consultation",
+      "fields": [
+        { "id": "date", "type": "date", "label": "Consultation date", "required": true },
+        { "id": "mode", "type": "select", "label": "Mode", "required": true,
+          "options": [
+            { "value": "video", "label": "Video" },
+            { "value": "phone", "label": "Phone" },
+            { "value": "in_person", "label": "In person" }
+          ] },
+        { "id": "duration_min", "type": "number", "label": "Duration (minutes)" },
+        { "id": "attendees", "type": "select", "label": "Who attended?", "required": true,
+          "options": [
+            { "value": "member", "label": "Member" },
+            { "value": "member_caregiver", "label": "Member + caregiver" },
+            { "value": "caregiver_only", "label": "Caregiver only" }
+          ] }
+      ]
+    },
+    {
+      "id": "s2",
+      "title": "Session Notes",
+      "fields": [
+        { "id": "session_notes", "type": "textarea", "label": "Session notes (Confidential)", "required": true }
+      ]
+    },
+    {
+      "id": "s3",
+      "title": "WHO-5 Well-Being (last 2 weeks, 0–5 each)",
+      "footnote": "Total ×4 = 0–100, auto-computed and stored as who5_score.",
+      "fields": [
+        { "id": "who5_1", "type": "scale_0_5", "label": "I have felt cheerful and in good spirits", "required": true },
+        { "id": "who5_2", "type": "scale_0_5", "label": "I have felt calm and relaxed", "required": true },
+        { "id": "who5_3", "type": "scale_0_5", "label": "I have felt active and vigorous", "required": true },
+        { "id": "who5_4", "type": "scale_0_5", "label": "I woke up feeling fresh and rested", "required": true },
+        { "id": "who5_5", "type": "scale_0_5", "label": "My daily life has been filled with things that interest me", "required": true }
+      ]
+    },
+    {
+      "id": "s4",
+      "title": "Domains",
+      "fields": [
+        { "id": "mood", "type": "scale_1_5", "label": "Mood" },
+        { "id": "mood_note", "type": "text", "label": "Mood note" },
+        { "id": "sleep_quality", "type": "scale_1_5", "label": "Sleep quality" },
+        { "id": "sleep_quality_note", "type": "text", "label": "Sleep quality note" },
+        { "id": "stress_level", "type": "scale_1_5", "label": "Stress level" },
+        { "id": "stress_level_note", "type": "text", "label": "Stress level note" },
+        { "id": "social_connection", "type": "scale_1_5", "label": "Social connection & loneliness" },
+        { "id": "social_connection_note", "type": "text", "label": "Social connection note" },
+        { "id": "engagement_purpose", "type": "scale_1_5", "label": "Engagement & purpose" },
+        { "id": "engagement_purpose_note", "type": "text", "label": "Engagement & purpose note" },
+        { "id": "motivation_program", "type": "scale_1_5", "label": "Motivation for the program" },
+        { "id": "motivation_program_note", "type": "text", "label": "Motivation note" },
+        { "id": "cognitive_obs", "type": "textarea", "label": "Cognitive observations",
+          "hint": "General observations, non-diagnostic" }
+      ]
+    },
+    {
+      "id": "s5",
+      "title": "Support",
+      "fields": [
+        { "id": "family_involvement", "type": "textarea", "label": "Family involvement" },
+        { "id": "isolation_risk", "type": "select", "label": "Isolation risk",
+          "options": [
+            { "value": "low", "label": "Low" },
+            { "value": "medium", "label": "Medium" },
+            { "value": "high", "label": "High" }
+          ] }
+      ]
+    },
+    {
+      "id": "s6",
+      "title": "Recommendations",
+      "fields": [
+        { "id": "recommendations", "type": "textarea", "label": "Recommendations" },
+        { "id": "escalation", "type": "boolean", "label": "Needs admin attention / earlier follow-up?" },
+        { "id": "escalation_note", "type": "textarea", "label": "Escalation note",
+          "showIf": { "field": "escalation", "equals": true } },
+        { "id": "next_checkin", "type": "select", "label": "Next check-in",
+          "options": [
+            { "value": "routine", "label": "Routine" },
+            { "value": "earlier_advised", "label": "Earlier advised" }
+          ] }
+      ]
+    }
+  ]
+}

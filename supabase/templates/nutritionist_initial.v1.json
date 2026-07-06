@@ -1,0 +1,116 @@
+{
+  "key": "nutritionist_initial",
+  "version": 1,
+  "title": "Nutritionist — Initial Consultation",
+  "sections": [
+    {
+      "id": "s1",
+      "title": "Consultation",
+      "fields": [
+        { "id": "date", "type": "date", "label": "Consultation date", "required": true },
+        { "id": "mode", "type": "select", "label": "Mode", "required": true,
+          "options": [
+            { "value": "video", "label": "Video" },
+            { "value": "phone", "label": "Phone" },
+            { "value": "in_person", "label": "In person" }
+          ] },
+        { "id": "duration_min", "type": "number", "label": "Duration (minutes)" },
+        { "id": "attendees", "type": "select", "label": "Who attended?", "required": true,
+          "options": [
+            { "value": "member", "label": "Member" },
+            { "value": "member_caregiver", "label": "Member + caregiver" },
+            { "value": "caregiver_only", "label": "Caregiver only" }
+          ] }
+      ]
+    },
+    {
+      "id": "s2",
+      "title": "Assessment",
+      "fields": [
+        { "id": "assessment_summary", "type": "textarea", "label": "Your assessment leads the report", "required": true }
+      ]
+    },
+    {
+      "id": "s3",
+      "title": "Current Intake",
+      "fields": [
+        { "id": "typical_day", "type": "textarea", "label": "A typical day of eating", "required": true },
+        { "id": "meals_per_day", "type": "number", "label": "Meals per day" },
+        { "id": "outside_food", "type": "select", "label": "Outside / restaurant food",
+          "options": [
+            { "value": "rarely", "label": "Rarely" },
+            { "value": "weekly", "label": "Weekly" },
+            { "value": "several_times_a_week", "label": "Several times a week" },
+            { "value": "daily", "label": "Daily" }
+          ] },
+        { "id": "appetite", "type": "select", "label": "Appetite",
+          "options": [
+            { "value": "good", "label": "Good" },
+            { "value": "variable", "label": "Variable" },
+            { "value": "poor", "label": "Poor" }
+          ] },
+        { "id": "chew_swallow", "type": "boolean", "label": "Chewing or swallowing difficulty?" },
+        { "id": "chew_note", "type": "text", "label": "Describe the difficulty",
+          "showIf": { "field": "chew_swallow", "equals": true } },
+        { "id": "who_cooks", "type": "text", "label": "Who cooks at home?", "required": true },
+        { "id": "kitchen_help", "type": "text", "label": "Kitchen help available" }
+      ]
+    },
+    {
+      "id": "s4",
+      "title": "Concerns",
+      "fields": [
+        { "id": "concerns", "type": "multiselect", "label": "Nutrition concerns",
+          "options": [
+            { "value": "inadequate_protein", "label": "Inadequate protein" },
+            { "value": "low_hydration", "label": "Low hydration" },
+            { "value": "low_fiber", "label": "Low fiber" },
+            { "value": "undernutrition_risk", "label": "Undernutrition risk" },
+            { "value": "excess_sugar", "label": "Excess sugar" },
+            { "value": "excess_sodium", "label": "Excess sodium" },
+            { "value": "irregular_meals", "label": "Irregular meals" },
+            { "value": "other", "label": "Other" }
+          ] },
+        { "id": "concern_notes", "type": "textarea", "label": "Concern notes" }
+      ]
+    },
+    {
+      "id": "s5",
+      "title": "Doctor's Directives",
+      "fields": [
+        { "id": "directives_info", "type": "info", "label": "Doctor's directives",
+          "text": "The doctor's nutrition directives are shown read-only above this form." },
+        { "id": "directives_ack", "type": "boolean", "label": "I have read and will follow the doctor's directives", "required": true }
+      ]
+    },
+    {
+      "id": "s6",
+      "title": "Plan",
+      "fields": [
+        { "id": "approach", "type": "textarea", "label": "Overall approach", "required": true },
+        { "id": "kcal_target", "type": "number", "label": "Calorie target (kcal/day)" },
+        { "id": "protein_target_g", "type": "number", "label": "Protein target (g/day)" },
+        { "id": "meal_structure", "type": "textarea", "label": "Meal structure", "required": true },
+        { "id": "hydration_l", "type": "number", "label": "Hydration target (litres/day)" },
+        { "id": "texture_mod", "type": "text", "label": "Texture modification" },
+        { "id": "foods_emphasize", "type": "textarea", "label": "Foods to emphasize", "required": true },
+        { "id": "foods_limit", "type": "textarea", "label": "Foods to limit" },
+        { "id": "foods_avoid", "type": "textarea", "label": "Foods to avoid" },
+        { "id": "supplements", "type": "textarea", "label": "Supplements" }
+      ]
+    },
+    {
+      "id": "s7",
+      "title": "Risks & Goals",
+      "fields": [
+        { "id": "adherence_risks", "type": "textarea", "label": "Adherence risks", "required": true },
+        { "id": "month1_goals", "type": "repeat_group", "label": "Month 1 goals", "required": true,
+          "subfields": [
+            { "id": "goal", "type": "text", "label": "Goal" }
+          ] },
+        { "id": "flags_for_team", "type": "textarea", "label": "Flags for the care team" },
+        { "id": "notes", "type": "textarea", "label": "Notes" }
+      ]
+    }
+  ]
+}

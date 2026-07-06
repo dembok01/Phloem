@@ -1,0 +1,106 @@
+{
+  "key": "trainer_initial",
+  "version": 1,
+  "title": "Trainer — Initial Assessment",
+  "meta": { "requires_doctor_clearance": true },
+  "sections": [
+    {
+      "id": "s1",
+      "title": "Consultation",
+      "fields": [
+        { "id": "date", "type": "date", "label": "Consultation date", "required": true },
+        { "id": "mode", "type": "select", "label": "Mode", "required": true,
+          "options": [
+            { "value": "video", "label": "Video" },
+            { "value": "phone", "label": "Phone" },
+            { "value": "in_person", "label": "In person" }
+          ] },
+        { "id": "duration_min", "type": "number", "label": "Duration (minutes)" },
+        { "id": "attendees", "type": "select", "label": "Who attended?", "required": true,
+          "options": [
+            { "value": "member", "label": "Member" },
+            { "value": "member_caregiver", "label": "Member + caregiver" },
+            { "value": "caregiver_only", "label": "Caregiver only" }
+          ] }
+      ]
+    },
+    {
+      "id": "s2",
+      "title": "Assessment",
+      "fields": [
+        { "id": "assessment_summary", "type": "textarea", "label": "Your assessment leads the report", "required": true },
+        { "id": "clearance_info", "type": "info", "label": "Doctor's clearance",
+          "text": "The doctor's exercise clearance is shown read-only above. This form is disabled entirely if clearance is on hold or missing." },
+        { "id": "clearance_ack", "type": "boolean", "label": "I have read the doctor's clearance and restrictions", "required": true }
+      ]
+    },
+    {
+      "id": "s3",
+      "title": "Baseline",
+      "fields": [
+        { "id": "sit_to_stand", "type": "number", "label": "30-sec sit-to-stand (reps)" },
+        { "id": "balance_seconds", "type": "number", "label": "Balance hold (seconds)" },
+        { "id": "tug_seconds", "type": "number", "label": "Timed up-and-go (seconds)" },
+        { "id": "flexibility_notes", "type": "textarea", "label": "Flexibility notes" },
+        { "id": "exertion_tolerance", "type": "select", "label": "Exertion tolerance",
+          "options": [
+            { "value": "can_climb_stairs", "label": "Can climb stairs" },
+            { "value": "can_walk_10_min", "label": "Can walk 10 min" },
+            { "value": "limited", "label": "Limited" },
+            { "value": "very_limited", "label": "Very limited" }
+          ] },
+        { "id": "exertion_note", "type": "text", "label": "Exertion note" }
+      ]
+    },
+    {
+      "id": "s4",
+      "title": "Environment",
+      "fields": [
+        { "id": "training_mode", "type": "select", "label": "Training mode",
+          "options": [
+            { "value": "home_visit", "label": "Home visit" },
+            { "value": "online", "label": "Online" },
+            { "value": "gym", "label": "Gym" }
+          ] },
+        { "id": "space", "type": "text", "label": "Available space" },
+        { "id": "equipment", "type": "text", "label": "Available equipment" },
+        { "id": "hazards", "type": "text", "label": "Hazards (rugs, poor lighting, etc.)" }
+      ]
+    },
+    {
+      "id": "s5",
+      "title": "Prescription",
+      "fields": [
+        { "id": "sessions_per_week", "type": "number", "label": "Sessions per week", "required": true },
+        { "id": "minutes_per_session", "type": "number", "label": "Minutes per session", "required": true },
+        { "id": "supervised_split", "type": "text", "label": "Supervised vs independent split" },
+        { "id": "focus_strength_pct", "type": "number", "label": "Focus: strength (%)" },
+        { "id": "focus_mobility_pct", "type": "number", "label": "Focus: mobility (%)" },
+        { "id": "focus_balance_pct", "type": "number", "label": "Focus: balance (%)" },
+        { "id": "focus_cardio_pct", "type": "number", "label": "Focus: cardio (%)" },
+        { "id": "progression", "type": "textarea", "label": "Progression plan", "required": true }
+      ]
+    },
+    {
+      "id": "s6",
+      "title": "Safety",
+      "fields": [
+        { "id": "excluded_exercises", "type": "textarea", "label": "Excluded exercises" },
+        { "id": "fall_precautions", "type": "textarea", "label": "Fall precautions" },
+        { "id": "stop_signs_educated", "type": "boolean", "label": "Member educated on stop signs?", "required": true }
+      ]
+    },
+    {
+      "id": "s7",
+      "title": "Goals",
+      "fields": [
+        { "id": "month1_goals", "type": "repeat_group", "label": "Month 1 goals", "required": true,
+          "subfields": [
+            { "id": "goal", "type": "text", "label": "Goal" }
+          ] },
+        { "id": "flags_for_team", "type": "textarea", "label": "Flags for the care team" },
+        { "id": "notes", "type": "textarea", "label": "Notes" }
+      ]
+    }
+  ]
+}

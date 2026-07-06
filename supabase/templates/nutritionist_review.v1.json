@@ -1,0 +1,57 @@
+{
+  "key": "nutritionist_review",
+  "version": 1,
+  "title": "Nutritionist — Monthly Review",
+  "sections": [
+    {
+      "id": "s1",
+      "title": "Consultation",
+      "fields": [
+        { "id": "date", "type": "date", "label": "Consultation date", "required": true },
+        { "id": "mode", "type": "select", "label": "Mode", "required": true,
+          "options": [
+            { "value": "video", "label": "Video" },
+            { "value": "phone", "label": "Phone" },
+            { "value": "in_person", "label": "In person" }
+          ] },
+        { "id": "duration_min", "type": "number", "label": "Duration (minutes)" },
+        { "id": "attendees", "type": "select", "label": "Who attended?", "required": true,
+          "options": [
+            { "value": "member", "label": "Member" },
+            { "value": "member_caregiver", "label": "Member + caregiver" },
+            { "value": "caregiver_only", "label": "Caregiver only" }
+          ] }
+      ]
+    },
+    {
+      "id": "s2",
+      "title": "Review",
+      "fields": [
+        { "id": "review_summary", "type": "textarea", "label": "Your assessment leads the report", "required": true },
+        { "id": "adherence_observations", "type": "textarea", "label": "Adherence observations" }
+      ]
+    },
+    {
+      "id": "s3",
+      "title": "Target Updates",
+      "fields": [
+        { "id": "kcal_target", "type": "number", "label": "Calorie target (kcal/day)" },
+        { "id": "protein_target_g", "type": "number", "label": "Protein target (g/day)" },
+        { "id": "hydration_l", "type": "number", "label": "Hydration target (litres/day)" }
+      ]
+    },
+    {
+      "id": "s4",
+      "title": "Plan",
+      "fields": [
+        { "id": "plan_changes", "type": "textarea", "label": "Plan changes", "required": true },
+        { "id": "next_month_goals", "type": "repeat_group", "label": "Next month's goals",
+          "subfields": [
+            { "id": "goal", "type": "text", "label": "Goal" }
+          ] },
+        { "id": "flags_for_team", "type": "textarea", "label": "Flags for the care team" },
+        { "id": "notes", "type": "textarea", "label": "Notes" }
+      ]
+    }
+  ]
+}

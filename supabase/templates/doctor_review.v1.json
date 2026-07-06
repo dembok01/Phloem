@@ -1,0 +1,91 @@
+{
+  "key": "doctor_review",
+  "version": 1,
+  "title": "Doctor — Monthly Review",
+  "sections": [
+    {
+      "id": "s1",
+      "title": "Consultation",
+      "fields": [
+        { "id": "date", "type": "date", "label": "Consultation date", "required": true },
+        { "id": "mode", "type": "select", "label": "Mode", "required": true,
+          "options": [
+            { "value": "video", "label": "Video" },
+            { "value": "phone", "label": "Phone" },
+            { "value": "in_person", "label": "In person" }
+          ] },
+        { "id": "duration_min", "type": "number", "label": "Duration (minutes)" },
+        { "id": "attendees", "type": "select", "label": "Who attended?", "required": true,
+          "options": [
+            { "value": "member", "label": "Member" },
+            { "value": "member_caregiver", "label": "Member + caregiver" },
+            { "value": "caregiver_only", "label": "Caregiver only" }
+          ] }
+      ]
+    },
+    {
+      "id": "s2",
+      "title": "Review",
+      "fields": [
+        { "id": "review_summary", "type": "textarea", "label": "Your assessment leads the report", "required": true },
+        { "id": "condition_changes", "type": "textarea", "label": "Changes in conditions" },
+        { "id": "med_changes", "type": "repeat_group", "label": "Medication changes",
+          "subfields": [
+            { "id": "drug", "type": "text", "label": "Drug" },
+            { "id": "dose", "type": "text", "label": "Dose" },
+            { "id": "frequency", "type": "text", "label": "Frequency" },
+            { "id": "action", "type": "select", "label": "Action",
+              "options": [
+                { "value": "continue", "label": "Continue" },
+                { "value": "modify", "label": "Modify" },
+                { "value": "stop", "label": "Stop" },
+                { "value": "flag", "label": "Flag" }
+              ] },
+            { "id": "note", "type": "text", "label": "Note" }
+          ] },
+        { "id": "performance_response", "type": "textarea",
+          "label": "Response to this month's performance report", "required": true }
+      ]
+    },
+    {
+      "id": "s3",
+      "title": "Clearance & Directives",
+      "fields": [
+        { "id": "clearance_change", "type": "select", "label": "Exercise clearance",
+          "options": [
+            { "value": "unchanged", "label": "Unchanged" },
+            { "value": "updated", "label": "Updated" }
+          ] },
+        { "id": "clearance", "type": "select", "label": "New clearance",
+          "showIf": { "field": "clearance_change", "equals": "updated" },
+          "options": [
+            { "value": "cleared", "label": "Cleared" },
+            { "value": "cleared_with_restrictions", "label": "Cleared with restrictions" },
+            { "value": "on_hold", "label": "On hold" }
+          ] },
+        { "id": "intensity_ceiling", "type": "text", "label": "Intensity ceiling",
+          "showIf": { "field": "clearance", "equals": "cleared_with_restrictions" } },
+        { "id": "avoid_movements", "type": "textarea", "label": "Movements to avoid",
+          "showIf": { "field": "clearance", "equals": "cleared_with_restrictions" } },
+        { "id": "supervision_required", "type": "boolean", "label": "Supervision required?",
+          "showIf": { "field": "clearance", "equals": "cleared_with_restrictions" } },
+        { "id": "stop_signs", "type": "textarea", "label": "Stop signs (when to stop exercising)",
+          "showIf": { "field": "clearance", "equals": "cleared_with_restrictions" } },
+        { "id": "directive_changes", "type": "textarea", "label": "Changes to nutrition/monitoring directives" }
+      ]
+    },
+    {
+      "id": "s4",
+      "title": "Plan",
+      "fields": [
+        { "id": "next_month_goals", "type": "repeat_group", "label": "Next month's goals",
+          "subfields": [
+            { "id": "goal", "type": "text", "label": "Goal" }
+          ] },
+        { "id": "team_flags", "type": "textarea", "label": "Anything the care team must know",
+          "hint": "Propagated verbatim to nutritionist & trainer views" },
+        { "id": "notes", "type": "textarea", "label": "Notes" }
+      ]
+    }
+  ]
+}

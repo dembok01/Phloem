@@ -1,0 +1,56 @@
+{
+  "key": "trainer_review",
+  "version": 1,
+  "title": "Trainer — Monthly Review",
+  "sections": [
+    {
+      "id": "s1",
+      "title": "Consultation",
+      "fields": [
+        { "id": "date", "type": "date", "label": "Consultation date", "required": true },
+        { "id": "mode", "type": "select", "label": "Mode", "required": true,
+          "options": [
+            { "value": "video", "label": "Video" },
+            { "value": "phone", "label": "Phone" },
+            { "value": "in_person", "label": "In person" }
+          ] },
+        { "id": "duration_min", "type": "number", "label": "Duration (minutes)" },
+        { "id": "attendees", "type": "select", "label": "Who attended?", "required": true,
+          "options": [
+            { "value": "member", "label": "Member" },
+            { "value": "member_caregiver", "label": "Member + caregiver" },
+            { "value": "caregiver_only", "label": "Caregiver only" }
+          ] }
+      ]
+    },
+    {
+      "id": "s2",
+      "title": "Review",
+      "fields": [
+        { "id": "review_summary", "type": "textarea", "label": "Your assessment leads the report", "required": true },
+        { "id": "program_adjustments", "type": "textarea", "label": "Program adjustments", "required": true }
+      ]
+    },
+    {
+      "id": "s3",
+      "title": "Re-assessment",
+      "fields": [
+        { "id": "sit_to_stand", "type": "number", "label": "30-sec sit-to-stand (reps)" },
+        { "id": "balance_seconds", "type": "number", "label": "Balance hold (seconds)" },
+        { "id": "tug_seconds", "type": "number", "label": "Timed up-and-go (seconds)" }
+      ]
+    },
+    {
+      "id": "s4",
+      "title": "Plan",
+      "fields": [
+        { "id": "next_month_goals", "type": "repeat_group", "label": "Next month's goals",
+          "subfields": [
+            { "id": "goal", "type": "text", "label": "Goal" }
+          ] },
+        { "id": "flags_for_team", "type": "textarea", "label": "Flags for the care team" },
+        { "id": "notes", "type": "textarea", "label": "Notes" }
+      ]
+    }
+  ]
+}

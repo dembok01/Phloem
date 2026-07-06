@@ -1,0 +1,18 @@
+{
+  "key": "feedback_training", "version": 1, "title": "Monthly Training Feedback",
+  "sections": [
+    { "id": "s1", "title": "This Month", "fields": [
+      { "id": "sessions_planned",   "type": "number",   "label": "Sessions planned", "required": true },
+      { "id": "sessions_completed", "type": "number",   "label": "Sessions completed", "required": true },
+      { "id": "adherence",          "type": "scale_1_5","label": "Adherence & effort", "required": true },
+      { "id": "progress_by_area",   "type": "textarea", "label": "Progress vs this month's goals (per focus area)", "required": true },
+      { "id": "sit_to_stand",       "type": "number",   "label": "Re-assessment: 30-sec sit-to-stand (reps)" },
+      { "id": "balance_seconds",    "type": "number",   "label": "Re-assessment: balance hold (seconds)" },
+      { "id": "adverse_events",     "type": "boolean",  "label": "Any pain, discomfort, falls or near-falls?", "required": true },
+      { "id": "adverse_detail",     "type": "textarea", "label": "Describe (include falls/near-falls explicitly)", "required": true, "showIf": { "field": "adverse_events", "equals": true } },
+      { "id": "modifications",      "type": "textarea", "label": "Plan modifications made / proposed" },
+      { "id": "doctor_flags",       "type": "textarea", "label": "Anything the doctor should know before the review call" },
+      { "id": "next_focus",         "type": "textarea", "label": "Next month's focus", "required": true }
+    ]}
+  ]
+}

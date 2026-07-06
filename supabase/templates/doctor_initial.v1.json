@@ -1,0 +1,188 @@
+{
+  "key": "doctor_initial",
+  "version": 1,
+  "title": "Doctor — Initial Consultation",
+  "sections": [
+    {
+      "id": "s1",
+      "title": "Consultation",
+      "fields": [
+        { "id": "date", "type": "date", "label": "Consultation date", "required": true },
+        { "id": "mode", "type": "select", "label": "Mode", "required": true,
+          "options": [
+            { "value": "video", "label": "Video" },
+            { "value": "phone", "label": "Phone" },
+            { "value": "in_person", "label": "In person" }
+          ] },
+        { "id": "duration_min", "type": "number", "label": "Duration (minutes)" },
+        { "id": "attendees", "type": "select", "label": "Who attended?", "required": true,
+          "options": [
+            { "value": "member", "label": "Member" },
+            { "value": "member_caregiver", "label": "Member + caregiver" },
+            { "value": "caregiver_only", "label": "Caregiver only" }
+          ] }
+      ]
+    },
+    {
+      "id": "s2",
+      "title": "Clinical Summary",
+      "fields": [
+        { "id": "clinical_summary", "type": "textarea", "label": "Your assessment leads the report", "required": true }
+      ]
+    },
+    {
+      "id": "s3",
+      "title": "Problem List",
+      "fields": [
+        { "id": "problem_list", "type": "repeat_group", "label": "Problems",
+          "subfields": [
+            { "id": "condition", "type": "text", "label": "Condition" },
+            { "id": "duration", "type": "text", "label": "Duration" },
+            { "id": "control", "type": "select", "label": "Control",
+              "options": [
+                { "value": "well", "label": "Well controlled" },
+                { "value": "partially", "label": "Partially controlled" },
+                { "value": "poorly", "label": "Poorly controlled" }
+              ] },
+            { "id": "specialist", "type": "boolean", "label": "Under a specialist?" }
+          ] }
+      ]
+    },
+    {
+      "id": "s4",
+      "title": "Medications",
+      "fields": [
+        { "id": "med_recon", "type": "repeat_group", "label": "Medication reconciliation",
+          "subfields": [
+            { "id": "drug", "type": "text", "label": "Drug" },
+            { "id": "dose", "type": "text", "label": "Dose" },
+            { "id": "frequency", "type": "text", "label": "Frequency" },
+            { "id": "action", "type": "select", "label": "Action",
+              "options": [
+                { "value": "continue", "label": "Continue" },
+                { "value": "modify", "label": "Modify" },
+                { "value": "stop", "label": "Stop" },
+                { "value": "flag", "label": "Flag" }
+              ] },
+            { "id": "note", "type": "text", "label": "Note" }
+          ] },
+        { "id": "polypharmacy_concern", "type": "boolean", "label": "Polypharmacy concern?" },
+        { "id": "polypharmacy_note", "type": "textarea", "label": "Polypharmacy note",
+          "showIf": { "field": "polypharmacy_concern", "equals": true } },
+        { "id": "adherence_concerns", "type": "text", "label": "Medication adherence concerns" }
+      ]
+    },
+    {
+      "id": "s5",
+      "title": "Vitals & Investigations",
+      "fields": [
+        { "id": "bp", "type": "text", "label": "Blood pressure" },
+        { "id": "pulse", "type": "number", "label": "Pulse" },
+        { "id": "weight_kg", "type": "number", "label": "Weight (kg)" },
+        { "id": "sugar_hba1c", "type": "text", "label": "Sugar / HbA1c" },
+        { "id": "recent_labs", "type": "textarea", "label": "Recent labs" },
+        { "id": "tests_advised", "type": "textarea", "label": "Tests advised" }
+      ]
+    },
+    {
+      "id": "s6",
+      "title": "Function & Safety",
+      "fields": [
+        { "id": "mobility_aid", "type": "boolean", "label": "Uses a mobility aid?" },
+        { "id": "mobility_aid_detail", "type": "text", "label": "Which aid?",
+          "showIf": { "field": "mobility_aid", "equals": true } },
+        { "id": "falls_12mo", "type": "number", "label": "Falls in the past 12 months" },
+        { "id": "fear_of_falling", "type": "boolean", "label": "Fear of falling?" },
+        { "id": "adl", "type": "select", "label": "Activities of daily living",
+          "options": [
+            { "value": "independent", "label": "Independent" },
+            { "value": "needs_some_help", "label": "Needs some help" },
+            { "value": "dependent", "label": "Dependent" }
+          ] },
+        { "id": "sensory_issues", "type": "text", "label": "Sensory issues (vision, hearing)" }
+      ]
+    },
+    {
+      "id": "s7",
+      "title": "Exercise Clearance",
+      "fields": [
+        { "id": "clearance", "type": "select", "label": "Clearance", "required": true,
+          "options": [
+            { "value": "cleared", "label": "Cleared" },
+            { "value": "cleared_with_restrictions", "label": "Cleared with restrictions" },
+            { "value": "on_hold", "label": "On hold" }
+          ] },
+        { "id": "intensity_ceiling", "type": "text", "label": "Intensity ceiling",
+          "showIf": { "field": "clearance", "equals": "cleared_with_restrictions" } },
+        { "id": "avoid_movements", "type": "textarea", "label": "Movements to avoid",
+          "showIf": { "field": "clearance", "equals": "cleared_with_restrictions" } },
+        { "id": "supervision_required", "type": "boolean", "label": "Supervision required?",
+          "showIf": { "field": "clearance", "equals": "cleared_with_restrictions" } },
+        { "id": "stop_signs", "type": "textarea", "label": "Stop signs (when to stop exercising)",
+          "showIf": { "field": "clearance", "equals": "cleared_with_restrictions" } }
+      ]
+    },
+    {
+      "id": "s8",
+      "title": "Nutrition Directives",
+      "fields": [
+        { "id": "diet_restrictions", "type": "multiselect", "label": "Diet restrictions",
+          "options": [
+            { "value": "diabetic", "label": "Diabetic" },
+            { "value": "low_sodium", "label": "Low sodium" },
+            { "value": "renal", "label": "Renal" },
+            { "value": "low_fat", "label": "Low fat" },
+            { "value": "fluid_restriction", "label": "Fluid restriction" },
+            { "value": "texture_modified", "label": "Texture-modified" },
+            { "value": "none", "label": "None" }
+          ] },
+        { "id": "supplement_guidance", "type": "textarea", "label": "Supplement guidance" },
+        { "id": "weight_direction", "type": "select", "label": "Weight direction",
+          "options": [
+            { "value": "lose", "label": "Lose" },
+            { "value": "maintain", "label": "Maintain" },
+            { "value": "gain", "label": "Gain" }
+          ] }
+      ]
+    },
+    {
+      "id": "s9",
+      "title": "Monitoring",
+      "fields": [
+        { "id": "monitoring", "type": "repeat_group", "label": "Monitoring plan",
+          "subfields": [
+            { "id": "parameter", "type": "text", "label": "Parameter" },
+            { "id": "frequency", "type": "text", "label": "Frequency" },
+            { "id": "target", "type": "text", "label": "Target" }
+          ] }
+      ]
+    },
+    {
+      "id": "s10",
+      "title": "Risk & Plan",
+      "fields": [
+        { "id": "risk_level", "type": "select", "label": "Risk level", "required": true,
+          "options": [
+            { "value": "low", "label": "Low" },
+            { "value": "moderate", "label": "Moderate" },
+            { "value": "high", "label": "High" }
+          ] },
+        { "id": "risk_rationale", "type": "textarea", "label": "Risk rationale", "required": true },
+        { "id": "referrals", "type": "textarea", "label": "Referrals" },
+        { "id": "goals_3mo", "type": "repeat_group", "label": "3-month goals", "maxItems": 3,
+          "subfields": [
+            { "id": "goal", "type": "text", "label": "Goal" }
+          ] }
+      ]
+    },
+    {
+      "id": "s11",
+      "title": "Team Flags",
+      "fields": [
+        { "id": "team_flags", "type": "textarea", "label": "Anything the care team must know",
+          "hint": "Propagated verbatim to nutritionist & trainer views" },
+        { "id": "notes", "type": "textarea", "label": "Notes" }
+      ]
+    }
+  ]
+}
