@@ -14,6 +14,8 @@
 import { createClient } from "@supabase/supabase-js";
 import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
+import type { RedFlag } from "@/lib/red-flags";
+import { buildOnboardingSummary } from "@/lib/reports/build/onboarding-summary";
 
 process.loadEnvFile(".env.local");
 
@@ -263,13 +265,12 @@ async function main(): Promise<void> {
       id: ONBOARDING_REPORT_1,
       member_id: MEMBER_1,
       type: "onboarding_summary",
-      content: {
-        title: "Onboarding Health Summary — Meera Krishnan",
-        generated_at: oneDayAgo,
-        cycle: null,
-        sections: [],
-        red_flags: member1RedFlags,
-      },
+      content: buildOnboardingSummary({
+        memberName: "Meera Krishnan",
+        answers: member1Answers,
+        redFlags: member1RedFlags as RedFlag[],
+        generatedAt: oneDayAgo,
+      }),
       created_by: users.caregiver,
     }, { onConflict: "id" })).error;
     if (error) throw new Error(`onboarding report: ${error.message}`);

@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import type { Json } from "@/lib/supabase/database.types";
+import { computeRedFlags } from "@/lib/red-flags";
+import { buildOnboardingSummary } from "@/lib/reports/build/onboarding-summary";
 
 const uuid = z.string().uuid();
 
@@ -63,9 +65,23 @@ export async function submitOnboarding(input: {
     .eq("member_id", member_id);
   if (saveErr) return { error: "Could not save your answers. Please try again." };
 
+  // Build the §8 onboarding_summary content (contacts are never read here — the
+  // builder uses demographics/health only) and pass it to the RPC, which stays
+  // the sole atomic writer. Red flags mirror the DB engine (unit-tested parity).
+  const memberName =
+    typeof answers.full_name === "string" && answers.full_name.trim() !== ""
+      ? answers.full_name.trim()
+      : "Member";
+  const content = buildOnboardingSummary({
+    memberName,
+    answers,
+    redFlags: computeRedFlags(answers),
+  });
+
   const { error: rpcErr } = await supabase.rpc("submit_onboarding", {
     p_member: member_id,
     p_response: response_id,
+    p_report_content: content as unknown as Json,
   });
   if (rpcErr) return { error: friendly(rpcErr.message) };
 
