@@ -1,7 +1,7 @@
 import { NavTabs, type NavItem } from "@/components/nav-tabs";
 
 const ADMIN_TABS: NavItem[] = [
-  { href: "/admin", label: "Overview" },
+  { href: "/admin", label: "Overview", exact: true },
   { href: "/admin/members", label: "Members" },
   { href: "/admin/care-team", label: "Care team" },
   { href: "/admin/invites", label: "Invites" },

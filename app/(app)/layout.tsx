@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { NotificationBell } from "@/components/notification-bell";
 import { createClient } from "@/lib/supabase/server";
 import { logout } from "@/app/(auth)/login/actions";
 
@@ -23,6 +24,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <header className="flex items-center justify-between border-b bg-background px-6 py-3">
         <Image src="/phloem-logo.png" alt="PHLOEM" width={120} height={40} className="h-9 w-auto" />
         <div className="flex items-center gap-4">
+          <NotificationBell />
           <span>
             {profile.full_name}
             <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-sm capitalize text-muted-foreground">

@@ -4,9 +4,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
-export type NavItem = { href: string; label: string };
+export type NavItem = { href: string; label: string; exact?: boolean };
 
-/** Horizontal section sub-nav with active-link highlighting (§10 shells). */
+/** Horizontal section sub-nav with active-link highlighting (§10 shells).
+ * `exact` items (typically the index tab) match only their own path, not children. */
 export function NavTabs({ items }: { items: NavItem[] }) {
   const pathname = usePathname();
   return (
@@ -14,8 +15,8 @@ export function NavTabs({ items }: { items: NavItem[] }) {
       {items.map((item) => {
         const active =
           pathname === item.href ||
-          (item.href !== "/admin" && pathname.startsWith(item.href + "/")) ||
-          pathname.startsWith(item.href + "?");
+          pathname.startsWith(item.href + "?") ||
+          (!item.exact && pathname.startsWith(item.href + "/"));
         return (
           <Link
             key={item.href}
