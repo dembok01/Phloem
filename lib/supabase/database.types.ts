@@ -796,6 +796,13 @@ export type Database = {
         Returns: string
       }
       resume_program: { Args: { p_package: string }; Returns: undefined }
+      set_account_status: {
+        Args: {
+          p_status: Database["public"]["Enums"]["account_status"]
+          p_user_id: string
+        }
+        Returns: undefined
+      }
       set_consultation_schedule: {
         Args: {
           p_at: string

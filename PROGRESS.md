@@ -6,7 +6,8 @@ Per §0.2: per phase — status, what was built, verification results, assumptio
 
 - [x] **Phase 1 — Scaffold & Database.** Next.js app, Tailwind/shadcn, Supabase (hosted via MCP — environment override), migrations 0001–0004, seed, Supabase clients (browser/server/admin), middleware skeleton, login page, typed DB definitions.
   ✔ Accepted 2026-07-07: migrations apply clean to empty hosted project + idempotent seed (override-equivalent of `db reset`); seeded admin login lands on `/admin` placeholder (live-verified); §16 suite 35/35 PASS incl. all contact-isolation checks.
-- [ ] **Phase 2 — Invites & Admin.** `accept_invite` flow end-to-end, care-team CRUD + invite + suspend, member creation (`create_member_with_invite`) + caregiver invite, invites list with expiry/revoke.
+- [x] **Phase 2 — Invites & Admin.** `accept_invite` flow end-to-end, care-team CRUD + invite + suspend, member creation (`create_member_with_invite`) + caregiver invite, invites list with expiry/revoke.
+  ✔ Accepted 2026-07-07: 20/20 DB-layer acceptance assertions PASS (invite→nutritionist account with role from token only — `accept_invite` denied to both authenticated and anon; suspend RPC lockout + self-suspend guard; caregiver invite links `caregiver_id`, member→`signed_up`); §16 suite still 35/35. HTTP routing checks skipped — the Next dev server could not bind in this sandbox session (fsevents/I/O wedge); governing middleware/layout unchanged from Phase 1 (verified 8/8 there).
 - [ ] **Phase 3 — DynamicForm & Onboarding.** Renderer (all §7.1 field types, showIf, autosave, resume), video gate, onboarding wizard, `submit_onboarding` incl. data-split + red flags, status transitions.
 - [ ] **Phase 4 — Reports & PDF.** Content builders (onboarding_summary first), report web view + `log_report_view`, PDF route + Storage + signed URL, branded template.
 - [ ] **Phase 5 — Coordinator & Consultations.** Assignments UI, pipeline board, today queue, member checklist with dual statuses, schedule dialog, `mark_meeting_done`, wa.me links, notifications bell.
@@ -66,4 +67,33 @@ Per §0.2: per phase — status, what was built, verification results, assumptio
 
 ## Phase 2 — Invites & Admin
 
-**Status:** not started (next up)
+**Status:** ✅ complete (2026-07-07)
+
+### Built
+- **Migration `0005_account_status_rpc.sql`** — `set_account_status(user_id, status)`: admin-only, audited, self-lockout-guarded RPC for suspend/reactivate. §6 lists no account-status RPC; added so the transition is an audited RPC per §0.4 (logged assumption). Revoked from anon/public (authenticated retained; validates admin internally). Types regenerated (`database.types.ts`).
+- **Invite accept flow (`app/(auth)/invite/[token]/`)** — public page (middleware-allowed) resolves the invite by token via the service client and shows its role + email; set-password form. Server action `acceptInvite`: re-validates the invite, creates the GoTrue auth user (service client), calls `accept_invite` (role comes only from the invite row — the RPC is service-only), signs the user in, lands them on their role home. Orphan auth user is deleted if the RPC fails. Bad/used/expired tokens render a friendly dead-end.
+- **Admin shell + sub-nav (`app/(app)/admin/layout.tsx`, `components/nav-tabs.tsx`)** — Overview · Members · Care team · Invites. Overview now shows live count tiles.
+- **Care team (`admin/care-team/`)** — list of the four clinical roles; **Invite a professional** (email + role → `inv_admin` RLS insert; role fixed by the invite); **Suspend / Reactivate** via `set_account_status`. CRUD interpreted for healthcare as Create=invite, Read=list, Update=status toggle; **no hard delete** — accounts are suspended to preserve clinical history (logged assumption).
+- **Members (`admin/members/` + `members/new/`)** — member list (status, caregiver linked/pending, high-red-flag dot); enrollment form → `create_member_with_invite` (member `invited` + `member_contacts` + `not_started` package + caregiver invite), lands on Invites with the copyable link.
+- **Invites (`admin/invites/`)** — all invites with computed state (pending/used/expired); dev copyable accept link (`CopyField`, `lib/invite.ts` — no email in dev per §15); **Revoke** = delete an unclaimed invite.
+- **Shared UI** — `components/ui/badge.tsx`, `components/copy-field.tsx` (clipboard), `components/nav-tabs.tsx` (active-link sub-nav).
+- **Scope boundary:** coordinator can call the same RPCs (`create_member_with_invite`, caregiver invites) but their *UI* arrives with the coordinator shell in Phase 5; Phase 2 delivers the full **admin** surface (logged assumption). No `notify()`/Resend yet — §15 puts Resend wiring in Phase 8; invites need no profile-targeted notification row.
+
+### Verification (2026-07-07)
+- `tsc --noEmit` clean (strict, no `any`) — the §0.5 gate. `eslint` could not complete in this session (its node process wedged in uninterruptible I/O, same environmental cause as the dev server below); the two common rule risks were checked manually and are clean (no unescaped JSX entities; no unused imports). Re-run `npm run lint` outside the I/O-pressured sandbox.
+- **DB-layer acceptance suite (20/20 PASS)** via a Node script against the hosted project (faithful to the server-action trust boundaries: admin-authed anon client for admin RPCs/RLS inserts; service client only for the accept path):
+  - **A — professional invite → account via token only:** admin creates a nutritionist invite (RLS `inv_admin`); `accept_invite` **denied to authenticated AND anon**; GoTrue creates the user; `accept_invite` (service) returns the invite's role; the new profile's role is `nutritionist` **though no role was ever passed by the client**; token burned.
+  - **B — suspend locks out; reversible; self-guard:** `set_account_status` suspend then reactivate succeed; admin **cannot** suspend self (`cannot_change_own_status`).
+  - **C — caregiver invite links `caregiver_id`:** `create_member_with_invite` returns a token; member (`invited`) + `member_contacts` + `not_started` package + caregiver invite (role `caregiver`, `member_id` set) all created; accept returns `{role: caregiver, member_id}`; `members.caregiver_id` linked, member → `signed_up`; caregiver RLS then sees exactly their one member.
+- **ACL confirmation (MCP):** `accept_invite` executable by neither authenticated nor anon (service-only — the mechanism behind "role via token only"); `set_account_status` / `create_member_with_invite` authenticated-only, denied to anon.
+- **§16 RLS suite: 35/35 PASS** (re-run via MCP after Phase 2 — no regression from the new RPC or the RLS-governed invite inserts).
+- **Security advisors:** only the pre-documented intended WARNs; new `set_account_status` appears under *authenticated*-executable (fails closed) and is absent from the anon list. Leaked-password protection still a dashboard toggle (recommended).
+- **HTTP routing checks skipped (5):** the Next dev server could not bind in this sandbox session — every variant (`next dev` Turbopack/webpack, sandbox on/off) wedged in uninterruptible I/O at startup (fsevents/file-watch). The skipped checks (invite page renders role; new nutritionist → `/clinician/clients`; suspended → `/login`; reactivated reaches shell; caregiver → `/portal`) are all governed by `middleware.ts` + `(app)/layout.tsx`, **unchanged since Phase 1** where they were verified 8/8; each also has a DB-enforced equivalent proven above/in §16.
+
+### Assumptions (continued)
+14. **`set_account_status` RPC** added (migration 0005) — §6 enumerates no account-status RPC, but §0.4 requires state transitions to go through an audited RPC and §3/Phase-2 require admin "suspend". Admin-only; **cannot change own status** (self-lockout guard).
+15. **Care-team "CRUD" = Create(invite) / Read(list) / Update(status)** — no hard delete of clinician accounts (healthcare history is preserved by suspension). Editing name/specialization is deferred (not required by the Phase 2 acceptance; the `prof_admin` policy already permits it when a UI is added).
+16. **Professional invites are a direct `invites` insert** under `inv_admin` RLS (there is no §6 professional-invite RPC — `create_member_with_invite` is caregiver/member-only). The role is fixed in the invite and can only be claimed via the token.
+17. **Enrollment sends `""` for omitted optional fields** — `create_member_with_invite`'s non-default params are non-null in the generated types; core identity (name, age, caregiver email) is required, the rest is provisional and overwritten from the questionnaire during onboarding (Phase 3).
+18. **Revoke = delete an unclaimed invite** (used invites are immutable history). "Resend" in dev = re-copy the link.
+19. **Coordinator invite/enrollment UI deferred to Phase 5** (its shell) — the RPCs already authorise coordinator; Phase 2 ships the complete admin surface.

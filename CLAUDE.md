@@ -65,7 +65,7 @@ Anyone who cannot see the wellbeing report sees only *"Wellbeing check-in comple
 
 ## Current phase
 
-**Phase 1 complete → Phase 2 — Invites & Admin is next** (see `PROGRESS.md` for live status). Phases (§15): 1 Scaffold & DB → 2 Invites & Admin → 3 DynamicForm & Onboarding → 4 Reports & PDF → 5 Coordinator & Consultations → 6 Clinician Shell & Clinical Forms → 7 Cycle Engine → 8 Portal & Polish.
+**Phase 2 complete → Phase 3 — DynamicForm & Onboarding is next** (see `PROGRESS.md` for live status). Phases (§15): 1 Scaffold & DB → 2 Invites & Admin → 3 DynamicForm & Onboarding → 4 Reports & PDF → 5 Coordinator & Consultations → 6 Clinician Shell & Clinical Forms → 7 Cycle Engine → 8 Portal & Polish.
 
 ## Dev commands
 
