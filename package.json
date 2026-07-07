@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "seed": "tsx scripts/seed.ts",
+    "test:unit": "tsx --test lib/red-flags.test.ts",
     "test:rls": "tsx scripts/test-rls.ts"
   },
   "dependencies": {
