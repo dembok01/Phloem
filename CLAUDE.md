@@ -65,10 +65,11 @@ Anyone who cannot see the wellbeing report sees only *"Wellbeing check-in comple
 
 ## Current phase
 
-**Phase 6 complete → Phase 7 — Cycle Engine is next** (see `PROGRESS.md` for live status). Phases (§15): 1 Scaffold & DB → 2 Invites & Admin → 3 DynamicForm & Onboarding → 4 Reports & PDF → 5 Coordinator & Consultations → 6 Clinician Shell & Clinical Forms → 7 Cycle Engine → 8 Portal & Polish.
+**Phase 7 complete → Phase 8 — Portal & Polish is next** (see `PROGRESS.md` for live status). Phases (§15): 1 Scaffold & DB → 2 Invites & Admin → 3 DynamicForm & Onboarding → 4 Reports & PDF → 5 Coordinator & Consultations → 6 Clinician Shell & Clinical Forms → 7 Cycle Engine → 8 Portal & Polish.
 
 ## Dev commands
 
 - `npm run dev` — app on http://localhost:3000
 - `npm run seed` — idempotent seed against the hosted project (§14)
 - `npm run test:rls` — §16 security test suite against the hosted project (run at end of Phases 1, 4, 6, 7)
+- `npm run cron:dev [YYYY-MM-DD]` — fire the §9 daily cron locally (Bearer CRON_SECRET); optional date = dev-only time-travel (`?today=`)

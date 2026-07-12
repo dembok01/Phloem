@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AlertTriangle, ArrowLeft, CheckCircle2, Lock } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
@@ -10,6 +9,7 @@ import { formatDateTimeIST } from "@/lib/datetime";
 import { hasHighFlag, parseRedFlags } from "@/lib/red-flags";
 import { humanize } from "@/lib/reports/build/helpers";
 import { ClinicalForm } from "@/components/forms/ClinicalForm";
+import { FeedbackForm } from "@/components/forms/FeedbackForm";
 import type { FormTemplateSchema, FormValues } from "@/components/forms/types";
 
 type CareRole = Database["public"]["Enums"]["care_role"];
@@ -28,6 +28,7 @@ const TABS: Record<CareRole, [string, string][]> = {
     ["onboarding", "Onboarding (diet)"],
     ["directives", "Doctor's directives"],
     ["form", "Consult form"],
+    ["feedback", "Monthly feedback"],
     ["reports", "Reports"],
   ],
   trainer: [
@@ -35,6 +36,7 @@ const TABS: Record<CareRole, [string, string][]> = {
     ["onboarding", "Onboarding (activity)"],
     ["clearance", "Doctor's clearance"],
     ["form", "Consult form"],
+    ["feedback", "Monthly feedback"],
     ["reports", "Reports"],
   ],
   psychologist: [
@@ -122,6 +124,9 @@ export default async function ClinicianClientPage({
       {activeTab === "clearance" ? <ClearancePanel supabase={supabase} memberId={id} /> : null}
       {activeTab === "form" ? (
         <FormPanel supabase={supabase} role={role} memberId={id} userId={user.id} />
+      ) : null}
+      {activeTab === "feedback" ? (
+        <FeedbackPanel supabase={supabase} role={role} memberId={id} userId={user.id} />
       ) : null}
       {activeTab === "reports" ? <ReportsPanel supabase={supabase} memberId={id} /> : null}
     </section>
@@ -487,6 +492,73 @@ async function FormPanel({
       initialAnswers={initialAnswers}
       locked={locked}
       lockedReason={lockedReason}
+    />
+  );
+}
+
+// §9 monthly feedback (nutritionist/trainer). The draft is created by the cron at
+// T-3; this panel keys entirely off that draft (readable via fr_own_clinical) and
+// submits via submit_feedback (→ performance report). It deliberately does NOT read
+// cycles/packages — clinicians have no packages RLS policy, and the draft's presence
+// already signals that feedback is due for the current cycle.
+async function FeedbackPanel({
+  supabase,
+  role,
+  memberId,
+  userId,
+}: {
+  supabase: SB;
+  role: CareRole;
+  memberId: string;
+  userId: string;
+}) {
+  const key = role === "nutritionist" ? "feedback_nutrition" : "feedback_training";
+  const emptyMsg = (msg: string) => (
+    <Card>
+      <CardContent className="py-8 text-center text-sm text-muted-foreground">{msg}</CardContent>
+    </Card>
+  );
+
+  const { data: template } = await supabase
+    .from("form_templates")
+    .select("id, schema")
+    .eq("key", key)
+    .eq("active", true)
+    .order("version", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!template) return emptyMsg("Feedback template missing.");
+
+  // The cron-created draft for the current cycle (fr_own_clinical: respondent = self).
+  const { data: draft } = await supabase
+    .from("form_responses")
+    .select("id, answers, submitted_at")
+    .eq("member_id", memberId)
+    .eq("template_id", template.id)
+    .eq("respondent_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!draft) {
+    return emptyMsg("No monthly feedback is due yet — it opens three days before the cycle ends.");
+  }
+  if (draft.submitted_at) {
+    return (
+      <Card>
+        <CardContent className="flex items-center gap-2 py-8 text-sm text-emerald-700 dark:text-emerald-400">
+          <CheckCircle2 className="size-5" />
+          Your feedback is submitted. The performance report compiles once both are in.
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <FeedbackForm
+      template={template.schema as unknown as FormTemplateSchema}
+      responseId={draft.id}
+      initialAnswers={(draft.answers as unknown as FormValues | null) ?? {}}
     />
   );
 }

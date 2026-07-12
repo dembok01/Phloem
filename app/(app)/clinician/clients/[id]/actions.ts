@@ -35,6 +35,30 @@ const RPC_MESSAGES: Record<string, string> = {
   not_allowed: "You are not assigned to this member for this consultation.",
   template_missing: "The form template is missing.",
 };
+
+const feedbackSchema = z.object({ response_id: z.string().uuid() });
+
+/**
+ * Submit a monthly feedback draft via §6 `submit_feedback` (the RPC re-validates
+ * that the caller owns the draft and is the assigned nutritionist/trainer, and
+ * compiles the performance report once both feedbacks are in).
+ */
+export async function submitFeedback(input: {
+  response_id: string;
+}): Promise<{ ok: true } | { error: string }> {
+  const parsed = feedbackSchema.safeParse(input);
+  if (!parsed.success) return { error: "Invalid feedback." };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("submit_feedback", { p_response: parsed.data.response_id });
+  if (error) {
+    return {
+      error: error.message.includes("not_allowed")
+        ? "You can only submit your own feedback for a member you're assigned to."
+        : "Could not submit your feedback. Please try again.",
+    };
+  }
+  return { ok: true };
+}
 function friendly(message: string): string {
   for (const [key, text] of Object.entries(RPC_MESSAGES)) if (message.includes(key)) return text;
   return "Could not submit the form. Please try again.";

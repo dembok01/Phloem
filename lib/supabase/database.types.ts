@@ -128,6 +128,7 @@ export type Database = {
         Row: {
           completed_at: string | null
           coordinator_notes: string | null
+          created_at: string
           cycle_id: string | null
           id: string
           marked_done_by: string | null
@@ -142,6 +143,7 @@ export type Database = {
         Insert: {
           completed_at?: string | null
           coordinator_notes?: string | null
+          created_at?: string
           cycle_id?: string | null
           id?: string
           marked_done_by?: string | null
@@ -156,6 +158,7 @@ export type Database = {
         Update: {
           completed_at?: string | null
           coordinator_notes?: string | null
+          created_at?: string
           cycle_id?: string | null
           id?: string
           marked_done_by?: string | null
@@ -699,6 +702,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      _build_performance: { Args: { p_cycle: string }; Returns: Json }
       _notify: {
         Args: {
           p_body: string
@@ -732,6 +736,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      _num_delta: { Args: { cur: string; prev: string }; Returns: string }
       _red_flags: { Args: { a: Json }; Returns: Json }
       _report_stub: {
         Args: { p_cycle: number; p_extra?: Json; p_title: string }
@@ -796,6 +801,7 @@ export type Database = {
         Returns: string
       }
       resume_program: { Args: { p_package: string }; Returns: undefined }
+      run_daily_jobs: { Args: { p_today?: string }; Returns: Json }
       set_account_status: {
         Args: {
           p_status: Database["public"]["Enums"]["account_status"]

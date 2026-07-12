@@ -64,6 +64,20 @@ insert into consultations(id, member_id, cycle_id, type) values
   ('cccccccc-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', null, 'doctor'),
   ('cccccccc-0000-4000-8000-000000000002', '22222222-2222-4222-8222-222222222222', null, 'doctor');
 
+-- Phase 7 fixtures: a compiled performance report + the two monthly feedback
+-- responses (so the §9 report/response visibility can be asserted per persona).
+insert into reports(id, member_id, type, content, created_by) values
+  ('aaaaaaaa-0000-4000-8000-000000000004', '11111111-1111-4111-8111-111111111111',
+   'performance', '{"title":"Performance Report — test fixture","sections":[]}',
+   (select id from ids where role = 'doctor'));
+insert into form_responses(id, member_id, template_id, respondent_id, answers, submitted_at) values
+  ('bbbbbbbb-0000-4000-8000-000000000002', '11111111-1111-4111-8111-111111111111',
+   (select id from form_templates where key = 'feedback_nutrition' and version = 1),
+   (select id from ids where role = 'nutritionist'), '{"adherence":"4"}', now()),
+  ('bbbbbbbb-0000-4000-8000-000000000003', '11111111-1111-4111-8111-111111111111',
+   (select id from form_templates where key = 'feedback_training' and version = 1),
+   (select id from ids where role = 'trainer'), '{"adherence":"4"}', now());
+
 -- ============ persona: DOCTOR (assigned to M1) ============
 select set_config('request.jwt.claims',
   json_build_object('sub', (select id from profiles where email = 'doctor@phloem.local'),
@@ -93,6 +107,11 @@ insert into results select pg_temp.assert_eq('doctor: unassigned member reports 
   (select count(*) from reports where member_id = '22222222-2222-4222-8222-222222222222'), 0);
 insert into results select pg_temp.assert_eq('doctor: unassigned member consultations invisible',
   (select count(*) from consultations where member_id = '22222222-2222-4222-8222-222222222222'), 0);
+insert into results select pg_temp.assert_eq('doctor: sees the performance report (§9)',
+  (select count(*) from reports where type = 'performance'), 1);
+insert into results select pg_temp.assert_eq('doctor: sees both monthly feedback responses (fr_feedback_doctor)',
+  (select count(*) from form_responses fr where fr.template_id in
+     (select id from form_templates where key in ('feedback_nutrition','feedback_training'))), 2);
 
 -- ============ persona: NUTRITIONIST ============
 reset role;
@@ -112,6 +131,11 @@ insert into results select pg_temp.assert_true('nutritionist: scoped RPC returns
    from get_onboarding_scoped('11111111-1111-4111-8111-111111111111') a));
 insert into results select pg_temp.assert_eq('nutritionist: 0 wellbeing reports',
   (select count(*) from reports where type = 'wellbeing'), 0);
+insert into results select pg_temp.assert_eq('nutritionist: sees the performance report (§9)',
+  (select count(*) from reports where type = 'performance'), 1);
+insert into results select pg_temp.assert_eq('nutritionist: sees own feedback draft (fr_own_clinical)',
+  (select count(*) from form_responses fr where fr.template_id in
+     (select id from form_templates where key = 'feedback_nutrition')), 1);
 
 -- ============ persona: TRAINER ============
 reset role;
@@ -128,6 +152,11 @@ insert into results select pg_temp.assert_true('trainer: scoped RPC returns acti
    from get_onboarding_scoped('11111111-1111-4111-8111-111111111111') a));
 insert into results select pg_temp.assert_eq('trainer: 0 wellbeing reports',
   (select count(*) from reports where type = 'wellbeing'), 0);
+insert into results select pg_temp.assert_eq('trainer: sees the performance report (§9)',
+  (select count(*) from reports where type = 'performance'), 1);
+insert into results select pg_temp.assert_eq('trainer: sees own feedback draft (fr_own_clinical)',
+  (select count(*) from form_responses fr where fr.template_id in
+     (select id from form_templates where key = 'feedback_training')), 1);
 
 -- ============ persona: PSYCHOLOGIST ============
 reset role;
@@ -166,6 +195,8 @@ insert into results select pg_temp.assert_eq('caregiver: 0 wellbeing reports',
   (select count(*) from reports where type = 'wellbeing'), 0);
 insert into results select pg_temp.assert_eq('caregiver: doctor report hidden without share_with_caregiver',
   (select count(*) from reports where type = 'doctor_initial'), 0);
+insert into results select pg_temp.assert_eq('caregiver: performance report hidden without share_with_caregiver',
+  (select count(*) from reports where type = 'performance'), 0);
 
 -- ============ persona: COORDINATOR ============
 reset role;
@@ -205,6 +236,15 @@ insert into results select pg_temp.assert_eq('suspended doctor: 0 form_responses
     where respondent_id is distinct from (select id from ids where email = 'doctor@phloem.local')), 0);
 
 reset role;
+
+-- ============ §9 cron RPC is service-only (not client-callable) ============
+insert into results select pg_temp.assert_true('run_daily_jobs NOT executable by authenticated',
+  not has_function_privilege('authenticated', 'public.run_daily_jobs(date)', 'execute'));
+insert into results select pg_temp.assert_true('run_daily_jobs NOT executable by anon',
+  not has_function_privilege('anon', 'public.run_daily_jobs(date)', 'execute'));
+insert into results select pg_temp.assert_true('_build_performance NOT executable by authenticated',
+  not has_function_privilege('authenticated', 'public._build_performance(uuid)', 'execute'));
+
 select line from results;
 
 rollback;

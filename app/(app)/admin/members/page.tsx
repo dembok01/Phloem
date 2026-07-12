@@ -64,7 +64,10 @@ export default async function MembersPage() {
                 {(members ?? []).map((m) => (
                   <tr key={m.id} className="border-b last:border-0">
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-2 font-medium text-foreground">
+                      <Link
+                        href={`/admin/members/${m.id}`}
+                        className="flex items-center gap-2 font-medium text-foreground hover:underline"
+                      >
                         {hasHighFlag(m.red_flags) ? (
                           <span
                             className="inline-block size-2 rounded-full bg-destructive"
@@ -73,7 +76,7 @@ export default async function MembersPage() {
                           />
                         ) : null}
                         {m.full_name}
-                      </div>
+                      </Link>
                     </td>
                     <td className="px-4 py-3">{m.age ?? "—"}</td>
                     <td className="px-4 py-3">{m.city ?? "—"}</td>
