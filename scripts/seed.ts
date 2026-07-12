@@ -40,6 +40,8 @@ const MEMBER_2 = "22222222-2222-4222-8222-222222222222";
 const PACKAGE_1 = "33333333-3333-4333-8333-333333333333";
 const ONBOARDING_RESPONSE_1 = "44444444-4444-4444-8444-444444444444";
 const ONBOARDING_REPORT_1 = "55555555-5555-4555-8555-555555555555";
+const NUTRITION_PLAN_1 = "66666666-6666-4666-8666-666666666666";
+const TRAINING_PLAN_1 = "77777777-7777-4777-8777-777777777777";
 
 type SeededUser = { id: string; email: string };
 
@@ -187,6 +189,8 @@ async function main(): Promise<void> {
       { email: "trainer@phloem.local", role: "trainer", name: "Vivek Shetty", specialization: "Senior fitness" },
       { email: "psychologist@phloem.local", role: "psychologist", name: "Dr. Sara Thomas", specialization: "Geriatric psychology" },
       { email: "caregiver@phloem.local", role: "caregiver", name: "Anita Krishnan" },
+      // Elderly (view-only) login linked to Meera via members.member_user_id (§10).
+      { email: "elder@phloem.local", role: "member", name: "Meera Krishnan" },
     ] as const;
     const users: Record<string, string> = {};
     for (const f of fixtures) {
@@ -217,6 +221,7 @@ async function main(): Promise<void> {
     let error = (await db.from("members").upsert({
       id: MEMBER_1,
       caregiver_id: users.caregiver,
+      member_user_id: users.member, // elderly view-only login (§10)
       full_name: "Meera Krishnan",
       age: 72,
       gender: "Female",
@@ -274,7 +279,63 @@ async function main(): Promise<void> {
       created_by: users.caregiver,
     }, { onConflict: "id" })).error;
     if (error) throw new Error(`onboarding report: ${error.message}`);
-    console.log("  member Meera Krishnan (onboarded, high red flag) ✓");
+
+    // Nutrition & training plan reports so the caregiver/elderly portal has
+    // "plans front and center" to show (§10). No assignments/activation — that
+    // keeps the §16 in-transaction fixtures (which assign the care team to M1) clean.
+    error = (await db.from("reports").upsert({
+      id: NUTRITION_PLAN_1,
+      member_id: MEMBER_1,
+      type: "nutrition_plan",
+      content: {
+        title: "Nutrition Plan — Meera Krishnan",
+        generated_at: oneDayAgo,
+        cycle: null,
+        sections: [
+          { heading: "Nutritionist's Assessment", kind: "text",
+            data: "Adequate appetite with irregular protein intake. Focus on protein at each meal, steady hydration, and lower added sugar." },
+          { heading: "Plan", kind: "kv", data: {
+            "Approach": "Balanced, protein-forward, low added sugar",
+            "Calorie target": "1600 kcal/day",
+            "Protein target": "60 g/day",
+            "Hydration": "2.0 L/day",
+          } },
+          { heading: "Foods to emphasise", kind: "list",
+            data: ["Dal, eggs, curd, paneer", "Vegetables at lunch & dinner", "Fruit for snacks in place of sweets"] },
+          { heading: "This month's goals", kind: "list",
+            data: ["Protein at breakfast daily", "Two fruit servings/day", "Cut evening sweets to twice a week"] },
+        ],
+      },
+      share_with_caregiver: true,
+      created_by: users.nutritionist,
+    }, { onConflict: "id" })).error;
+    if (error) throw new Error(`nutrition plan: ${error.message}`);
+
+    error = (await db.from("reports").upsert({
+      id: TRAINING_PLAN_1,
+      member_id: MEMBER_1,
+      type: "training_plan",
+      content: {
+        title: "Training Plan — Meera Krishnan",
+        generated_at: oneDayAgo,
+        cycle: null,
+        sections: [
+          { heading: "Trainer's Assessment", kind: "text",
+            data: "Independent and motivated. Begin with supervised strength and balance work, progressing gradually. Stop-signs reviewed." },
+          { heading: "Prescription", kind: "kv", data: {
+            "Sessions/week": "3",
+            "Minutes/session": "30",
+            "Focus": "Strength 40% · Balance 30% · Mobility 30%",
+          } },
+          { heading: "This month's goals", kind: "list",
+            data: ["Sit-to-stand: 10 → 14 reps", "Single-leg balance: 10 → 20 s", "Daily 15-minute walk"] },
+        ],
+      },
+      share_with_caregiver: true,
+      created_by: users.trainer,
+    }, { onConflict: "id" })).error;
+    if (error) throw new Error(`training plan: ${error.message}`);
+    console.log("  member Meera Krishnan (onboarded, high red flag, plans, elderly login) ✓");
 
     // Member 2 — unassigned, no caregiver: §16 invisibility fixture.
     error = (await db.from("members").upsert({

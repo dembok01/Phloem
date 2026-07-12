@@ -8,6 +8,7 @@
 // param is ignored and the DB's CURRENT_DATE is used.
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { dispatchNotificationEmails } from "@/lib/notify";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -44,7 +45,9 @@ async function handle(req: Request): Promise<NextResponse> {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-  return NextResponse.json({ ok: true, simulated: today ?? null, summary: data });
+  // §12 — flush any notification rows (from the jobs above or elsewhere) as email.
+  const email = await dispatchNotificationEmails(admin);
+  return NextResponse.json({ ok: true, simulated: today ?? null, summary: data, emails_sent: email.sent });
 }
 
 export async function GET(req: Request): Promise<NextResponse> {

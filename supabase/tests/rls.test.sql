@@ -215,6 +215,35 @@ insert into results select pg_temp.assert_eq('coordinator: sees all members (con
 insert into results select pg_temp.assert_eq('coordinator: sees member contacts (control)',
   (select count(*) from member_contacts), 2);
 
+-- ============ persona: MEMBER (elderly, view-only; linked to M1) ============
+reset role;
+select set_config('request.jwt.claims',
+  json_build_object('sub', (select id from profiles where email = 'elder@phloem.local'),
+                    'role', 'authenticated')::text, true);
+set local role authenticated;
+
+insert into results select pg_temp.assert_eq('member: sees own member only',
+  (select count(*) from members), 1);
+insert into results select pg_temp.assert_eq('member: other member invisible',
+  (select count(*) from members where id = '22222222-2222-4222-8222-222222222222'), 0);
+insert into results select pg_temp.assert_eq('member: member_contacts invisible (ever)',
+  (select count(*) from member_contacts), 0);
+insert into results select pg_temp.assert_eq('member: sees only plan-type reports (3)',
+  (select count(*) from reports), 3);
+insert into results select pg_temp.assert_eq('member: 0 wellbeing reports',
+  (select count(*) from reports where type = 'wellbeing'), 0);
+insert into results select pg_temp.assert_eq('member: 0 doctor reports',
+  (select count(*) from reports where type in ('doctor_initial','doctor_review')), 0);
+insert into results select pg_temp.assert_eq('member: 0 performance reports',
+  (select count(*) from reports where type = 'performance'), 0);
+insert into results select pg_temp.assert_eq('member: raw onboarding form_responses invisible',
+  (select count(*) from form_responses fr
+    where fr.template_id in (select id from form_templates where key = 'onboarding')), 0);
+insert into results select pg_temp.assert_eq('member: sees own consultations (schedule)',
+  (select count(*) from consultations), 1);
+insert into results select pg_temp.assert_eq('member: care team via RPC = 4 (names+roles)',
+  jsonb_array_length(get_care_team('11111111-1111-4111-8111-111111111111')), 4);
+
 -- ============ persona: SUSPENDED DOCTOR ============
 reset role;
 update profiles set status = 'suspended' where email = 'doctor@phloem.local';
@@ -244,6 +273,8 @@ insert into results select pg_temp.assert_true('run_daily_jobs NOT executable by
   not has_function_privilege('anon', 'public.run_daily_jobs(date)', 'execute'));
 insert into results select pg_temp.assert_true('_build_performance NOT executable by authenticated',
   not has_function_privilege('authenticated', 'public._build_performance(uuid)', 'execute'));
+insert into results select pg_temp.assert_true('get_care_team NOT executable by anon',
+  not has_function_privilege('anon', 'public.get_care_team(uuid)', 'execute'));
 
 select line from results;
 

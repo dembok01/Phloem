@@ -789,9 +789,11 @@ export type Database = {
         Returns: string
       }
       deactivate_member: { Args: { p_member: string }; Returns: undefined }
+      get_care_team: { Args: { p_member: string }; Returns: Json }
       get_onboarding_scoped: { Args: { m: string }; Returns: Json }
       is_assigned_to: { Args: { m: string }; Returns: boolean }
       is_caregiver_of: { Args: { m: string }; Returns: boolean }
+      is_member_self: { Args: { m: string }; Returns: boolean }
       log_report_view: { Args: { p_report: string }; Returns: undefined }
       mark_meeting_done: { Args: { p_cons: string }; Returns: undefined }
       mark_video_watched: { Args: { p_member: string }; Returns: undefined }

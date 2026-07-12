@@ -5,6 +5,7 @@ const ADMIN_TABS: NavItem[] = [
   { href: "/admin/members", label: "Members" },
   { href: "/admin/care-team", label: "Care team" },
   { href: "/admin/invites", label: "Invites" },
+  { href: "/admin/audit", label: "Audit" },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
