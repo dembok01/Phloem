@@ -11,35 +11,54 @@ async function analytics() {
   const weekEndIso = new Date(Date.now() + 7 * 86400_000).toISOString();
   const in30 = new Date(Date.now() + 30 * 86400_000).toISOString().slice(0, 10);
   const today = new Date().toISOString().slice(0, 10);
+  const d30 = new Date(Date.now() - 30 * 86400_000).toISOString();
+  const d60 = new Date(Date.now() - 60 * 86400_000).toISOString();
 
-  const [active, consultsWeek, overdue, renewals, renewalList] = await Promise.all([
-    supabase.from("members").select("id", { count: "exact", head: true }).eq("status", "active"),
-    supabase
-      .from("consultations")
-      .select("id", { count: "exact", head: true })
-      .gte("scheduled_at", nowIso)
-      .lte("scheduled_at", weekEndIso)
-      .eq("meeting_status", "scheduled"),
-    supabase
-      .from("consultations")
-      .select("id", { count: "exact", head: true })
-      .eq("meeting_status", "done")
-      .eq("report_status", "pending"),
-    supabase
-      .from("packages")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "active")
-      .gte("end_date", today)
-      .lte("end_date", in30),
-    supabase
-      .from("packages")
-      .select("id, end_date, members!inner(id, full_name, status)")
-      .eq("status", "active")
-      .gte("end_date", today)
-      .lte("end_date", in30)
-      .order("end_date", { ascending: true })
-      .limit(8),
-  ]);
+  const [active, consultsWeek, overdue, renewals, renewalList, m30, m60, r30, r60, c30, c60] =
+    await Promise.all([
+      supabase.from("members").select("id", { count: "exact", head: true }).eq("status", "active"),
+      supabase
+        .from("consultations")
+        .select("id", { count: "exact", head: true })
+        .gte("scheduled_at", nowIso)
+        .lte("scheduled_at", weekEndIso)
+        .eq("meeting_status", "scheduled"),
+      supabase
+        .from("consultations")
+        .select("id", { count: "exact", head: true })
+        .eq("meeting_status", "done")
+        .eq("report_status", "pending"),
+      supabase
+        .from("packages")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "active")
+        .gte("end_date", today)
+        .lte("end_date", in30),
+      supabase
+        .from("packages")
+        .select("id, end_date, members!inner(id, full_name, status)")
+        .eq("status", "active")
+        .gte("end_date", today)
+        .lte("end_date", in30)
+        .order("end_date", { ascending: true })
+        .limit(8),
+      // 30-day deltas (C6): last 30 days vs the 30 before that.
+      supabase.from("members").select("id", { count: "exact", head: true }).gte("created_at", d30),
+      supabase.from("members").select("id", { count: "exact", head: true }).gte("created_at", d60).lt("created_at", d30),
+      supabase.from("reports").select("id", { count: "exact", head: true }).gte("created_at", d30),
+      supabase.from("reports").select("id", { count: "exact", head: true }).gte("created_at", d60).lt("created_at", d30),
+      supabase
+        .from("consultations")
+        .select("id", { count: "exact", head: true })
+        .eq("meeting_status", "done")
+        .gte("completed_at", d30),
+      supabase
+        .from("consultations")
+        .select("id", { count: "exact", head: true })
+        .eq("meeting_status", "done")
+        .gte("completed_at", d60)
+        .lt("completed_at", d30),
+    ]);
 
   return {
     active: active.count ?? 0,
@@ -47,6 +66,11 @@ async function analytics() {
     overdue: overdue.count ?? 0,
     renewals: renewals.count ?? 0,
     renewalList: renewalList.data ?? [],
+    thirtyDay: [
+      { label: "New members", now: m30.count ?? 0, prev: m60.count ?? 0 },
+      { label: "Consultations held", now: c30.count ?? 0, prev: c60.count ?? 0 },
+      { label: "Reports written", now: r30.count ?? 0, prev: r60.count ?? 0 },
+    ],
   };
 }
 
@@ -70,10 +94,30 @@ export default async function AdminOverviewPage() {
               <CardTitle className="text-muted-foreground">{t.label}</CardTitle>
             </CardHeader>
             <CardContent>
-              <span className="text-3xl font-semibold">{t.value}</span>
+              <span className="font-display text-3xl font-semibold">{t.value}</span>
             </CardContent>
           </Card>
         ))}
+      </div>
+
+      {/* C6: 30-day movement, each vs the previous 30 days. */}
+      <div className="grid gap-4 sm:grid-cols-3">
+        {a.thirtyDay.map((d) => {
+          const diff = d.now - d.prev;
+          return (
+            <Card key={d.label} size="sm">
+              <CardContent className="space-y-0.5">
+                <p className="text-sm text-muted-foreground">{d.label} · 30 days</p>
+                <p className="flex items-baseline gap-2">
+                  <span className="font-display text-2xl font-semibold">{d.now}</span>
+                  <span className="font-data text-xs text-muted-foreground">
+                    {diff === 0 ? "— level with" : diff > 0 ? `▲ ${diff} vs` : `▼ ${Math.abs(diff)} vs`} prior 30d
+                  </span>
+                </p>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
       <Card>

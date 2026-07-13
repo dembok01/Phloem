@@ -114,7 +114,8 @@
   --role-admin: #4b5563;
   --role-caregiver: #1e6b4e;
   --role-member: #1e6b4e;
-  --chart-1: #1e6b4e;
+  /* Chart series (validated for chroma floor + CVD separation on white). */
+  --chart-1: #17855c;
   --chart-2: #2f6db5;
   --chart-3: #96610f;
   --chart-4: #6d4a78;

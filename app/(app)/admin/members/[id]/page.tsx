@@ -1,14 +1,18 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { AlertTriangle, ArrowLeft } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Monogram } from "@/components/monogram";
+import { PageHeader } from "@/components/page-header";
 import { ProgramCard, type ProgramCycle, type ProgramPackage } from "@/components/program-card";
+import { AdherenceCard } from "@/components/charts/adherence-card";
+import { Who5Card } from "@/components/charts/who5-card";
+import { MemberTimeline } from "@/components/member-timeline";
+import { RedFlagBanner } from "@/components/red-flag-banner";
 import { FlashToast } from "@/components/ui/toast";
 import { createClient } from "@/lib/supabase/server";
-import { cn } from "@/lib/utils";
 import { formatDateTimeIST } from "@/lib/datetime";
-import { hasHighFlag, parseRedFlags } from "@/lib/red-flags";
+import { parseRedFlags } from "@/lib/red-flags";
 import { humanize } from "@/lib/reports/build/helpers";
 import {
   CARE_ROLES,
@@ -107,49 +111,34 @@ export default async function AdminMemberPage({
   const redFlags = parseRedFlags(member.red_flags);
 
   return (
-    <section className="mx-auto max-w-4xl space-y-5">
-      <Link href="/admin/members" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="size-4" /> Members
-      </Link>
-
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h1 className="text-2xl font-semibold">{member.full_name}</h1>
-          <p className="text-sm text-muted-foreground">
-            {member.age ? `${member.age} yrs` : "Age —"}
-            {member.gender ? ` · ${member.gender}` : ""}
-            {member.city ? ` · ${member.city}` : ""}
-          </p>
-        </div>
-        <Badge variant={memberStatusVariant(member.status as MemberStatus)}>
-          {MEMBER_STATUS_LABEL[member.status as MemberStatus]}
-        </Badge>
-      </div>
+    <section className="mx-auto max-w-4xl space-y-6">
+      <PageHeader
+        crumbs={[{ label: "Members", href: "/admin/members" }, { label: member.full_name }]}
+        title={
+          <span className="flex items-center gap-3">
+            <Monogram name={member.full_name} size="md" />
+            {member.full_name}
+          </span>
+        }
+        description={[member.age ? `${member.age} yrs` : null, member.gender, member.city]
+          .filter(Boolean)
+          .join(" · ")}
+        actions={
+          <Badge variant={memberStatusVariant(member.status as MemberStatus)}>
+            {MEMBER_STATUS_LABEL[member.status as MemberStatus]}
+          </Badge>
+        }
+      />
 
       <FlashToast ok={OKS} error={ERRORS} />
 
-      {redFlags.length > 0 ? (
-        <div
-          className={cn(
-            "flex gap-3 rounded-lg border p-4",
-            hasHighFlag(redFlags)
-              ? "border-destructive/40 bg-destructive/10 text-destructive"
-              : "border-amber-500/40 bg-amber-500/10 text-amber-900 dark:text-amber-200",
-          )}
-        >
-          <AlertTriangle className="mt-0.5 size-5 shrink-0" />
-          <div className="text-sm">
-            <p className="font-medium">Red flags on file</p>
-            <ul className="list-disc pl-5">
-              {redFlags.map((f) => (
-                <li key={f.id}>
-                  {f.label} — {f.severity}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      ) : null}
+      <RedFlagBanner flags={redFlags} />
+
+      {/* C6 read-only insight: WHO-5 (admin-visible per §3) + adherence trends. */}
+      <div className="grid gap-5 lg:grid-cols-2">
+        <Who5Card memberId={member.id} />
+        <AdherenceCard memberId={member.id} />
+      </div>
 
       {/* Program lifecycle (§6/§9) — admin has the full control set incl. reactivate */}
       <ProgramCard
@@ -200,6 +189,9 @@ export default async function AdminMemberPage({
           )}
         </CardContent>
       </Card>
+
+      {/* C6: the member's whole story in one stream. */}
+      <MemberTimeline memberId={member.id} />
     </section>
   );
 }

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CheckCircle2, FileCheck2, Lock, ShieldAlert } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Who5Card } from "@/components/charts/who5-card";
 import { Monogram } from "@/components/monogram";
 import { PageHeader } from "@/components/page-header";
 import { RedFlagBanner } from "@/components/red-flag-banner";
@@ -145,7 +146,13 @@ export default async function ClinicianClientPage({
       {activeTab === "feedback" ? (
         <FeedbackPanel supabase={supabase} role={role} memberId={id} userId={user.id} />
       ) : null}
-      {activeTab === "reports" ? <ReportsPanel supabase={supabase} memberId={id} /> : null}
+      {activeTab === "reports" ? (
+        <div className="space-y-4">
+          {/* §3: WHO-5 renders only where psych responses are readable (psychologist/admin). */}
+          {role === "psychologist" ? <Who5Card memberId={id} /> : null}
+          <ReportsPanel supabase={supabase} memberId={id} />
+        </div>
+      ) : null}
     </section>
   );
 }
