@@ -2,6 +2,7 @@ import { CalendarClock, Pause, Play, RotateCcw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { GrowthRings } from "@/components/growth-rings";
 import { formatDateIST } from "@/lib/datetime";
 import {
   activateProgram,
@@ -79,19 +80,37 @@ export function ProgramCard({
                   <span className="font-medium text-foreground">it begins tomorrow</span> and generates{" "}
                   {pkg?.duration_months ?? 3} monthly cycle{(pkg?.duration_months ?? 3) === 1 ? "" : "s"}.
                 </p>
-                {!psychSubmitted ? (
-                  <p className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-900 dark:text-amber-200">
-                    The psychologist check-in hasn&apos;t been submitted. You can still start — this records a
-                    <span className="font-medium"> psych override</span> in the audit log.
-                  </p>
-                ) : null}
-                <form action={activateProgram}>
-                  <input type="hidden" name="member_id" value={memberId} />
-                  <input type="hidden" name="redirect_to" value={redirectTo} />
-                  <Button type="submit">
-                    <Play className="size-4" /> Start program
-                  </Button>
-                </form>
+                {psychSubmitted ? (
+                  <form action={activateProgram}>
+                    <input type="hidden" name="member_id" value={memberId} />
+                    <input type="hidden" name="redirect_to" value={redirectTo} />
+                    <Button type="submit">
+                      <Play className="size-4" /> Start program
+                    </Button>
+                  </form>
+                ) : (
+                  // §10: psych pending → an explicit amber confirm before the override.
+                  <details className="group max-w-xl rounded-xl border border-warning/40 bg-warning-tint">
+                    <summary className="flex cursor-pointer list-none items-center gap-2 rounded-xl px-4 py-3 font-medium">
+                      <Play className="size-4 shrink-0" aria-hidden />
+                      Start with psychologist pending?
+                    </summary>
+                    <div className="space-y-3 px-4 pb-4">
+                      <p className="text-sm">
+                        The psychologist check-in hasn&apos;t been submitted. Starting now records a{" "}
+                        <span className="font-semibold">psych override</span> in the audit log; the
+                        check-in can still happen after activation.
+                      </p>
+                      <form action={activateProgram}>
+                        <input type="hidden" name="member_id" value={memberId} />
+                        <input type="hidden" name="redirect_to" value={redirectTo} />
+                        <Button type="submit" variant="outline" size="sm">
+                          Start program anyway
+                        </Button>
+                      </form>
+                    </div>
+                  </details>
+                )}
               </>
             ) : (
               <p className="text-sm text-muted-foreground">
@@ -107,26 +126,37 @@ export function ProgramCard({
         {/* ACTIVE / PAUSED / COMPLETED — status line + timeline */}
         {status !== "not_started" && pkg ? (
           <>
-            <dl className="grid gap-1 text-sm sm:grid-cols-[minmax(120px,28%)_1fr]">
-              <dt className="text-muted-foreground">Runs</dt>
-              <dd>
-                {pkg.start_date ? formatDateIST(pkg.start_date) : "—"} → {pkg.end_date ? formatDateIST(pkg.end_date) : "—"}
-              </dd>
-              <dt className="text-muted-foreground">Duration</dt>
-              <dd>{pkg.duration_months} month{pkg.duration_months === 1 ? "" : "s"}</dd>
-              {pkg.total_paused_days > 0 ? (
-                <>
-                  <dt className="text-muted-foreground">Paused days</dt>
-                  <dd>{pkg.total_paused_days}</dd>
-                </>
+            <div className="flex items-start gap-4">
+              {cycles.length > 0 ? (
+                <GrowthRings
+                  cycles={cycles}
+                  dayOfActive={activeDay(cycles)}
+                  paused={status === "paused"}
+                  size={64}
+                  className="mt-0.5"
+                />
               ) : null}
-              {pkg.psych_override ? (
-                <>
-                  <dt className="text-muted-foreground">Psych override</dt>
-                  <dd>Started with the psychologist check-in pending</dd>
-                </>
-              ) : null}
-            </dl>
+              <dl className="grid flex-1 gap-1 text-sm sm:grid-cols-[minmax(120px,28%)_1fr]">
+                <dt className="text-muted-foreground">Runs</dt>
+                <dd>
+                  {pkg.start_date ? formatDateIST(pkg.start_date) : "—"} → {pkg.end_date ? formatDateIST(pkg.end_date) : "—"}
+                </dd>
+                <dt className="text-muted-foreground">Duration</dt>
+                <dd>{pkg.duration_months} month{pkg.duration_months === 1 ? "" : "s"}</dd>
+                {pkg.total_paused_days > 0 ? (
+                  <>
+                    <dt className="text-muted-foreground">Paused days</dt>
+                    <dd>{pkg.total_paused_days}</dd>
+                  </>
+                ) : null}
+                {pkg.psych_override ? (
+                  <>
+                    <dt className="text-muted-foreground">Psych override</dt>
+                    <dd>Started with the psychologist check-in pending</dd>
+                  </>
+                ) : null}
+              </dl>
+            </div>
 
             {cycles.length > 0 ? <CycleTimeline cycles={cycles} /> : null}
 
@@ -233,6 +263,16 @@ function DurationForm({
       </Button>
     </form>
   );
+}
+
+// Day-in-cycle for the rings (IST calendar days, clamped to 1..30).
+function activeDay(cycles: ProgramCycle[]): number | null {
+  const active = cycles.find((c) => c.status === "active");
+  if (!active) return null;
+  const istNow = new Date(Date.now() + 5.5 * 3600_000);
+  const today = Date.UTC(istNow.getUTCFullYear(), istNow.getUTCMonth(), istNow.getUTCDate());
+  const start = new Date(active.start_date + "T00:00:00Z").getTime();
+  return Math.min(Math.max(Math.round((today - start) / 86400_000) + 1, 1), 30);
 }
 
 function CycleTimeline({ cycles }: { cycles: ProgramCycle[] }) {

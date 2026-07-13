@@ -1,15 +1,18 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { AlertTriangle, ArrowLeft, MessageCircle, Phone } from "lucide-react";
+import { MessageCircle, Phone } from "lucide-react";
+import { ActivationMoment } from "@/components/activation-moment";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Monogram } from "@/components/monogram";
+import { PageHeader } from "@/components/page-header";
 import { ProgramCard, type ProgramCycle, type ProgramPackage } from "@/components/program-card";
+import { RedFlagBanner } from "@/components/red-flag-banner";
+import { ConsultStatusChips } from "@/components/status-chips";
 import { FlashToast } from "@/components/ui/toast";
 import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
-import { formatDateTimeIST } from "@/lib/datetime";
-import { hasHighFlag, parseRedFlags } from "@/lib/red-flags";
+import { parseRedFlags } from "@/lib/red-flags";
 import { telHref, waMeLink } from "@/lib/wa";
 import {
   CARE_ROLES,
@@ -44,12 +47,12 @@ const ERRORS: Record<string, string> = {
   failed: "That action could not be completed. Please try again.",
 };
 
-// Toast copy repeats the verb of the button that caused it (C1).
+// Toast copy repeats the verb of the button that caused it (C1). "activated"
+// is deliberately absent — it gets the full ActivationMoment instead.
 const OKS: Record<string, string> = {
   assigned: "Assigned to the care team",
   scheduled: "Consultation scheduled",
   meeting_done: "Meeting marked done — the professional has been asked to submit their form",
-  activated: "Program activated — it starts tomorrow",
   paused: "Program paused",
   resumed: "Program resumed",
   duration_saved: "Package duration saved",
@@ -67,10 +70,13 @@ type Pro = {
 
 export default async function CoordinatorMemberPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ ok?: string }>;
 }) {
   const { id } = await params;
+  const { ok } = await searchParams;
   const supabase = await createClient();
   const redirectTo = `/coordinator/members/${id}`;
 
@@ -158,54 +164,39 @@ export default async function CoordinatorMemberPage({
   const redFlags = parseRedFlags(member.red_flags);
 
   return (
-    <section className="mx-auto max-w-4xl space-y-5">
-      <Link href="/coordinator/pipeline" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="size-4" /> Pipeline
-      </Link>
-
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h1 className="text-2xl font-semibold">{member.full_name}</h1>
-          <p className="text-sm text-muted-foreground">
-            {member.age ? `${member.age} yrs` : "Age —"}
-            {member.city ? ` · ${member.city}` : ""}
-          </p>
-        </div>
-        <Badge variant={memberStatusVariant(member.status as MemberStatus)}>
-          {MEMBER_STATUS_LABEL[member.status as MemberStatus]}
-        </Badge>
-      </div>
+    <section className="mx-auto max-w-4xl space-y-6">
+      {ok === "activated" ? (
+        <ActivationMoment
+          memberName={member.full_name}
+          cycles={cycleList.length || (pkg?.duration_months ?? 3)}
+          startDate={pkg?.start_date ?? null}
+        />
+      ) : null}
+      <PageHeader
+        crumbs={[{ label: "Pipeline", href: "/coordinator/pipeline" }, { label: member.full_name }]}
+        title={
+          <span className="flex items-center gap-3">
+            <Monogram name={member.full_name} size="md" />
+            {member.full_name}
+          </span>
+        }
+        description={[member.age ? `${member.age} yrs` : null, member.city].filter(Boolean).join(" · ")}
+        actions={
+          <Badge variant={memberStatusVariant(member.status as MemberStatus)}>
+            {MEMBER_STATUS_LABEL[member.status as MemberStatus]}
+          </Badge>
+        }
+      />
 
       <FlashToast ok={OKS} error={ERRORS} />
 
       {member.status === "renewal_due" ? (
-        <p className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-900 dark:text-amber-200">
+        <p className="rounded-xl border border-warning/40 bg-warning-tint p-4 text-sm">
           Renewal due — the package ends soon. Start the renewal conversation with the caregiver.
         </p>
       ) : null}
 
-      {redFlags.length > 0 ? (
-        <div
-          className={cn(
-            "flex gap-3 rounded-lg border p-4",
-            hasHighFlag(redFlags)
-              ? "border-destructive/40 bg-destructive/10 text-destructive"
-              : "border-amber-500/40 bg-amber-500/10 text-amber-900 dark:text-amber-200",
-          )}
-        >
-          <AlertTriangle className="mt-0.5 size-5 shrink-0" />
-          <div className="text-sm">
-            <p className="font-medium">Red flags on file</p>
-            <ul className="list-disc pl-5">
-              {redFlags.map((f) => (
-                <li key={f.id}>
-                  {f.label} — {f.severity}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      ) : null}
+      <RedFlagBanner flags={redFlags} />
 
       {/* Contacts (§3: coordinator sees member + caregiver contact identifiers) */}
       <Card>
@@ -297,10 +288,11 @@ export default async function CoordinatorMemberPage({
                       {c.cycle_id ? `Cycle ${cycleNumberById.get(c.cycle_id) ?? "?"} review` : "Initial"}
                     </span>
                   </p>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <MeetingChip status={c.meeting_status} scheduledAt={c.scheduled_at} />
-                    <ReportChip status={c.report_status} />
-                  </div>
+                  <ConsultStatusChips
+                    meeting={c.meeting_status}
+                    report={c.report_status}
+                    scheduledAt={c.scheduled_at}
+                  />
                 </div>
 
                 {c.meeting_status !== "done" && c.meeting_status !== "cancelled" ? (
@@ -448,25 +440,3 @@ function ContactBlock({
   );
 }
 
-function MeetingChip({
-  status,
-  scheduledAt,
-}: {
-  status: string;
-  scheduledAt: string | null;
-}) {
-  if (status === "scheduled") {
-    return <Badge variant="default">Scheduled · {formatDateTimeIST(scheduledAt)}</Badge>;
-  }
-  if (status === "done") return <Badge variant="success">Meeting done</Badge>;
-  if (status === "cancelled") return <Badge variant="muted">Cancelled</Badge>;
-  return <Badge variant="muted">To schedule</Badge>;
-}
-
-function ReportChip({ status }: { status: string }) {
-  return status === "submitted" ? (
-    <Badge variant="success">Report submitted</Badge>
-  ) : (
-    <Badge variant="muted">Report pending</Badge>
-  );
-}
