@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/page-header";
 import { createClient } from "@/lib/supabase/server";
 import { formatDateIST } from "@/lib/datetime";
 
@@ -60,10 +61,7 @@ export default async function AdminOverviewPage() {
 
   return (
     <section className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Admin overview</h1>
-        <p className="text-muted-foreground">Program health at a glance.</p>
-      </div>
+      <PageHeader title="Overview" description="Program health at a glance." />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {tiles.map((t) => (
@@ -84,7 +82,9 @@ export default async function AdminOverviewPage() {
         </CardHeader>
         <CardContent>
           {a.renewalList.length === 0 ? (
-            <p className="text-muted-foreground">No packages renewing in the next 30 days.</p>
+            <p className="text-muted-foreground">
+              Nothing coming up — members whose package ends within 30 days will surface here.
+            </p>
           ) : (
             <ul className="divide-y">
               {a.renewalList.map((p) => {
@@ -106,12 +106,6 @@ export default async function AdminOverviewPage() {
         </CardContent>
       </Card>
 
-      <div className="flex flex-wrap gap-3 text-sm">
-        <Link href="/admin/members" className="rounded-lg border px-4 py-2 font-medium hover:bg-muted">Members</Link>
-        <Link href="/admin/care-team" className="rounded-lg border px-4 py-2 font-medium hover:bg-muted">Care team</Link>
-        <Link href="/admin/invites" className="rounded-lg border px-4 py-2 font-medium hover:bg-muted">Invites</Link>
-        <Link href="/admin/audit" className="rounded-lg border px-4 py-2 font-medium hover:bg-muted">Audit log</Link>
-      </div>
     </section>
   );
 }

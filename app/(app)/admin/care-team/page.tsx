@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/page-header";
 import { createClient } from "@/lib/supabase/server";
 import { inviteProfessional, setAccountStatus } from "./actions";
 
@@ -38,14 +39,11 @@ export default async function CareTeamPage({
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
-      <section className="space-y-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Care team</h1>
-          <p className="text-muted-foreground">
-            Doctors, nutritionists, trainers and psychologists. Suspending an account is an instant
-            lockout everywhere.
-          </p>
-        </div>
+      <section className="space-y-6">
+        <PageHeader
+          title="Care team"
+          description="Doctors, nutritionists, trainers and psychologists. Suspending an account is an instant lockout everywhere."
+        />
 
         {error && ERRORS[error] ? (
           <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-destructive">

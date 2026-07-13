@@ -2,17 +2,14 @@ import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/page-header";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
 import type { Json } from "@/lib/supabase/database.types";
+import { hasHighFlag as hasHigh, parseRedFlags } from "@/lib/red-flags";
 
 function hasHighFlag(red_flags: Json): boolean {
-  return (
-    Array.isArray(red_flags) &&
-    red_flags.some(
-      (f) => typeof f === "object" && f !== null && !Array.isArray(f) && f.severity === "high",
-    )
-  );
+  return hasHigh(parseRedFlags(red_flags));
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -36,16 +33,16 @@ export default async function MembersPage() {
     .order("created_at", { ascending: false });
 
   return (
-    <section className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Members</h1>
-          <p className="text-muted-foreground">Enrolled members and their onboarding status.</p>
-        </div>
-        <Link href="/admin/members/new" className={cn(buttonVariants())}>
-          Enroll member
-        </Link>
-      </div>
+    <section className="space-y-6">
+      <PageHeader
+        title="Members"
+        description="Enrolled members and their onboarding status."
+        actions={
+          <Link href="/admin/members/new" className={cn(buttonVariants())}>
+            Enroll member
+          </Link>
+        }
+      />
 
       <Card>
         <CardContent className="p-0">

@@ -3,6 +3,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PageHeader } from "@/components/page-header";
 import { cn } from "@/lib/utils";
 import { createMember } from "../actions";
 
@@ -49,19 +50,17 @@ export default async function NewMemberPage({
   const { error } = await searchParams;
 
   return (
-    <section className="mx-auto max-w-3xl space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Enroll a member</h1>
-          <p className="text-muted-foreground">
-            Creates the member record and emails the caregiver an invite to sign up and complete
-            onboarding.
-          </p>
-        </div>
-        <Link href="/admin/members" className={cn(buttonVariants({ variant: "outline" }))}>
-          Cancel
-        </Link>
-      </div>
+    <section className="mx-auto max-w-3xl space-y-6">
+      <PageHeader
+        title="Enroll a member"
+        description="Creates the member record and emails the caregiver an invite to sign up and complete onboarding."
+        crumbs={[{ label: "Members", href: "/admin/members" }, { label: "Enroll" }]}
+        actions={
+          <Link href="/admin/members" className={cn(buttonVariants({ variant: "outline" }))}>
+            Cancel
+          </Link>
+        }
+      />
 
       {error && ERRORS[error] ? (
         <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-destructive">

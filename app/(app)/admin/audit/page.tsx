@@ -1,5 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/page-header";
 import { createClient } from "@/lib/supabase/server";
 import { formatDateTimeIST } from "@/lib/datetime";
 import { humanize } from "@/lib/reports/build/helpers";
@@ -24,11 +25,8 @@ export default async function AdminAuditPage() {
   }
 
   return (
-    <section className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-semibold">Audit log</h1>
-        <p className="text-muted-foreground">The 100 most recent recorded actions.</p>
-      </div>
+    <section className="space-y-6">
+      <PageHeader title="Audit log" description="The 100 most recent recorded actions." />
 
       <Card>
         <CardContent className="p-0">

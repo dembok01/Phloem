@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ProgramCard, type ProgramCycle, type ProgramPackage } from "@/components/program-card";
+import { FlashToast } from "@/components/ui/toast";
 import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 import { formatDateTimeIST } from "@/lib/datetime";
@@ -43,6 +44,18 @@ const ERRORS: Record<string, string> = {
   failed: "That action could not be completed. Please try again.",
 };
 
+// Toast copy repeats the verb of the button that caused it (C1).
+const OKS: Record<string, string> = {
+  assigned: "Assigned to the care team",
+  scheduled: "Consultation scheduled",
+  meeting_done: "Meeting marked done — the professional has been asked to submit their form",
+  activated: "Program activated — it starts tomorrow",
+  paused: "Program paused",
+  resumed: "Program resumed",
+  duration_saved: "Package duration saved",
+  done: "Done",
+};
+
 type Pro = {
   id: string;
   full_name: string;
@@ -54,13 +67,10 @@ type Pro = {
 
 export default async function CoordinatorMemberPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ error?: string; ok?: string }>;
 }) {
   const { id } = await params;
-  const { error, ok } = await searchParams;
   const supabase = await createClient();
   const redirectTo = `/coordinator/members/${id}`;
 
@@ -166,16 +176,7 @@ export default async function CoordinatorMemberPage({
         </Badge>
       </div>
 
-      {error && ERRORS[error] ? (
-        <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
-          {ERRORS[error]}
-        </p>
-      ) : null}
-      {ok ? (
-        <p className="rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-800 dark:text-emerald-300">
-          Done.
-        </p>
-      ) : null}
+      <FlashToast ok={OKS} error={ERRORS} />
 
       {member.status === "renewal_due" ? (
         <p className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-900 dark:text-amber-200">

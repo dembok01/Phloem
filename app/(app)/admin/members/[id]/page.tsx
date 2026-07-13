@@ -4,6 +4,7 @@ import { AlertTriangle, ArrowLeft } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ProgramCard, type ProgramCycle, type ProgramPackage } from "@/components/program-card";
+import { FlashToast } from "@/components/ui/toast";
 import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 import { formatDateTimeIST } from "@/lib/datetime";
@@ -34,15 +35,23 @@ const ERRORS: Record<string, string> = {
   failed: "That action could not be completed. Please try again.",
 };
 
+// Toast copy repeats the verb of the button that caused it (C1).
+const OKS: Record<string, string> = {
+  activated: "Program activated — it starts tomorrow",
+  paused: "Program paused",
+  resumed: "Program resumed",
+  duration_saved: "Package duration saved",
+  deactivated: "Member deactivated",
+  reactivated: "Member reactivated — a fresh package is ready",
+  done: "Done",
+};
+
 export default async function AdminMemberPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ error?: string; ok?: string }>;
 }) {
   const { id } = await params;
-  const { error, ok } = await searchParams;
   const supabase = await createClient();
   const redirectTo = `/admin/members/${id}`;
 
@@ -117,16 +126,7 @@ export default async function AdminMemberPage({
         </Badge>
       </div>
 
-      {error && ERRORS[error] ? (
-        <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
-          {ERRORS[error]}
-        </p>
-      ) : null}
-      {ok ? (
-        <p className="rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-800 dark:text-emerald-300">
-          Done.
-        </p>
-      ) : null}
+      <FlashToast ok={OKS} error={ERRORS} />
 
       {redFlags.length > 0 ? (
         <div

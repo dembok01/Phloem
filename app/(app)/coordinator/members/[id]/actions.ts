@@ -25,8 +25,10 @@ const doneSchema = z.object({
   consultation_id: z.string().uuid(),
 });
 
-function backTo(memberId: string, error?: string): never {
-  redirect(`/coordinator/members/${memberId}${error ? `?error=${error}` : ""}`);
+// Success codes are verb-specific so the toast repeats the button's verb (C1).
+function backTo(memberId: string, error?: string, ok?: string): never {
+  const q = error ? `?error=${error}` : ok ? `?ok=${ok}` : "";
+  redirect(`/coordinator/members/${memberId}${q}`);
 }
 
 /** §6 assign_care_team — creates/replaces the active assignment and the initial
@@ -47,7 +49,7 @@ export async function assignCareTeam(formData: FormData): Promise<void> {
   });
   if (error) backTo(parsed.data.member_id, "assign_failed");
   revalidatePath(`/coordinator/members/${parsed.data.member_id}`);
-  backTo(parsed.data.member_id);
+  backTo(parsed.data.member_id, undefined, "assigned");
 }
 
 /** §6 set_consultation_schedule — sets time/mode/link, meeting → scheduled;
@@ -74,7 +76,7 @@ export async function scheduleConsultation(formData: FormData): Promise<void> {
   });
   if (error) backTo(parsed.data.member_id, "schedule_failed");
   revalidatePath(`/coordinator/members/${parsed.data.member_id}`);
-  backTo(parsed.data.member_id);
+  backTo(parsed.data.member_id, undefined, "scheduled");
 }
 
 /** §6 mark_meeting_done — scheduled → done; notifies professional to submit form. */
@@ -91,5 +93,5 @@ export async function markMeetingDone(formData: FormData): Promise<void> {
   });
   if (error) backTo(parsed.data.member_id, "done_failed");
   revalidatePath(`/coordinator/members/${parsed.data.member_id}`);
-  backTo(parsed.data.member_id);
+  backTo(parsed.data.member_id, undefined, "meeting_done");
 }

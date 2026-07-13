@@ -2,6 +2,8 @@ import Link from "next/link";
 import { Bell } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/page-header";
 import { formatDateTimeIST } from "@/lib/datetime";
 import { markAllRead, markOneRead } from "./actions";
 
@@ -18,23 +20,27 @@ export default async function NotificationsPage() {
   const unread = list.filter((n) => !n.read_at).length;
 
   return (
-    <section className="mx-auto max-w-2xl space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Notifications</h1>
-        {unread > 0 ? (
-          <form action={markAllRead}>
-            <Button type="submit" variant="outline" size="sm">
-              Mark all as read
-            </Button>
-          </form>
-        ) : null}
-      </div>
+    <section className="mx-auto max-w-2xl space-y-6">
+      <PageHeader
+        title="Notifications"
+        description={unread > 0 ? `${unread} unread` : "You're all caught up."}
+        actions={
+          unread > 0 ? (
+            <form action={markAllRead}>
+              <Button type="submit" variant="outline" size="sm">
+                Mark all as read
+              </Button>
+            </form>
+          ) : null
+        }
+      />
 
       {list.length === 0 ? (
-        <div className="rounded-xl bg-card p-10 text-center text-muted-foreground ring-1 ring-foreground/10">
-          <Bell className="mx-auto mb-2 size-6" />
-          <p>No notifications yet.</p>
-        </div>
+        <EmptyState
+          icon={Bell}
+          title="Nothing here yet"
+          description="Updates about consultations, reports, and your program will arrive here as they happen."
+        />
       ) : (
         <ul className="space-y-2">
           {list.map((n) => (

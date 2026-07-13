@@ -31,8 +31,9 @@ function to(formData: FormData): string {
   // Only allow internal paths.
   return raw.startsWith("/") ? raw.split("?")[0] : "/coordinator/pipeline";
 }
-function back(path: string, error?: string): never {
-  redirect(error ? `${path}?error=${error}` : `${path}?ok=1`);
+// Success codes are verb-specific so the toast can repeat the button's verb (C1).
+function back(path: string, error?: string, ok = "done"): never {
+  redirect(error ? `${path}?error=${error}` : `${path}?ok=${ok}`);
 }
 
 export async function activateProgram(formData: FormData): Promise<void> {
@@ -43,7 +44,7 @@ export async function activateProgram(formData: FormData): Promise<void> {
   const { error } = await supabase.rpc("activate_program", { p_member: member.data });
   if (error) back(path, code(error.message));
   revalidatePath(path);
-  back(path);
+  back(path, undefined, "activated");
 }
 
 export async function pauseProgram(formData: FormData): Promise<void> {
@@ -54,7 +55,7 @@ export async function pauseProgram(formData: FormData): Promise<void> {
   const { error } = await supabase.rpc("pause_program", { p_package: pkg.data });
   if (error) back(path, code(error.message));
   revalidatePath(path);
-  back(path);
+  back(path, undefined, "paused");
 }
 
 export async function resumeProgram(formData: FormData): Promise<void> {
@@ -65,7 +66,7 @@ export async function resumeProgram(formData: FormData): Promise<void> {
   const { error } = await supabase.rpc("resume_program", { p_package: pkg.data });
   if (error) back(path, code(error.message));
   revalidatePath(path);
-  back(path);
+  back(path, undefined, "resumed");
 }
 
 export async function setPackageDuration(formData: FormData): Promise<void> {
@@ -80,7 +81,7 @@ export async function setPackageDuration(formData: FormData): Promise<void> {
   });
   if (error) back(path, code(error.message));
   revalidatePath(path);
-  back(path);
+  back(path, undefined, "duration_saved");
 }
 
 export async function deactivateMember(formData: FormData): Promise<void> {
@@ -91,7 +92,7 @@ export async function deactivateMember(formData: FormData): Promise<void> {
   const { error } = await supabase.rpc("deactivate_member", { p_member: member.data });
   if (error) back(path, code(error.message));
   revalidatePath(path);
-  back(path);
+  back(path, undefined, "deactivated");
 }
 
 export async function reactivateMember(formData: FormData): Promise<void> {
@@ -106,5 +107,5 @@ export async function reactivateMember(formData: FormData): Promise<void> {
   });
   if (error) back(path, code(error.message));
   revalidatePath(path);
-  back(path);
+  back(path, undefined, "reactivated");
 }

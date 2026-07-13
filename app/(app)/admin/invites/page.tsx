@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/page-header";
 import { CopyField } from "@/components/copy-field";
 import { createClient } from "@/lib/supabase/server";
 import { inviteState, inviteUrl } from "@/lib/invite";
@@ -51,14 +52,11 @@ export default async function InvitesPage({
   const notice = created ? NOTICES.created : revoked ? NOTICES.revoked : null;
 
   return (
-    <section className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-semibold">Invites</h1>
-        <p className="text-muted-foreground">
-          Pending, used and expired invitations. In development the accept link is shown here to
-          copy — no email is sent.
-        </p>
-      </div>
+    <section className="space-y-6">
+      <PageHeader
+        title="Invites"
+        description="Pending, used and expired invitations. In development the accept link is shown here to copy — no email is sent."
+      />
 
       {notice ? (
         <p role="status" className="rounded-md border border-emerald-300 bg-emerald-50 p-3 text-emerald-900">

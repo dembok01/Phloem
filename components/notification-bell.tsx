@@ -64,11 +64,11 @@ export function NotificationBell() {
           setOpen((o) => !o);
           if (!open) load();
         }}
-        className="relative inline-flex size-9 items-center justify-center rounded-lg hover:bg-muted"
+        className="relative inline-flex size-10 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
       >
         <Bell className="size-5" />
         {unread > 0 ? (
-          <span className="absolute -right-0.5 -top-0.5 inline-flex min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold leading-4 text-destructive-foreground">
+          <span className="absolute right-0.5 top-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 font-data text-[10px] font-medium leading-none text-white ring-2 ring-card">
             {unread > 9 ? "9+" : unread}
           </span>
         ) : null}
@@ -77,7 +77,7 @@ export function NotificationBell() {
       {open ? (
         <>
           <div className="fixed inset-0 z-30" aria-hidden onClick={() => setOpen(false)} />
-          <div className="absolute right-0 z-40 mt-2 w-80 overflow-hidden rounded-xl border bg-popover shadow-lg">
+          <div className="absolute right-0 z-40 mt-2 w-80 overflow-hidden rounded-xl border bg-popover shadow-pop">
             <div className="flex items-center justify-between border-b px-3 py-2">
               <span className="text-sm font-semibold">Notifications</span>
               {unread > 0 ? (
