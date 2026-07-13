@@ -106,16 +106,16 @@ export default async function OnboardingPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Onboarding questionnaire</h1>
-        <p className="text-base text-muted-foreground">
-          For {member.full_name}. Your answers save automatically — you can stop and come back
-          anytime.
-        </p>
+      <div className="mx-auto max-w-2xl">
+        <p className="eyebrow">Onboarding</p>
+        <h1 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">
+          {member.full_name}
+        </h1>
       </div>
       <OnboardingWizard
         template={schema}
         memberId={member.id}
+        memberName={member.full_name}
         responseId={responseId}
         initialAnswers={initialAnswers}
       />
