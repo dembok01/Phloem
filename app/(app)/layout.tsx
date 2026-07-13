@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { ElderlyMode } from "@/components/elderly-mode";
 import { NotificationBell } from "@/components/notification-bell";
 import { ToastProvider } from "@/components/ui/toast";
 import { createClient } from "@/lib/supabase/server";
@@ -38,6 +39,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <ToastProvider>
+      {role === "member" ? <ElderlyMode /> : null}
       <div className="flex min-h-screen flex-col bg-background">
         <a
           href="#main"
@@ -45,7 +47,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         >
           Skip to content
         </a>
-        <header className="sticky top-0 z-40 border-b bg-card/95 backdrop-blur">
+        <header className="sticky top-0 z-40 border-b bg-card/95 backdrop-blur print:hidden">
           <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
             <Link
               href={ROLE_HOME[role]}

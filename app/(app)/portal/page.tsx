@@ -1,30 +1,31 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { CalendarDays, CheckCircle2, ClipboardList, FileText, Users } from "lucide-react";
+import { CalendarDays, ClipboardList, FileText, Users, Video, Phone, MapPin } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
+import { GrowthRings, type RingCycle } from "@/components/growth-rings";
+import { Monogram } from "@/components/monogram";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/database.types";
-import { formatDateTimeIST } from "@/lib/datetime";
-import { ProgressBar, type ProgressCycle } from "@/components/portal/progress-bar";
+import { formatDateIST, formatDateTimeIST } from "@/lib/datetime";
 import { CareTeamCard, type CareTeamMember } from "@/components/portal/care-team-card";
 
 type MemberStatus = Database["public"]["Enums"]["member_status"];
 type SB = Awaited<ReturnType<typeof createClient>>;
 
 const STATUS_LABEL: Record<MemberStatus, string> = {
-  invited: "Invitation pending",
-  signed_up: "Ready to begin onboarding",
+  invited: "Invitation sent",
+  signed_up: "Ready to begin",
   onboarding: "Onboarding in progress",
   onboarded: "Onboarding complete",
   assigned: "Care team being set up",
-  initial_consults: "Initial consultations underway",
-  ready_to_start: "Ready to start the program",
+  initial_consults: "First consultations underway",
+  ready_to_start: "Ready to start",
   active: "Program active",
-  renewal_due: "Renewal due",
-  inactive: "Inactive",
+  renewal_due: "Renewal coming up",
+  inactive: "Program complete",
 };
 function statusVariant(s: MemberStatus): "default" | "muted" | "success" | "warning" {
   if (s === "active" || s === "onboarded") return "success";
@@ -33,9 +34,53 @@ function statusVariant(s: MemberStatus): "default" | "muted" | "success" | "warn
   return "default";
 }
 
+// What's happening right now, in one plain sentence for the family.
+function storyLine(status: MemberStatus, opts: { cycle?: number; total?: number; day?: number; paused?: boolean }): string {
+  if (opts.paused) return "The program is paused — every remaining day is kept and shifts forward when care resumes.";
+  switch (status) {
+    case "signed_up":
+      return "A few onboarding questions help the care team understand health, habits and goals.";
+    case "onboarding":
+      return "Onboarding is underway — answers save automatically, so it's safe to stop and return.";
+    case "onboarded":
+      return "Onboarding is done. The care coordinator is now assembling the care team.";
+    case "assigned":
+      return "The care team is in place. First consultations are being scheduled.";
+    case "initial_consults":
+      return "The care team is meeting the family — each specialist writes their plan after their consultation.";
+    case "ready_to_start":
+      return "All initial plans are in. The coordinator will start the program shortly.";
+    case "active":
+      return opts.cycle
+        ? `Cycle ${opts.cycle} of ${opts.total} · Day ${opts.day} of 30 · On track`
+        : "The program is running.";
+    case "renewal_due":
+      return "The final weeks of this package — the coordinator will reach out about what's next.";
+    case "inactive":
+      return "This program has finished. Every report and plan stays available here.";
+    default:
+      return "Your care coordinator will be in touch with the next step.";
+  }
+}
+
 async function careTeam(supabase: SB, memberId: string): Promise<CareTeamMember[]> {
   const { data } = await supabase.rpc("get_care_team", { p_member: memberId });
   return Array.isArray(data) ? (data as unknown as CareTeamMember[]) : [];
+}
+
+// Whole days between an IST calendar date and today (IST), non-negative.
+function istDaysBetween(startIso: string): number {
+  const istNow = new Date(Date.now() + 5.5 * 3600_000);
+  const today = Date.UTC(istNow.getUTCFullYear(), istNow.getUTCMonth(), istNow.getUTCDate());
+  const start = new Date(startIso + "T00:00:00Z").getTime();
+  return Math.max(0, Math.round((today - start) / 86400_000));
+}
+
+function greetingIST(): string {
+  const h = (new Date(Date.now() + 5.5 * 3600_000)).getUTCHours();
+  if (h < 12) return "Good morning";
+  if (h < 17) return "Good afternoon";
+  return "Good evening";
 }
 
 export default async function PortalHomePage({
@@ -50,33 +95,44 @@ export default async function PortalHomePage({
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role, full_name")
+    .eq("id", user.id)
+    .single();
   const isElderly = profile?.role === "member";
 
   // RLS scopes this to the signed-in user's own member(s): mem_caregiver / mem_self.
   const { data: members } = await supabase
     .from("members")
-    .select("id, full_name, status")
+    .select("id, full_name, status, relationship_to_caregiver")
     .order("created_at", { ascending: true });
   const list = members ?? [];
 
   if (isElderly) return <ElderlyHome supabase={supabase} member={list[0]} />;
 
   const selected = list.find((m) => m.id === memberParam) ?? list[0];
+  const firstName = (profile?.full_name ?? "").split(" ")[0];
 
   return (
     <section className="mx-auto max-w-3xl space-y-6">
       <div className="space-y-1">
-        <h1 className="text-3xl font-semibold">Your family portal</h1>
+        <h1 className="font-display text-3xl font-semibold tracking-tight">
+          {greetingIST()}
+          {firstName ? `, ${firstName}` : ""}
+        </h1>
         <p className="text-lg text-muted-foreground">
-          Plans, reports and schedules for the people in your care.
+          {selected ? `Here's how ${selected.full_name.split(" ")[0]}'s care is going.` : "Your family's care, in one place."}
         </p>
       </div>
 
       {onboarded ? (
-        <div className="flex items-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 p-4 text-emerald-800 dark:text-emerald-300">
-          <CheckCircle2 className="size-5" />
-          <p className="text-base">Onboarding submitted — thank you. Your care coordinator takes it from here.</p>
+        <div
+          role="status"
+          className="rounded-xl border border-success/30 bg-success-tint p-4 text-base text-secondary-foreground"
+        >
+          Onboarding submitted — thank you. Your care coordinator takes it from here and will
+          assemble the care team.
         </div>
       ) : null}
 
@@ -96,9 +152,12 @@ export default async function PortalHomePage({
                 <Link
                   key={m.id}
                   href={`/portal?member=${m.id}`}
+                  aria-current={m.id === selected!.id ? "true" : undefined}
                   className={cn(
-                    "rounded-full border px-4 py-1.5 text-sm font-medium",
-                    m.id === selected!.id ? "border-primary bg-primary/10 text-primary" : "hover:bg-muted",
+                    "inline-flex min-h-10 items-center rounded-full border px-4 text-sm font-medium",
+                    m.id === selected!.id
+                      ? "border-primary bg-secondary text-secondary-foreground"
+                      : "bg-card hover:bg-muted",
                   )}
                 >
                   {m.full_name}
@@ -118,7 +177,7 @@ async function CaregiverMember({
   member,
 }: {
   supabase: SB;
-  member: { id: string; full_name: string; status: MemberStatus };
+  member: { id: string; full_name: string; status: MemberStatus; relationship_to_caregiver: string | null };
 }) {
   const needsOnboarding = member.status === "signed_up" || member.status === "onboarding";
 
@@ -133,8 +192,12 @@ async function CaregiverMember({
     careTeam(supabase, member.id),
   ]);
   const { data: cycles } = pkg
-    ? await supabase.from("cycles").select("number, start_date, end_date, status").eq("package_id", pkg.id).order("number")
-    : { data: [] as ProgressCycle[] };
+    ? await supabase
+        .from("cycles")
+        .select("number, start_date, end_date, status")
+        .eq("package_id", pkg.id)
+        .order("number")
+    : { data: [] as { number: number; start_date: string; end_date: string; status: string }[] };
   const { data: nextConsults } = await supabase
     .from("consultations")
     .select("type, scheduled_at, mode")
@@ -143,43 +206,107 @@ async function CaregiverMember({
     .order("scheduled_at", { ascending: true })
     .limit(3);
 
+  const cycleList = cycles ?? [];
+  const active = cycleList.find((c) => c.status === "active");
+  const paused = pkg?.status === "paused";
+  const day = active ? Math.min(Math.max(istDaysBetween(active.start_date) + 1, 1), 30) : undefined;
+  const story = storyLine(member.status, {
+    cycle: active?.number,
+    total: cycleList.length,
+    day,
+    paused,
+  });
+
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
+      {/* The care story card — identity, plain-language status, growth rings. */}
       <Card>
-        <CardContent className="flex flex-col gap-4 py-5">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-2xl font-semibold">{member.full_name}</p>
-            <Badge variant={statusVariant(member.status)}>{STATUS_LABEL[member.status]}</Badge>
+        <CardContent className="py-6">
+          <div className="flex flex-col items-start gap-6 sm:flex-row sm:items-center">
+            {cycleList.length > 0 ? (
+              <div className="relative">
+                <GrowthRings
+                  cycles={cycleList as RingCycle[]}
+                  dayOfActive={day}
+                  paused={paused}
+                  size={112}
+                />
+                <Monogram
+                  name={member.full_name}
+                  size="md"
+                  className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+                />
+              </div>
+            ) : (
+              <Monogram name={member.full_name} size="lg" />
+            )}
+            <div className="min-w-0 flex-1 space-y-2">
+              {member.relationship_to_caregiver ? (
+                <p className="eyebrow">Your {member.relationship_to_caregiver}</p>
+              ) : null}
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <p className="font-display text-2xl font-semibold">{member.full_name}</p>
+                <Badge variant={paused ? "warning" : statusVariant(member.status)}>
+                  {paused ? "Paused" : STATUS_LABEL[member.status]}
+                </Badge>
+              </div>
+              <p className="text-base text-muted-foreground">{story}</p>
+              {active ? (
+                <p className="font-data text-xs text-muted-foreground">
+                  {formatDateIST(cycleList[0]!.start_date)} → {formatDateIST(cycleList[cycleList.length - 1]!.end_date)}
+                </p>
+              ) : null}
+              {needsOnboarding ? (
+                <Link href={`/portal/onboarding/${member.id}`} className={cn(buttonVariants({ size: "lg" }), "mt-1")}>
+                  {member.status === "onboarding" ? "Continue onboarding" : "Start onboarding"}
+                </Link>
+              ) : null}
+            </div>
           </div>
-          {needsOnboarding ? (
-            <Link href={`/portal/onboarding/${member.id}`} className={cn(buttonVariants(), "h-11 self-start px-5 text-base")}>
-              {member.status === "onboarding" ? "Continue onboarding" : "Start onboarding"}
-            </Link>
-          ) : (cycles ?? []).length > 0 ? (
-            <ProgressBar cycles={(cycles ?? []) as ProgressCycle[]} paused={pkg?.status === "paused"} />
-          ) : (
-            <p className="text-muted-foreground">The program hasn&apos;t started yet — plans arrive once it&apos;s activated.</p>
-          )}
         </CardContent>
       </Card>
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <PortalLink href={`/portal/members/${member.id}/plans`} icon={<ClipboardList className="size-5" />} label="Plans" />
-        <PortalLink href={`/portal/members/${member.id}/reports`} icon={<FileText className="size-5" />} label="Reports" />
-        <PortalLink href={`/portal/members/${member.id}/schedule`} icon={<CalendarDays className="size-5" />} label="Schedule" />
+        <PortalLink
+          href={`/portal/members/${member.id}/plans`}
+          icon={<ClipboardList className="size-5" />}
+          label="Plans"
+          hint="Nutrition & training guidance"
+        />
+        <PortalLink
+          href={`/portal/members/${member.id}/reports`}
+          icon={<FileText className="size-5" />}
+          label="Reports"
+          hint="Everything shared with you"
+        />
+        <PortalLink
+          href={`/portal/members/${member.id}/schedule`}
+          icon={<CalendarDays className="size-5" />}
+          label="Schedule"
+          hint="Upcoming consultations"
+        />
       </div>
 
       <Card>
         <CardContent className="py-5">
-          <p className="mb-3 text-base font-medium">Next consultations</p>
+          <p className="mb-3 text-base font-semibold">Next consultations</p>
           {(nextConsults ?? []).length === 0 ? (
-            <p className="text-muted-foreground">No upcoming consultations scheduled.</p>
+            <p className="text-muted-foreground">
+              Nothing scheduled right now. Your coordinator arranges each consultation and it will
+              appear here — you&apos;ll also get a notification.
+            </p>
           ) : (
-            <ul className="divide-y">
+            <ul className="space-y-2">
               {(nextConsults ?? []).map((c, i) => (
-                <li key={i} className="flex items-center justify-between py-2">
-                  <span className="font-medium capitalize">{c.type}</span>
-                  <span className="text-sm text-muted-foreground">{formatDateTimeIST(c.scheduled_at)}</span>
+                <li key={i} className="flex items-center gap-3 rounded-xl border bg-background/60 px-4 py-3">
+                  <ModeIcon mode={c.mode} />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium capitalize">{c.type} consultation</p>
+                    <p className="text-sm text-muted-foreground">
+                      {formatDateTimeIST(c.scheduled_at)}
+                      {c.mode ? ` · ${MODE_LABEL[c.mode] ?? c.mode}` : ""}
+                    </p>
+                  </div>
                 </li>
               ))}
             </ul>
@@ -192,7 +319,30 @@ async function CaregiverMember({
   );
 }
 
-async function ElderlyHome({ supabase, member }: { supabase: SB; member?: { id: string; full_name: string } }) {
+const MODE_LABEL: Record<string, string> = {
+  video: "Video call",
+  phone: "Phone call",
+  in_person: "In person",
+};
+
+function ModeIcon({ mode }: { mode: string | null }) {
+  const cls = "size-4";
+  const icon =
+    mode === "phone" ? <Phone className={cls} /> : mode === "in_person" ? <MapPin className={cls} /> : <Video className={cls} />;
+  return (
+    <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-secondary text-secondary-foreground">
+      {icon}
+    </span>
+  );
+}
+
+async function ElderlyHome({
+  supabase,
+  member,
+}: {
+  supabase: SB;
+  member?: { id: string; full_name: string };
+}) {
   if (!member) {
     return (
       <section className="mx-auto max-w-xl">
@@ -206,17 +356,30 @@ async function ElderlyHome({ supabase, member }: { supabase: SB; member?: { id: 
   }
   const team = await careTeam(supabase, member.id);
   return (
-    <section className="mx-auto max-w-xl space-y-6 text-lg">
-      <div>
-        <h1 className="text-3xl font-semibold">Hello, {member.full_name.split(" ")[0]}</h1>
+    <section className="mx-auto max-w-xl space-y-8">
+      <div className="space-y-1">
+        <h1 className="font-display text-3xl font-semibold">
+          {greetingIST()}, {member.full_name.split(" ")[0]}
+        </h1>
         <p className="text-xl text-muted-foreground">Your plans, schedule and care team.</p>
       </div>
       <div className="space-y-4">
-        <BigLink href={`/portal/members/${member.id}/plans`} icon={<ClipboardList className="size-7" />} label="My Plans" />
-        <BigLink href={`/portal/members/${member.id}/schedule`} icon={<CalendarDays className="size-7" />} label="My Schedule" />
-        <details className="rounded-2xl border bg-card">
-          <summary className="flex cursor-pointer list-none items-center gap-4 p-6 text-2xl font-semibold">
-            <Users className="size-7 text-primary" /> My Care Team
+        <BigLink
+          href={`/portal/members/${member.id}/plans`}
+          icon={<ClipboardList className="size-7" />}
+          label="My Plans"
+        />
+        <BigLink
+          href={`/portal/members/${member.id}/schedule`}
+          icon={<CalendarDays className="size-7" />}
+          label="My Schedule"
+        />
+        <details className="rounded-2xl border bg-card shadow-card">
+          <summary className="flex min-h-14 cursor-pointer list-none items-center gap-4 rounded-2xl p-6 font-display text-2xl font-semibold hover:bg-muted">
+            <span className="inline-flex size-12 shrink-0 items-center justify-center rounded-full bg-secondary text-primary">
+              <Users className="size-7" />
+            </span>
+            My Care Team
           </summary>
           <div className="px-6 pb-6">
             {team.length === 0 ? (
@@ -224,7 +387,7 @@ async function ElderlyHome({ supabase, member }: { supabase: SB; member?: { id: 
             ) : (
               <ul className="divide-y">
                 {team.map((m) => (
-                  <li key={m.role} className="flex items-center justify-between py-3">
+                  <li key={m.role} className="flex flex-wrap items-center justify-between gap-2 py-4">
                     <span className="font-medium">{m.name}</span>
                     <span className="capitalize text-muted-foreground">{m.role}</span>
                   </li>
@@ -238,11 +401,29 @@ async function ElderlyHome({ supabase, member }: { supabase: SB; member?: { id: 
   );
 }
 
-function PortalLink({ href, icon, label }: { href: string; icon: React.ReactNode; label: string }) {
+function PortalLink({
+  href,
+  icon,
+  label,
+  hint,
+}: {
+  href: string;
+  icon: React.ReactNode;
+  label: string;
+  hint: string;
+}) {
   return (
-    <Link href={href} className="flex items-center gap-3 rounded-xl border bg-card p-4 font-medium hover:bg-muted">
-      <span className="text-primary">{icon}</span>
-      {label}
+    <Link
+      href={href}
+      className="group flex items-center gap-3 rounded-xl border bg-card p-4 shadow-card transition-colors hover:border-primary/40 hover:bg-secondary/40"
+    >
+      <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-secondary text-primary">
+        {icon}
+      </span>
+      <span className="min-w-0">
+        <span className="block font-semibold">{label}</span>
+        <span className="block truncate text-sm text-muted-foreground">{hint}</span>
+      </span>
     </Link>
   );
 }
@@ -251,9 +432,11 @@ function BigLink({ href, icon, label }: { href: string; icon: React.ReactNode; l
   return (
     <Link
       href={href}
-      className="flex items-center gap-4 rounded-2xl border bg-card p-6 text-2xl font-semibold hover:bg-muted"
+      className="flex min-h-14 items-center gap-4 rounded-2xl border bg-card p-6 font-display text-2xl font-semibold shadow-card hover:bg-muted"
     >
-      <span className="text-primary">{icon}</span>
+      <span className="inline-flex size-12 shrink-0 items-center justify-center rounded-full bg-secondary text-primary">
+        {icon}
+      </span>
       {label}
     </Link>
   );
