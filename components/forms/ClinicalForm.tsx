@@ -1,16 +1,17 @@
 "use client";
 
-// Clinical form (§10) — renders a clinical template via DynamicForm (all sections
-// stacked), autosaves the draft (fr_own_clinical), and submits through
-// submit_clinical_form. When `locked` (trainer without doctor clearance), the whole
-// form is UI-disabled (native fieldset[disabled]) and submit is blocked — the RPC
-// rejects it too, so the gate holds at both layers.
+// Clinical form (§10, redesigned C4) — sticky section rail with per-section
+// completion, always-visible autosave state, in-form progress, and a sticky
+// submit bar. Autosaves the draft (fr_own_clinical) and submits through
+// submit_clinical_form; when `locked` (trainer without doctor clearance) the
+// whole form is UI-disabled and the RPC rejects it too.
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Check, Loader2, Lock, AlertTriangle } from "lucide-react";
+import { Check, Circle, CircleCheck, Loader2, Lock, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import type { Json } from "@/lib/supabase/database.types";
+import { cn } from "@/lib/utils";
 import { DynamicForm } from "./DynamicForm";
 import { missingRequiredFields } from "./logic";
 import type { FormTemplateSchema, FormValues } from "./types";
@@ -72,12 +73,29 @@ export function ClinicalForm({
     });
   }
 
+  // Per-section completion for the rail + overall progress for the bar.
+  const sectionState = template.sections.map((section) => {
+    const required = section.fields.filter((f) => f.required);
+    const missing = missingRequiredFields(section.fields, values);
+    return {
+      id: section.id,
+      title: section.title,
+      requiredCount: required.length,
+      missingCount: missing.length,
+      hasError: section.fields.some((f) => errors.has(f.id)),
+    };
+  });
+  const totalRequired = sectionState.reduce((n, s) => n + s.requiredCount, 0);
+  const totalMissing = sectionState.reduce((n, s) => n + s.missingCount, 0);
+  const progress = totalRequired === 0 ? 100 : Math.round(((totalRequired - totalMissing) / totalRequired) * 100);
+
   async function submit() {
     const allFields = template.sections.flatMap((s) => s.fields);
     const missing = missingRequiredFields(allFields, values);
     if (missing.length > 0) {
       setErrors(new Set(missing.map((f) => f.id)));
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      const firstSection = template.sections.find((s) => s.fields.some((f) => f.id === missing[0]!.id));
+      document.getElementById(`sec-${firstSection?.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
       return;
     }
     setErrors(new Set());
@@ -102,50 +120,98 @@ export function ClinicalForm({
   }
 
   return (
-    <div className="space-y-4">
-      {locked ? (
-        <div className="flex items-start gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-4 text-amber-900 dark:text-amber-200">
-          <Lock className="mt-0.5 size-5 shrink-0" />
-          <div className="text-sm">
-            <p className="font-medium">Form locked</p>
-            <p>{lockedReason ?? "This form is not available yet."}</p>
+    <div className="lg:grid lg:grid-cols-[13rem_1fr] lg:items-start lg:gap-6">
+      {/* Section rail — sticky on desktop, hidden on small screens. */}
+      <nav aria-label="Form sections" className="sticky top-20 hidden self-start lg:block">
+        <ol className="space-y-0.5">
+          {sectionState.map((s) => (
+            <li key={s.id}>
+              <a
+                href={`#sec-${s.id}`}
+                className={cn(
+                  "flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm transition-colors hover:bg-muted",
+                  s.hasError ? "text-danger" : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {s.requiredCount > 0 && s.missingCount === 0 ? (
+                  <CircleCheck className="size-3.5 shrink-0 text-success" aria-hidden />
+                ) : (
+                  <Circle
+                    className={cn("size-3.5 shrink-0", s.hasError ? "text-danger" : "text-border")}
+                    aria-hidden
+                  />
+                )}
+                <span className="truncate">{s.title}</span>
+              </a>
+            </li>
+          ))}
+        </ol>
+      </nav>
+
+      <div className="space-y-4">
+        {locked ? (
+          <div className="flex items-start gap-3 rounded-xl border border-danger/40 bg-danger-tint p-4">
+            <Lock className="mt-0.5 size-5 shrink-0 text-danger" aria-hidden />
+            <div className="text-sm">
+              <p className="font-semibold">Form locked</p>
+              <p>{lockedReason ?? "This form is not available yet."}</p>
+            </div>
           </div>
-        </div>
-      ) : (
-        <div className="flex items-center justify-between rounded-lg border bg-muted/40 p-3 text-sm">
-          <p className="text-muted-foreground">
+        ) : null}
+
+        <fieldset disabled={locked} className="space-y-4 disabled:opacity-70">
+          {template.sections.map((section) => (
+            <div
+              key={section.id}
+              id={`sec-${section.id}`}
+              className="scroll-mt-24 rounded-xl bg-card p-5 shadow-card ring-1 ring-foreground/10"
+            >
+              <h2 className="mb-4 font-display text-lg font-semibold">{section.title}</h2>
+              <DynamicForm fields={section.fields} values={values} onChange={onChange} errors={errors} />
+            </div>
+          ))}
+        </fieldset>
+
+        {errors.size > 0 ? (
+          <p role="alert" className="text-sm text-danger">
+            Please complete the required fields marked above before submitting.
+          </p>
+        ) : null}
+        {submitError ? (
+          <p
+            role="alert"
+            className="flex items-start gap-2 rounded-xl border border-danger/30 bg-danger-tint p-3 text-sm text-danger"
+          >
+            <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
+            {submitError}
+          </p>
+        ) : null}
+
+        {/* Sticky action bar: the §11 note, live save state, progress, submit. */}
+        <div className="sticky bottom-3 z-30 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border bg-card/95 px-4 py-3 shadow-pop backdrop-blur">
+          <p className="hidden text-xs text-muted-foreground sm:block sm:max-w-56">
             Your own assessment leads the report — structured fields standardize it.
           </p>
-          <SaveIndicator state={saveState} />
-        </div>
-      )}
-
-      <fieldset disabled={locked} className="space-y-4 disabled:opacity-70">
-        {template.sections.map((section) => (
-          <div key={section.id} className="rounded-xl bg-card p-5 ring-1 ring-foreground/10">
-            <h2 className="mb-4 text-lg font-semibold">{section.title}</h2>
-            <DynamicForm fields={section.fields} values={values} onChange={onChange} errors={errors} />
+          <div className="ml-auto flex items-center gap-4">
+            {!locked ? <SaveIndicator state={saveState} /> : null}
+            <span
+              className="hidden items-center gap-2 sm:inline-flex"
+              aria-label={`${progress}% of required fields complete`}
+            >
+              <span className="h-1.5 w-24 overflow-hidden rounded-full bg-muted">
+                <span
+                  className="block h-full rounded-full bg-primary transition-all duration-300"
+                  style={{ width: `${progress}%` }}
+                />
+              </span>
+              <span className="font-data text-xs text-muted-foreground">{progress}%</span>
+            </span>
+            <Button type="button" onClick={submit} disabled={locked || submitting}>
+              {submitting ? <Loader2 className="animate-spin" aria-hidden /> : null}
+              {submitting ? "Submitting…" : "Submit & generate report"}
+            </Button>
           </div>
-        ))}
-      </fieldset>
-
-      {errors.size > 0 ? (
-        <p role="alert" className="text-sm text-destructive">
-          Please complete the required fields marked above before submitting.
-        </p>
-      ) : null}
-      {submitError ? (
-        <p role="alert" className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
-          <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-          {submitError}
-        </p>
-      ) : null}
-
-      <div className="flex justify-end">
-        <Button type="button" size="lg" onClick={submit} disabled={locked || submitting}>
-          {submitting ? <Loader2 className="animate-spin" /> : null}
-          {submitting ? "Submitting…" : "Submit & generate report"}
-        </Button>
+        </div>
       </div>
     </div>
   );
@@ -154,18 +220,28 @@ export function ClinicalForm({
 function SaveIndicator({ state }: { state: SaveState }) {
   if (state === "saving") {
     return (
-      <span className="inline-flex items-center gap-1 text-muted-foreground">
-        <Loader2 className="size-3.5 animate-spin" /> Saving…
+      <span className="inline-flex items-center gap-1 text-sm text-muted-foreground" role="status">
+        <Loader2 className="size-3.5 animate-spin" aria-hidden /> Saving…
       </span>
     );
   }
   if (state === "saved") {
     return (
-      <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
-        <Check className="size-3.5" /> Saved
+      <span className="inline-flex items-center gap-1 text-sm text-success" role="status">
+        <Check className="size-3.5" aria-hidden /> Saved
       </span>
     );
   }
-  if (state === "error") return <span className="text-destructive">Couldn&apos;t save</span>;
-  return null;
+  if (state === "error") {
+    return (
+      <span className="text-sm text-danger" role="status">
+        Couldn&apos;t save
+      </span>
+    );
+  }
+  return (
+    <span className="text-sm text-muted-foreground" role="status">
+      Draft autosaves
+    </span>
+  );
 }

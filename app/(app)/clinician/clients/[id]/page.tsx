@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { AlertTriangle, ArrowLeft, CheckCircle2, Lock } from "lucide-react";
+import { CheckCircle2, FileCheck2, Lock, ShieldAlert } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Monogram } from "@/components/monogram";
+import { PageHeader } from "@/components/page-header";
+import { RedFlagBanner } from "@/components/red-flag-banner";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
 import type { Database, Json } from "@/lib/supabase/database.types";
@@ -83,37 +86,51 @@ export default async function ClinicianClientPage({
   const flags = parseRedFlags(member.red_flags);
 
   return (
-    <section className="mx-auto max-w-3xl space-y-5">
-      <Link href="/clinician/clients" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="size-4" /> Clients
-      </Link>
+    <section className="mx-auto max-w-3xl space-y-6">
+      <PageHeader
+        crumbs={[{ label: "My members", href: "/clinician/clients" }, { label: member.full_name }]}
+        title={
+          <span className="flex items-center gap-3">
+            <Monogram name={member.full_name} size="md" />
+            <span className="flex items-center gap-2">
+              {member.full_name}
+              {hasHighFlag(flags) ? (
+                <span
+                  className="inline-flex items-center gap-1 rounded-full bg-danger-tint px-2.5 py-1 text-xs font-semibold text-danger"
+                  title="High red flag on file"
+                >
+                  <ShieldAlert className="size-3.5" aria-hidden /> Flagged
+                </span>
+              ) : null}
+            </span>
+          </span>
+        }
+        description={[member.age ? `${member.age} yrs` : null, member.gender, member.city]
+          .filter(Boolean)
+          .join(" · ")}
+      />
 
-      <div className="flex flex-wrap items-center gap-2">
-        {hasHighFlag(flags) ? <span className="size-3 rounded-full bg-destructive" title="High red flag" /> : null}
-        <h1 className="text-2xl font-semibold">{member.full_name}</h1>
-        <span className="text-sm text-muted-foreground">
-          {member.age ? `${member.age} yrs` : ""}
-          {member.gender ? ` · ${member.gender}` : ""}
-          {member.city ? ` · ${member.city}` : ""}
-        </span>
-      </div>
-
-      <nav className="flex flex-wrap gap-1 border-b" aria-label="Client">
-        {tabs.map(([key, label]) => (
-          <Link
-            key={key}
-            href={`/clinician/clients/${id}?tab=${key}`}
-            aria-current={key === activeTab ? "page" : undefined}
-            className={cn(
-              "-mb-px border-b-2 px-3 py-2 text-sm font-medium transition-colors",
-              key === activeTab
-                ? "border-primary text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {label}
-          </Link>
-        ))}
+      <nav
+        className="-mx-4 overflow-x-auto px-4 sm:-mx-6 sm:px-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        aria-label="Member sections"
+      >
+        <div className="flex w-max gap-1 rounded-full border bg-card p-1 shadow-card">
+          {tabs.map(([key, label]) => (
+            <Link
+              key={key}
+              href={`/clinician/clients/${id}?tab=${key}`}
+              aria-current={key === activeTab ? "page" : undefined}
+              className={cn(
+                "rounded-full px-4 py-1.5 text-sm font-medium whitespace-nowrap transition-colors",
+                key === activeTab
+                  ? "bg-secondary text-secondary-foreground"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
+              )}
+            >
+              {label}
+            </Link>
+          ))}
+        </div>
       </nav>
 
       {activeTab === "overview" || activeTab === "context" ? (
@@ -150,36 +167,41 @@ async function OverviewPanel({
 }) {
   // Psychologist "context" = the minimal scoped RPC; others show the red-flag callout.
   const context = role === "psychologist" ? await scoped(supabase, memberId) : null;
+
+  // What needs this clinician right now — makes Overview a launchpad, not a label.
+  const { data: ownConsults } = await supabase
+    .from("consultations")
+    .select("meeting_status, report_status, scheduled_at")
+    .eq("member_id", memberId)
+    .eq("type", role);
+  const formDue = (ownConsults ?? []).some((c) => c.meeting_status === "done" && c.report_status === "pending");
+  const nextOwn = (ownConsults ?? [])
+    .filter((c) => c.meeting_status === "scheduled" && c.scheduled_at)
+    .sort((a, b) => (a.scheduled_at! < b.scheduled_at! ? -1 : 1))[0];
+
   return (
     <div className="space-y-4">
-      {role !== "psychologist" && flags.length > 0 ? (
-        <div
-          className={cn(
-            "flex gap-3 rounded-lg border p-4",
-            hasHighFlag(flags)
-              ? "border-destructive/40 bg-destructive/10 text-destructive"
-              : "border-amber-500/40 bg-amber-500/10 text-amber-900 dark:text-amber-200",
-          )}
+      {role !== "psychologist" ? <RedFlagBanner flags={flags} /> : null}
+      {formDue ? (
+        <Link
+          href={`/clinician/clients/${memberId}?tab=form`}
+          className="flex items-center gap-3 rounded-xl border border-warning/50 bg-warning-tint p-4 font-medium transition-colors hover:border-warning"
         >
-          <AlertTriangle className="mt-0.5 size-5 shrink-0" />
-          <div className="text-sm">
-            <p className="font-medium">Red flags — clinical review required</p>
-            <ul className="list-disc pl-5">
-              {flags.map((f) => (
-                <li key={f.id}>
-                  {f.label} — {f.severity}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
+          <FileCheck2 className="size-5 shrink-0 text-warning" aria-hidden />
+          Your consultation form is due — open it
+        </Link>
       ) : null}
       <Card>
         <CardHeader>
           <CardTitle>{role === "psychologist" ? "Minimal context" : "Overview"}</CardTitle>
         </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">Status: {humanize(member.status)}</p>
+        <CardContent className="space-y-2">
+          <dl className="grid gap-1 text-sm sm:grid-cols-[minmax(140px,32%)_1fr]">
+            <dt className="text-muted-foreground">Status</dt>
+            <dd>{humanize(member.status)}</dd>
+            <dt className="text-muted-foreground">Your next consult</dt>
+            <dd>{nextOwn ? formatDateTimeIST(nextOwn.scheduled_at) : "Nothing scheduled"}</dd>
+          </dl>
           {context ? <ScopedList data={context} /> : null}
         </CardContent>
       </Card>
@@ -290,8 +312,11 @@ async function ClearancePanel({ supabase, memberId }: { supabase: SB; memberId: 
     report && report.content && typeof report.content === "object" && !Array.isArray(report.content)
       ? (report.content as Record<string, unknown>).clearance
       : null;
-  const cleared = typeof clearance === "string" && CLEARED.has(clearance);
   const clearanceSection = sectionsOf(report?.content).find((s) => s.heading === "Exercise Clearance");
+  // Three distinct states (C4): full clearance is the only green; restrictions
+  // are cautionary and render Honey with the restriction list front and centre.
+  const state =
+    clearance === "cleared" ? "cleared" : clearance === "cleared_with_restrictions" ? "restricted" : "hold";
   return (
     <Card>
       <CardHeader>
@@ -306,16 +331,33 @@ async function ClearancePanel({ supabase, memberId }: { supabase: SB; memberId: 
           <>
             <div
               className={cn(
-                "flex items-center gap-2 rounded-lg border p-3 text-sm",
-                cleared
-                  ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300"
-                  : "border-destructive/40 bg-destructive/10 text-destructive",
+                "flex items-start gap-3 rounded-xl border p-4",
+                state === "cleared" && "border-success/40 bg-success-tint",
+                state === "restricted" && "border-warning/50 bg-warning-tint",
+                state === "hold" && "border-danger/40 bg-danger-tint",
               )}
             >
-              {cleared ? <CheckCircle2 className="size-5" /> : <Lock className="size-5" />}
-              <span className="font-medium">
-                {typeof clearance === "string" ? humanize(clearance) : "Not cleared"}
-              </span>
+              {state === "cleared" ? (
+                <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-success" aria-hidden />
+              ) : state === "restricted" ? (
+                <ShieldAlert className="mt-0.5 size-5 shrink-0 text-warning" aria-hidden />
+              ) : (
+                <Lock className="mt-0.5 size-5 shrink-0 text-danger" aria-hidden />
+              )}
+              <div className="min-w-0">
+                <p className="font-semibold">
+                  {state === "cleared"
+                    ? "Cleared for exercise"
+                    : state === "restricted"
+                      ? "Cleared with restrictions — read before every session"
+                      : "On hold — no training yet"}
+                </p>
+                {state === "restricted" ? (
+                  <p className="text-sm">
+                    The doctor&apos;s limits below are binding. Stay inside them until the next review.
+                  </p>
+                ) : null}
+              </div>
             </div>
             {clearanceSection ? <ReadonlySection section={clearanceSection} /> : null}
           </>
@@ -406,16 +448,41 @@ async function FormPanel({
 
   if (!submittable) {
     const latest = (consults ?? [])[0];
+    const submitted = latest?.report_status === "submitted";
+    // Post-submit is a doorway, not a dead end (C4): link to the report it made.
+    const lastOwnReport = submitted
+      ? (
+          await supabase
+            .from("reports")
+            .select("id, type, created_at")
+            .eq("member_id", memberId)
+            .eq("created_by", userId)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle()
+        ).data
+      : null;
     const message = !latest
       ? "No consultation yet — the coordinator will schedule one."
-      : latest.report_status === "submitted"
-        ? "Your report for this consultation has already been submitted."
+      : submitted
+        ? "Your report for this consultation is in."
         : latest.meeting_status === "scheduled"
           ? `The form opens after the coordinator marks the meeting done (scheduled ${formatDateTimeIST(latest.scheduled_at)}).`
           : "The form opens once your meeting is scheduled and marked done.";
     return (
       <Card>
-        <CardContent className="py-8 text-center text-sm text-muted-foreground">{message}</CardContent>
+        <CardContent className="flex flex-col items-center gap-3 py-8 text-center">
+          {submitted ? <CheckCircle2 className="size-6 text-success" aria-hidden /> : null}
+          <p className="text-sm text-muted-foreground">{message}</p>
+          {lastOwnReport ? (
+            <Link
+              href={`/reports/${lastOwnReport.id}`}
+              className="inline-flex min-h-10 items-center rounded-full border bg-card px-4 text-sm font-medium hover:border-primary/40 hover:bg-secondary/40"
+            >
+              View {humanize(lastOwnReport.type).toLowerCase()} →
+            </Link>
+          ) : null}
+        </CardContent>
       </Card>
     );
   }
