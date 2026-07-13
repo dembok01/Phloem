@@ -29,15 +29,15 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
     <div className="mx-auto max-w-3xl space-y-4">
       {/* REPORT_CSS is a static developer-authored constant (no user data) — safe to inline. */}
       <style dangerouslySetInnerHTML={{ __html: REPORT_CSS }} />
-      <div className="flex items-center justify-end">
+      <div className="flex items-center justify-end print:hidden">
         <a
           href={`/api/reports/${id}/pdf`}
-          className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/80"
+          className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-primary px-4 font-medium text-primary-foreground hover:bg-primary/80"
         >
-          <Download className="size-4" /> Download PDF
+          <Download className="size-4" aria-hidden /> Download PDF
         </a>
       </div>
-      <div className="rounded-xl bg-card p-6 ring-1 ring-foreground/10 sm:p-8">
+      <div className="rounded-xl bg-card p-6 shadow-card ring-1 ring-foreground/10 sm:p-10">
         <ReportView content={content} />
       </div>
     </div>

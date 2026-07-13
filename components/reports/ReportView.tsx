@@ -2,19 +2,42 @@
 // so it works both inside the RSC web view and via renderToStaticMarkup for the
 // PDF. Styling comes from REPORT_CSS (semantic class names), not Tailwind, so the
 // output is identical in both contexts.
+//
+// C5: the first section (the professional's assessment, §8 invariant) renders as
+// the document lead; bare ISO dates in values render human-readable per §11.
 import { formatDateTime } from "@/lib/reports/format";
 import type { ReportContent, ReportSection } from "@/lib/reports/types";
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const dateFmt = new Intl.DateTimeFormat("en-IN", {
+  weekday: "short",
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+  timeZone: "Asia/Kolkata",
+});
+
+/** "2026-07-12" → "Sat, 12 Jul 2026"; anything else unchanged (§11 dates). */
+function display(v: unknown): string {
+  const s = String(v);
+  if (ISO_DATE.test(s)) {
+    const d = new Date(`${s}T00:00:00+05:30`);
+    if (!Number.isNaN(d.getTime())) return dateFmt.format(d);
+  }
+  return s;
+}
 
 export function ReportView({ content }: { content: ReportContent }) {
   return (
     <article className="report-doc">
+      <p className="report-eyebrow">PHLOEM · Clinical report</p>
       <h1 className="report-title">{content.title}</h1>
       <p className="report-meta">
         Generated {formatDateTime(content.generated_at)}
         {content.cycle != null ? ` · Cycle ${content.cycle}` : ""}
       </p>
       {content.sections.map((section, i) => (
-        <section key={i} className="report-section">
+        <section key={i} className={i === 0 ? "report-section report-section--lead" : "report-section"}>
           <h2>{section.heading}</h2>
           <SectionBody section={section} />
         </section>
@@ -34,7 +57,7 @@ function SectionBody({ section }: { section: ReportSection }) {
           {Object.entries(section.data).map(([k, v]) => (
             <div key={k} style={{ display: "contents" }}>
               <dt>{k}</dt>
-              <dd>{String(v)}</dd>
+              <dd>{display(v)}</dd>
             </div>
           ))}
         </dl>
@@ -54,7 +77,7 @@ function SectionBody({ section }: { section: ReportSection }) {
             {section.data.rows.map((row, ri) => (
               <tr key={ri}>
                 {row.map((cell, ci) => (
-                  <td key={ci}>{String(cell)}</td>
+                  <td key={ci}>{display(cell)}</td>
                 ))}
               </tr>
             ))}
