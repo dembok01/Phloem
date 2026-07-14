@@ -258,7 +258,36 @@ state.
 
 ---
 
-## 7 · Before/after pairs
+## 7 · Phase D — after-state (2026-07-14)
 
-*To be completed in Phase D — after-screenshots land in `design-audit/after/` with
-the same slugs; this section will pair them per surface with a summary of changes.*
+96 after-screenshots in `design-audit/after/` share slugs with `design-audit/before/`,
+so any pair diffs directly (e.g. `before/caregiver--home.png` ↔
+`after/caregiver--home.png`, plus `--mobile` variants). What changed, per surface:
+
+| Surface (pair slugs) | What changed |
+|---|---|
+| Global (`public--login`, every shot) | **G-1 fixed at the root**: the circular `--font-sans` reference is gone — Bricolage Grotesque (display) / Atkinson Hyperlegible (body) / IBM Plex Mono (data) everywhere. Loam/Paper/Phloem token palette replaces the achromatic defaults; tab title is "PHLOEM Care"; 2px Phloem focus ring; toasts repeat the verb of every action. |
+| App shell (all) | Sticky header with role-hue context bar + role chip, skip link, max-w-6xl grid, pill section nav (mobile-scrollable), fixed bell badge, shaped skeletons, designed empty states. |
+| Caregiver home (`caregiver--home`) | A care story: "Good morning, Anita", "Your mother" eyebrow, monogram inside **growth rings** (the signature — one ring per cycle, arc = day, Honey when paused), plain-language status line, calm consultation cards, role-hued care-team avatars. |
+| Elderly mode (`elderly--*`) | `.elderly` on `<html>` → 20px root scales every rem-based target ≥48px, AAA muted ink (8.8:1), firmer borders, motion forced off. Three destinations, display-face warmth. |
+| Coordinator today (`coordinator--today`) | Verb-first one-action rows with icon + Open affordance; Overdue group in Clay; eyebrow group labels; designed all-clear state. |
+| Pipeline (`coordinator--pipeline`) | Snap-scrolling lanes with count chips, monogram cards, grip affordances, ringed flag dots, ⌘K hint. Board scrolls properly at 390px. |
+| Coordinator member (`coordinator--member-*`) | Breadcrumbed header + monogram; plain-language Honey red-flag banner (§11); **dual-status chip** = one two-segment pill (meeting ✓/date/to-schedule · report in/pending) readable in half a second; psych-pending Start gets an explicit amber confirm; activation shows the restrained growth-ring moment; ⌘K palette on all coordinator surfaces. |
+| Clinician list (`*--clients`) | "My members", pending-form-first sort, cycle + next-consult context, form-due rows deep-link to the form tab. |
+| Clinician member (`*--client-*`) | Launchpad overview ("your form is due" callout, next consult); clearance panel has three honest states — **"cleared with restrictions" is now Honey with binding limits, not green**; form gets a sticky section rail with completion ticks, live autosave state, required-progress bar, sticky submit; post-submit links to the generated report. |
+| Reports (`*--report-*`) | Medical-document hierarchy: mono eyebrow/meta, display title, the assessment as the lead voice (Phloem rule, larger measure), mono section labels, first-class callouts (Honey/Clay/Water left bars), human-readable dates. Same CSS feeds the PDF. |
+| Admin (`admin--*`) | Overview tiles + 30-day movement row (vs prior 30d); member page adds WHO-5 trend (admin/psych only per §3), adherence-by-cycle (entity colors, CVD-validated), growth rings on the program card, and the full care timeline. |
+| Onboarding (`flow--*`) | Warm welcome step (expectations, autosave promise, privacy note), segmented journey bar, 200ms step transitions (killed under reduced-motion), always-visible "Saves automatically → Saved ✓", Next names the coming step, quiet completion card. |
+
+### Verification results
+
+| Check | Result |
+|---|---|
+| `npm run build` (`next build --turbopack`) | **PASS** — compiled, all 17 routes generated, exit 0 |
+| `tsc --noEmit` | **PASS** — exit 0, no errors, no `any` |
+| `eslint .` | **PASS** — exit 0, no warnings |
+| `npm run test:unit` (red-flag parity) | **PASS** — 8/8 |
+| §16 RLS suite | **PASS** — 56/56 assertions, run via Supabase MCP against the hosted project inside a seed-baseline-restore transaction that rolls back (live data untouched) |
+| Keyboard-only: coordinator + clinician | **PASS** — driven at runtime with puppeteer (`scripts/kbd-test.ts`): `focus-visible-on-tab` PASS (Tab lands a `2px solid` ring), `cmdk-opens` PASS, `cmdk-enter-navigates` PASS (⌘K → type → Enter routes to the member), `clinician-form-rail-focusable` PASS (Tab reaches an `#sec-…` section-rail link). Backed by the global `:focus-visible { outline: 2px solid var(--ring); offset 2px }` (3px in elderly mode), the `CommandPalette` arrow+Enter keydown handlers, and native `<a href="#sec-…">` rail anchors. |
+| Contrast | All 23 token pairs computed ≥4.5:1 (AA); elderly muted 8.8:1 (AAA); chart series pass the dataviz validator (lightness band, chroma floor, CVD ΔE 31.5+, contrast) |
+| Layout shift | Skeletons mirror final layout shapes (header/tiles/rows/story-card); fonts load via next/font with size-adjusted fallbacks; ring/monogram containers are fixed-size |

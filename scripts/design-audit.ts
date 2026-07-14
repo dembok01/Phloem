@@ -42,7 +42,18 @@ const SESSIONS: Session[] = [
     email: null,
     shots: [
       { slug: "login", url: "/login" },
-      ...(RUN_FLOW ? [{ slug: "invite-accept", url: `/invite/${INVITE_TOKEN}` }] : []),
+      // Padma Nair's invite stays deliberately unaccepted so this screen is
+      // reproducible across before/after runs.
+      { slug: "invite-accept", url: "/invite/1faaf912-3b84-45f6-aca5-7e7fd91a9a25" },
+      ...(RUN_FLOW ? [{ slug: "invite-accept-flow", url: `/invite/${INVITE_TOKEN}` }] : []),
+    ],
+  },
+  {
+    name: "flow",
+    email: "gopalan.family@phloem.local",
+    shots: [
+      { slug: "02-portal-pre-onboarding", url: "/portal" },
+      { slug: "04-wizard-step1", url: `/portal/onboarding/${GOPALAN}` },
     ],
   },
   {
