@@ -5,7 +5,7 @@
 // rows to what the signed-in coordinator may see.
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { CalendarDays, KanbanSquare, Search, UserRound } from "lucide-react";
+import { CalendarDays, KanbanSquare, Loader2, Search, UserRound } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -29,6 +29,8 @@ export function CommandPalette() {
   const [query, setQuery] = React.useState("");
   const [cursor, setCursor] = React.useState(0);
   const [members, setMembers] = React.useState<Item[]>([]);
+  const [pending, startTransition] = React.useTransition();
+  const [navHref, setNavHref] = React.useState<string | null>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
   const listRef = React.useRef<HTMLUListElement>(null);
 
@@ -72,10 +74,23 @@ export function CommandPalette() {
     ...PAGES.filter((p) => !q || p.label.toLowerCase().includes(q)),
   ];
 
+  // Keep the palette open with a spinner on the chosen row until the destination
+  // route commits (startTransition stays pending through the RSC navigation), then
+  // close — so a slow jump reads as "opening…", not a frozen click.
   function go(item: Item) {
-    setOpen(false);
-    router.push(item.href);
+    if (pending) return;
+    setNavHref(item.href);
+    startTransition(() => {
+      router.push(item.href);
+    });
   }
+
+  React.useEffect(() => {
+    if (!pending && navHref) {
+      setNavHref(null);
+      setOpen(false);
+    }
+  }, [pending, navHref]);
 
   function onInputKey(e: React.KeyboardEvent) {
     if (e.key === "ArrowDown") {
@@ -138,14 +153,24 @@ export function CommandPalette() {
                   type="button"
                   onClick={() => go(item)}
                   onMouseEnter={() => setCursor(i)}
+                  disabled={pending}
+                  aria-busy={pending && navHref === item.href}
                   className={cn(
-                    "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm",
+                    "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm disabled:opacity-60",
                     i === cursor ? "bg-secondary text-secondary-foreground" : "text-foreground",
                   )}
                 >
-                  <span className="text-muted-foreground">{item.icon}</span>
+                  <span className="text-muted-foreground">
+                    {pending && navHref === item.href ? (
+                      <Loader2 className="size-4 animate-spin" aria-hidden />
+                    ) : (
+                      item.icon
+                    )}
+                  </span>
                   <span className="min-w-0 flex-1 truncate font-medium">{item.label}</span>
-                  {item.hint ? (
+                  {pending && navHref === item.href ? (
+                    <span className="truncate text-xs text-muted-foreground">Opening…</span>
+                  ) : item.hint ? (
                     <span className="truncate text-xs capitalize text-muted-foreground">{item.hint}</span>
                   ) : null}
                 </button>

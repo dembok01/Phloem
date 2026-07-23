@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -147,9 +148,9 @@ export default async function InvitePage({
                 />
                 <p className="text-sm text-muted-foreground">At least 8 characters.</p>
               </div>
-              <Button type="submit" className="h-11 w-full text-base">
+              <SubmitButton className="h-11 w-full text-base" pendingText="Creating account…">
                 Create account
-              </Button>
+              </SubmitButton>
             </form>
           )}
         </CardContent>

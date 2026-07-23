@@ -1,11 +1,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { ElderlyMode } from "@/components/elderly-mode";
 import { NotificationBell } from "@/components/notification-bell";
 import { ToastProvider } from "@/components/ui/toast";
-import { createClient } from "@/lib/supabase/server";
+import { getSessionProfile } from "@/lib/auth";
 import { logout } from "@/app/(auth)/login/actions";
 import { ROLE_ACCENT_BAR, ROLE_CHIP, ROLE_LABEL, type UserRole } from "@/lib/roles";
 import { cn } from "@/lib/utils";
@@ -22,20 +22,11 @@ const ROLE_HOME: Record<UserRole, string> = {
 };
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const profile = await getSessionProfile();
+  if (!profile) redirect("/login");
+  if (profile.status === "suspended") redirect("/login?notice=suspended");
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("full_name, role, status")
-    .eq("id", user.id)
-    .single();
-  if (!profile || profile.status === "suspended") redirect("/login?notice=suspended");
-
-  const role = profile.role as UserRole;
+  const role = profile.role;
 
   return (
     <ToastProvider>
@@ -77,9 +68,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 </span>
               </span>
               <form action={logout}>
-                <Button variant="ghost" size="sm" type="submit" className="text-muted-foreground">
+                <SubmitButton
+                  variant="ghost"
+                  size="sm"
+                  className="text-muted-foreground"
+                  pendingText="Signing out…"
+                >
                   Sign out
-                </Button>
+                </SubmitButton>
               </form>
             </div>
           </div>

@@ -8,6 +8,7 @@ import { GrowthRings, type RingCycle } from "@/components/growth-rings";
 import { Monogram } from "@/components/monogram";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
+import { getSessionProfile } from "@/lib/auth";
 import type { Database } from "@/lib/supabase/database.types";
 import { formatDateIST, formatDateTimeIST } from "@/lib/datetime";
 import { CareTeamCard, type CareTeamMember } from "@/components/portal/care-team-card";
@@ -91,16 +92,9 @@ export default async function PortalHomePage({
   const { onboarded, member: memberParam } = await searchParams;
   const supabase = await createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role, full_name")
-    .eq("id", user.id)
-    .single();
-  const isElderly = profile?.role === "member";
+  const profile = await getSessionProfile();
+  if (!profile) redirect("/login");
+  const isElderly = profile.role === "member";
 
   // RLS scopes this to the signed-in user's own member(s): mem_caregiver / mem_self.
   const { data: members } = await supabase
@@ -112,7 +106,7 @@ export default async function PortalHomePage({
   if (isElderly) return <ElderlyHome supabase={supabase} member={list[0]} />;
 
   const selected = list.find((m) => m.id === memberParam) ?? list[0];
-  const firstName = (profile?.full_name ?? "").split(" ")[0];
+  const firstName = (profile.full_name ?? "").split(" ")[0];
 
   return (
     <section className="mx-auto max-w-3xl space-y-6">

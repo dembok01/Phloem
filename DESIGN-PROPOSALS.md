@@ -48,3 +48,21 @@ only when shared (P-1). Built instead (C6): adherence/WHO-5 trends on surfaces w
 existing policies already allow the data (admin, clinicians for their types,
 psychologist for WHO-5), computed read-only from `form_responses`/`reports` already
 readable under current RLS.
+
+## P-7 · Onboarding content-burden reduction (fast-follow to the guided-flow redesign)
+**Context:** the 2026-07-24 onboarding redesign made the wizard a guided,
+card-at-a-time flow (presentation-only: `components/forms/onboarding-flow.ts`,
+`onboarding/*`, `OnboardingWizard.tsx`, `DynamicForm.tsx`). It deliberately did **not**
+touch the questions themselves. The remaining real effort is the *typed* content —
+`s2` alone has 2 unbounded repeat-groups + 6 required free-text boxes.
+**Experience:** cut typing — required free-text medical fields gain quick "None /
+Not sure" answers and chip pickers of common options; the conditions/medications lists
+sit behind a simple "Any ongoing conditions? / Any regular medications? (Yes/No)" gate;
+condition & medication names get autocomplete.
+**Needs (why it's not presentation-only):** edits to `supabase/templates/onboarding.v1.json`
+(new gate fields + `showIf`, changed field types / requiredness). These flow into
+`lib/red-flags.ts` (rules read `activity_symptoms`, `breathing_stamina`, `joint_pain`,
+`cardiac_eval_12mo`, `limiting_factors`), `lib/reports/build/onboarding-summary.ts`, and
+the role-scoped read `get_onboarding_scoped` (`0002_rls.sql`). Any change here must
+re-run `npm run test:unit` (red-flag parity) and the §16 RLS suite, and re-seed the
+template. Keep field **ids** stable so downstream key references don't break.

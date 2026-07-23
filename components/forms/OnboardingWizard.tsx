@@ -1,12 +1,21 @@
 "use client";
 
-// Onboarding wizard (§11, redesigned C7) — a warm welcome step, one §7 section
-// per screen with a segmented journey bar, gentle step transitions, debounced
-// autosave with an always-visible confidence indicator, resume-where-left-off
-// (section persisted in localStorage; answers restored from the draft),
-// per-section required validation, a §11/§13 red-flag banner, final submit via
-// `submit_onboarding`, and a quiet completion moment.
+// Onboarding wizard (§11) — a guided, one-small-card-at-a-time flow. The §7
+// sections are chunked into bite-sized cards by the presentation-only flow map
+// (`onboarding-flow.ts`), so the caregiver answers 2–4 related questions per
+// screen instead of facing a wall of fields. Around it: a warm welcome, honest
+// per-chapter progress with a growth-ring signature, a prefill "confirm the
+// basics" card, calm between-chapter interludes, debounced autosave with an
+// always-visible confidence indicator, resume-where-left-off, per-card required
+// validation, the §11/§13 red-flag banner, final submit via `submit_onboarding`,
+// and a quiet completion moment.
+//
+// Scope note: this file only changes *how* the existing template is presented.
+// The questions, required rules, red-flag engine, data-split and reports are
+// untouched — DynamicForm and `missingRequiredFields` already work over any
+// subset of fields, which is what lets a card render a slice safely.
 import * as React from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Check, CheckCircle2, Loader2, AlertTriangle, HeartHandshake } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -16,10 +25,13 @@ import { cn } from "@/lib/utils";
 import { computeRedFlags, hasHighFlag } from "@/lib/red-flags";
 import { DynamicForm } from "./DynamicForm";
 import { missingRequiredFields } from "./logic";
+import { buildCards, cardIndexOfField, FIELD_HINTS } from "./onboarding-flow";
 import type { FormTemplateSchema, FormValues } from "./types";
+import { SaveIndicator, type SaveState } from "./onboarding/SaveIndicator";
+import { OnboardingProgress } from "./onboarding/OnboardingProgress";
+import { PrefillReviewCard } from "./onboarding/PrefillReviewCard";
+import { InterludeCard } from "./onboarding/InterludeCard";
 import { submitOnboarding } from "@/app/(app)/portal/onboarding/[memberId]/actions";
-
-type SaveState = "idle" | "saving" | "saved" | "error";
 
 export function OnboardingWizard({
   template,
@@ -36,11 +48,13 @@ export function OnboardingWizard({
 }) {
   const router = useRouter();
   const supabase = React.useMemo(() => createClient(), []);
-  const sections = template.sections;
-  const storageKey = `phloem:onboarding:${responseId}:section`;
+  const cards = React.useMemo(() => buildCards(template), [template]);
+  // v2 key: card-indexed. Drafts saved under the old :section key fall back to the
+  // welcome step once (answers are preserved server-side), rather than mis-resuming.
+  const storageKey = `phloem:onboarding:${responseId}:card:v2`;
 
   const [values, setValues] = React.useState<FormValues>(initialAnswers);
-  const [section, setSection] = React.useState(0);
+  const [cardIndex, setCardIndex] = React.useState(0);
   const [welcome, setWelcome] = React.useState(false);
   const [done, setDone] = React.useState(false);
   const [errors, setErrors] = React.useState<Set<string>>(new Set());
@@ -50,8 +64,7 @@ export function OnboardingWizard({
   const dirty = React.useRef(false);
   const timer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Resume the section the caregiver last reached; first-ever visit gets the
-  // welcome step instead.
+  // Resume the card the caregiver last reached; first-ever visit gets the welcome.
   React.useEffect(() => {
     const raw = window.localStorage.getItem(storageKey);
     if (raw === null) {
@@ -59,8 +72,8 @@ export function OnboardingWizard({
       return;
     }
     const saved = Number(raw);
-    if (Number.isInteger(saved) && saved >= 0 && saved < sections.length) setSection(saved);
-  }, [storageKey, sections.length]);
+    if (Number.isInteger(saved) && saved >= 0 && saved < cards.length) setCardIndex(saved);
+  }, [storageKey, cards.length]);
 
   // Debounced autosave of the whole answer set to the draft row.
   React.useEffect(() => {
@@ -79,8 +92,8 @@ export function OnboardingWizard({
     };
   }, [values, supabase, responseId]);
 
-  const current = sections[section];
-  const isLast = section === sections.length - 1;
+  const current = cards[cardIndex];
+  const isLast = cardIndex === cards.length - 1;
   const flags = computeRedFlags(values);
   const showFlagBanner = hasHighFlag(flags);
   // First name for warmth — but initialed names ("K. V. Gopalan") fall back to
@@ -100,7 +113,7 @@ export function OnboardingWizard({
   }
 
   function goTo(idx: number) {
-    setSection(idx);
+    setCardIndex(idx);
     window.localStorage.setItem(storageKey, String(idx));
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -118,21 +131,29 @@ export function OnboardingWizard({
       return;
     }
     setErrors(new Set());
-    goTo(Math.min(section + 1, sections.length - 1));
+    goTo(Math.min(cardIndex + 1, cards.length - 1));
   }
 
   function back() {
     setErrors(new Set());
-    goTo(Math.max(section - 1, 0));
+    goTo(Math.max(cardIndex - 1, 0));
+  }
+
+  function jumpToSection(sectionIndex: number) {
+    const idx = cards.findIndex((c) => c.kind !== "interlude" && c.sectionIndex === sectionIndex);
+    if (idx < 0) return;
+    setErrors(new Set());
+    goTo(idx);
   }
 
   async function submit() {
-    // Validate every section; jump to the first with a gap.
-    for (let i = 0; i < sections.length; i++) {
-      const missing = missingRequiredFields(sections[i].fields, values);
+    // Validate every section; jump to the card holding the first gap.
+    for (const section of template.sections) {
+      const missing = missingRequiredFields(section.fields, values);
       if (missing.length > 0) {
         setErrors(new Set(missing.map((f) => f.id)));
-        goTo(i);
+        const target = cardIndexOfField(cards, missing[0].id);
+        if (target >= 0) goTo(target);
         return;
       }
     }
@@ -197,8 +218,8 @@ export function OnboardingWizard({
               Let&apos;s get to know {firstName || "your family member"}
             </h2>
             <p className="text-muted-foreground">
-              {sections.length} short steps about health, daily life and goals — around ten
-              minutes. The care team reads every word before they meet you.
+              A few short questions at a time — about health, daily life and goals. Most families
+              finish in around ten minutes, and the care team reads every word before they meet you.
             </p>
           </div>
           <ul className="space-y-2 text-sm text-muted-foreground">
@@ -213,7 +234,7 @@ export function OnboardingWizard({
             </li>
           </ul>
           <Button size="lg" onClick={begin}>
-            Begin — step 1 of {sections.length}
+            Begin
           </Button>
         </div>
       </div>
@@ -222,25 +243,19 @@ export function OnboardingWizard({
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <div className="space-y-2">
+      <div className="space-y-3">
         <div className="flex items-center justify-between gap-3 text-sm">
-          <span className="font-medium">
-            Step {section + 1} of {sections.length} · {current.title}
+          <span className="flex min-w-0 items-baseline gap-2">
+            <span className="eyebrow truncate">{current.sectionTitle}</span>
+            {current.kind !== "interlude" ? (
+              <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+                {current.indexWithinSection}/{current.cardsInSection}
+              </span>
+            ) : null}
           </span>
           <SaveIndicator state={saveState} />
         </div>
-        {/* Segmented journey bar — one segment per step, current one alive. */}
-        <div className="flex gap-1.5" aria-hidden>
-          {sections.map((s, i) => (
-            <span
-              key={s.id}
-              className={cn(
-                "h-2 flex-1 rounded-full transition-colors duration-300",
-                i < section ? "bg-primary" : i === section ? "bg-primary/50" : "bg-muted",
-              )}
-            />
-          ))}
-        </div>
+        <OnboardingProgress cards={cards} cardIndex={cardIndex} onJumpToSection={jumpToSection} />
       </div>
 
       {showFlagBanner ? (
@@ -258,11 +273,38 @@ export function OnboardingWizard({
       ) : null}
 
       <div
-        key={section}
+        key={cardIndex}
         className="animate-in fade-in slide-in-from-right-4 rounded-xl bg-card p-5 shadow-card ring-1 ring-foreground/10 duration-200 ease-out sm:p-6"
       >
-        <h2 className="mb-4 font-display text-xl font-semibold">{current.title}</h2>
-        <DynamicForm fields={current.fields} values={values} onChange={onChange} errors={errors} />
+        {current.kind === "interlude" ? (
+          <InterludeCard title={current.title ?? ""} lead={current.lead ?? ""} />
+        ) : (
+          <>
+            {current.title ? (
+              <h2 className="font-display text-xl font-semibold">{current.title}</h2>
+            ) : null}
+            {current.lead ? <p className="mt-1 text-muted-foreground">{current.lead}</p> : null}
+            <div className={cn(current.title || current.lead ? "mt-4" : "")}>
+              {current.kind === "review" ? (
+                <PrefillReviewCard
+                  fields={current.fields}
+                  values={values}
+                  onChange={onChange}
+                  errors={errors}
+                  hints={FIELD_HINTS}
+                />
+              ) : (
+                <DynamicForm
+                  fields={current.fields}
+                  values={values}
+                  onChange={onChange}
+                  errors={errors}
+                  hints={FIELD_HINTS}
+                />
+              )}
+            </div>
+          </>
+        )}
       </div>
 
       {errors.size > 0 ? (
@@ -277,7 +319,7 @@ export function OnboardingWizard({
       ) : null}
 
       <div className="flex items-center justify-between gap-3">
-        <Button type="button" variant="outline" size="lg" onClick={back} disabled={section === 0 || submitting}>
+        <Button type="button" variant="outline" size="lg" onClick={back} disabled={cardIndex === 0 || submitting}>
           Back
         </Button>
         {isLast ? (
@@ -287,39 +329,19 @@ export function OnboardingWizard({
           </Button>
         ) : (
           <Button type="button" size="lg" onClick={next} disabled={submitting}>
-            Next — {sections[section + 1]?.title}
+            Continue
           </Button>
         )}
       </div>
-    </div>
-  );
-}
 
-function SaveIndicator({ state }: { state: SaveState }) {
-  if (state === "saving") {
-    return (
-      <span className="inline-flex items-center gap-1 text-muted-foreground" role="status">
-        <Loader2 className="size-3.5 animate-spin" aria-hidden /> Saving…
-      </span>
-    );
-  }
-  if (state === "saved") {
-    return (
-      <span className="inline-flex items-center gap-1 text-success" role="status">
-        <Check className="size-3.5" aria-hidden /> Saved
-      </span>
-    );
-  }
-  if (state === "error") {
-    return (
-      <span className="text-danger" role="status">
-        Couldn&apos;t save — check your connection
-      </span>
-    );
-  }
-  return (
-    <span className="text-muted-foreground" role="status">
-      Saves automatically
-    </span>
+      <div className="text-center">
+        <Link
+          href="/portal"
+          className="text-sm text-muted-foreground underline-offset-4 hover:underline"
+        >
+          Finish later — your answers are saved
+        </Link>
+      </div>
+    </div>
   );
 }

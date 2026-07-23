@@ -1,6 +1,6 @@
 import { CalendarClock, Pause, Play, RotateCcw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { GrowthRings } from "@/components/growth-rings";
 import { formatDateIST } from "@/lib/datetime";
@@ -84,9 +84,9 @@ export function ProgramCard({
                   <form action={activateProgram}>
                     <input type="hidden" name="member_id" value={memberId} />
                     <input type="hidden" name="redirect_to" value={redirectTo} />
-                    <Button type="submit">
+                    <SubmitButton pendingText="Starting…">
                       <Play className="size-4" /> Start program
-                    </Button>
+                    </SubmitButton>
                   </form>
                 ) : (
                   // §10: psych pending → an explicit amber confirm before the override.
@@ -104,9 +104,9 @@ export function ProgramCard({
                       <form action={activateProgram}>
                         <input type="hidden" name="member_id" value={memberId} />
                         <input type="hidden" name="redirect_to" value={redirectTo} />
-                        <Button type="submit" variant="outline" size="sm">
+                        <SubmitButton variant="outline" size="sm" pendingText="Starting…">
                           Start program anyway
-                        </Button>
+                        </SubmitButton>
                       </form>
                     </div>
                   </details>
@@ -165,27 +165,27 @@ export function ProgramCard({
                 <form action={pauseProgram}>
                   <input type="hidden" name="package_id" value={pkg.id} />
                   <input type="hidden" name="redirect_to" value={redirectTo} />
-                  <Button type="submit" variant="outline" size="sm">
+                  <SubmitButton variant="outline" size="sm" pendingText="Pausing…">
                     <Pause className="size-4" /> Pause
-                  </Button>
+                  </SubmitButton>
                 </form>
               ) : null}
               {status === "paused" ? (
                 <form action={resumeProgram}>
                   <input type="hidden" name="package_id" value={pkg.id} />
                   <input type="hidden" name="redirect_to" value={redirectTo} />
-                  <Button type="submit" size="sm">
+                  <SubmitButton size="sm" pendingText="Resuming…">
                     <Play className="size-4" /> Resume
-                  </Button>
+                  </SubmitButton>
                 </form>
               ) : null}
               {isAdmin && (status === "active" || status === "paused") ? (
                 <form action={deactivateMember}>
                   <input type="hidden" name="member_id" value={memberId} />
                   <input type="hidden" name="redirect_to" value={redirectTo} />
-                  <Button type="submit" variant="ghost" size="sm" className="text-destructive">
+                  <SubmitButton variant="ghost" size="sm" className="text-destructive" pendingText="Deactivating…">
                     Deactivate member
-                  </Button>
+                  </SubmitButton>
                 </form>
               ) : null}
             </div>
@@ -222,9 +222,9 @@ export function ProgramCard({
                 ))}
               </select>
             </label>
-            <Button type="submit" size="sm">
+            <SubmitButton size="sm" pendingText="Reactivating…">
               <RotateCcw className="size-4" /> Reactivate
-            </Button>
+            </SubmitButton>
           </form>
         ) : null}
       </CardContent>
@@ -258,9 +258,9 @@ function DurationForm({
       </label>
       <input type="hidden" name="package_id" value={packageId} />
       <input type="hidden" name="redirect_to" value={redirectTo} />
-      <Button type="submit" variant="outline" size="sm">
+      <SubmitButton variant="outline" size="sm" pendingText="Saving…">
         Update duration
-      </Button>
+      </SubmitButton>
     </form>
   );
 }

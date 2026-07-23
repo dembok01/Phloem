@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/page-header";
 import { RedFlagBanner } from "@/components/red-flag-banner";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
+import { getSessionProfile } from "@/lib/auth";
 import type { Database, Json } from "@/lib/supabase/database.types";
 import { formatDateTimeIST } from "@/lib/datetime";
 import { hasHighFlag, parseRedFlags } from "@/lib/red-flags";
@@ -66,13 +67,10 @@ export default async function ClinicianClientPage({
   const { tab } = await searchParams;
   const supabase = await createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) notFound();
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-  const role = profile?.role as CareRole | undefined;
-  if (!role || !(role in TABS)) notFound();
+  const session = await getSessionProfile();
+  if (!session) notFound();
+  const role = session.role as CareRole;
+  if (!(role in TABS)) notFound();
 
   // RLS mem_clinician: visible only if assigned to this member.
   const { data: member } = await supabase
@@ -141,10 +139,10 @@ export default async function ClinicianClientPage({
       {activeTab === "directives" ? <DirectivesPanel supabase={supabase} memberId={id} /> : null}
       {activeTab === "clearance" ? <ClearancePanel supabase={supabase} memberId={id} /> : null}
       {activeTab === "form" ? (
-        <FormPanel supabase={supabase} role={role} memberId={id} userId={user.id} />
+        <FormPanel supabase={supabase} role={role} memberId={id} userId={session.user.id} />
       ) : null}
       {activeTab === "feedback" ? (
-        <FeedbackPanel supabase={supabase} role={role} memberId={id} userId={user.id} />
+        <FeedbackPanel supabase={supabase} role={role} memberId={id} userId={session.user.id} />
       ) : null}
       {activeTab === "reports" ? (
         <div className="space-y-4">

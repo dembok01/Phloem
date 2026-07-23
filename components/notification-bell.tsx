@@ -6,7 +6,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Bell } from "lucide-react";
+import { Bell, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { formatDateTimeIST } from "@/lib/datetime";
 
@@ -24,6 +24,8 @@ export function NotificationBell() {
   const router = useRouter();
   const [items, setItems] = React.useState<Notif[]>([]);
   const [open, setOpen] = React.useState(false);
+  const [pending, startTransition] = React.useTransition();
+  const [navId, setNavId] = React.useState<string | null>(null);
 
   const load = React.useCallback(async () => {
     const { data } = await supabase
@@ -51,9 +53,21 @@ export function NotificationBell() {
   }
   async function openItem(n: Notif) {
     await markRead(n.id);
-    setOpen(false);
-    if (n.link) router.push(n.link);
+    if (n.link) {
+      setNavId(n.id);
+      startTransition(() => router.push(n.link!));
+    } else {
+      setOpen(false);
+    }
   }
+
+  // Close the dropdown once the deep-link navigation commits.
+  React.useEffect(() => {
+    if (!pending && navId) {
+      setNavId(null);
+      setOpen(false);
+    }
+  }, [pending, navId]);
 
   return (
     <div className="relative">
@@ -95,12 +109,19 @@ export function NotificationBell() {
                     <button
                       type="button"
                       onClick={() => openItem(n)}
-                      className="flex w-full gap-2 px-3 py-2.5 text-left hover:bg-muted"
+                      disabled={pending}
+                      aria-busy={pending && navId === n.id}
+                      className="flex w-full gap-2 px-3 py-2.5 text-left hover:bg-muted disabled:opacity-60"
                     >
-                      <span
-                        className={`mt-1.5 size-2 shrink-0 rounded-full ${n.read_at ? "bg-transparent" : "bg-primary"}`}
-                        aria-hidden
-                      />
+                      <span aria-hidden className="mt-1.5 shrink-0">
+                        {pending && navId === n.id ? (
+                          <Loader2 className="size-3.5 animate-spin text-primary" />
+                        ) : (
+                          <span
+                            className={`block size-2 rounded-full ${n.read_at ? "bg-transparent" : "bg-primary"}`}
+                          />
+                        )}
+                      </span>
                       <span className="min-w-0">
                         <span className="block text-sm font-medium">{n.title}</span>
                         {n.body ? <span className="block truncate text-xs text-muted-foreground">{n.body}</span> : null}

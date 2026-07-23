@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { after } from "next/server";
 import { Download } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { ReportView } from "@/components/reports/ReportView";
@@ -20,8 +21,10 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
     .maybeSingle();
   if (!report) notFound();
 
-  // Audit the view server-side (§6 log_report_view).
-  await supabase.rpc("log_report_view", { p_report: id });
+  // Audit the view server-side (§6 log_report_view) without blocking the render.
+  after(async () => {
+    await supabase.rpc("log_report_view", { p_report: id });
+  });
 
   const content = parseReportContent(report.content);
 

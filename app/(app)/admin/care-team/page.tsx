@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -93,13 +93,13 @@ export default async function CareTeamPage({
                             name="status"
                             value={p.status === "suspended" ? "active" : "suspended"}
                           />
-                          <Button
-                            type="submit"
+                          <SubmitButton
                             size="sm"
                             variant={p.status === "suspended" ? "outline" : "destructive"}
+                            pendingText={p.status === "suspended" ? "Reactivating…" : "Suspending…"}
                           >
                             {p.status === "suspended" ? "Reactivate" : "Suspend"}
-                          </Button>
+                          </SubmitButton>
                         </form>
                       </td>
                     </tr>
@@ -148,9 +148,9 @@ export default async function CareTeamPage({
                   ))}
                 </select>
               </div>
-              <Button type="submit" className="w-full">
+              <SubmitButton className="w-full" pendingText="Sending…">
                 Send invite
-              </Button>
+              </SubmitButton>
               <p className="text-xs text-muted-foreground">
                 The account&apos;s role is fixed by this invite and can only be claimed via the
                 emailed link.

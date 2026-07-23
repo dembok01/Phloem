@@ -4,6 +4,7 @@ import { CheckCircle2 } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
+import { getSessionProfile } from "@/lib/auth";
 import type { Json } from "@/lib/supabase/database.types";
 import { VideoGate } from "@/components/forms/VideoGate";
 import { OnboardingWizard } from "@/components/forms/OnboardingWizard";
@@ -86,16 +87,14 @@ export default async function OnboardingPage({
   let initialAnswers: FormValues = (existing?.answers as unknown as FormValues | null) ?? {};
 
   if (!responseId) {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const session = await getSessionProfile();
     initialAnswers = await prefillAnswers(supabase, member.id, member.full_name);
     const { data: created, error } = await supabase
       .from("form_responses")
       .insert({
         member_id: member.id,
         template_id: template.id,
-        respondent_id: user?.id ?? null,
+        respondent_id: session?.user.id ?? null,
         answers: initialAnswers as unknown as Json,
       })
       .select("id")

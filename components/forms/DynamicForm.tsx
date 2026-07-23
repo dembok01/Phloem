@@ -5,12 +5,18 @@
 // select/multiselect, repeat_group cards, and frequency grids. Controlled: the
 // parent owns `values` and receives every change via `onChange(key, value)`
 // (repeat/other companions write sibling keys, hence key-addressed).
-import { Plus, Trash2 } from "lucide-react";
+import { Minus, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { isFieldVisible } from "./logic";
-import { SCALE_RANGES, type FormField, type FormValues, type RepeatRow } from "./types";
+import {
+  SCALE_RANGES,
+  type FieldHint,
+  type FormField,
+  type FormValues,
+  type RepeatRow,
+} from "./types";
 
 const CONTROL =
   "h-11 w-full min-w-0 rounded-lg border border-input bg-transparent px-3 text-base outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50";
@@ -19,6 +25,9 @@ const SEG_BASE =
   "inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border px-3 py-2 text-base font-medium transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50";
 const SEG_ON = "border-primary bg-primary text-primary-foreground";
 const SEG_OFF = "border-input bg-background hover:bg-muted";
+
+const STEP_BTN =
+  "inline-flex size-11 shrink-0 items-center justify-center rounded-lg border border-input bg-background text-foreground transition-colors hover:bg-muted disabled:opacity-40 outline-none focus-visible:ring-3 focus-visible:ring-ring/50";
 
 function segClass(active: boolean, invalid?: boolean): string {
   return cn(SEG_BASE, active ? SEG_ON : SEG_OFF, invalid && !active && "border-destructive");
@@ -37,9 +46,18 @@ export type DynamicFormProps = {
   /** Field ids to mark invalid (missing required). */
   errors?: Set<string>;
   idPrefix?: string;
+  /** Soft per-field UI hints (units / steppers). Omit ⇒ unchanged behavior. */
+  hints?: Record<string, FieldHint>;
 };
 
-export function DynamicForm({ fields, values, onChange, errors, idPrefix = "" }: DynamicFormProps) {
+export function DynamicForm({
+  fields,
+  values,
+  onChange,
+  errors,
+  idPrefix = "",
+  hints,
+}: DynamicFormProps) {
   return (
     <div className="space-y-6">
       {fields.map((field) => {
@@ -52,6 +70,7 @@ export function DynamicForm({ fields, values, onChange, errors, idPrefix = "" }:
             onChange={onChange}
             invalid={errors?.has(field.id) ?? false}
             idPrefix={idPrefix}
+            hint={hints?.[field.id]}
           />
         );
       })}
@@ -65,12 +84,14 @@ function FieldBlock({
   onChange,
   invalid,
   idPrefix,
+  hint,
 }: {
   field: FormField;
   values: FormValues;
   onChange: (key: string, value: unknown) => void;
   invalid: boolean;
   idPrefix: string;
+  hint?: FieldHint;
 }) {
   const id = `${idPrefix}${field.id}`;
 
@@ -102,6 +123,7 @@ function FieldBlock({
           value={values[field.id]}
           setValue={(v) => onChange(field.id, v)}
           invalid={invalid}
+          hint={hint}
           otherText={typeof values[`${field.id}_other`] === "string" ? (values[`${field.id}_other`] as string) : ""}
           setOtherText={(t) => onChange(`${field.id}_other`, t)}
         />
@@ -120,6 +142,7 @@ function LeafControl({
   value,
   setValue,
   invalid,
+  hint,
   otherText,
   setOtherText,
 }: {
@@ -128,6 +151,7 @@ function LeafControl({
   value: unknown;
   setValue: (v: unknown) => void;
   invalid: boolean;
+  hint?: FieldHint;
   otherText?: string;
   setOtherText?: (t: string) => void;
 }) {
@@ -147,15 +171,7 @@ function LeafControl({
 
     case "number":
       return (
-        <Input
-          id={id}
-          type="number"
-          inputMode="decimal"
-          value={typeof value === "number" ? value : ""}
-          onChange={(e) => setValue(numberFromInput(e.target.value))}
-          aria-invalid={invalid}
-          className="h-11 text-base"
-        />
+        <NumberControl id={id} value={value} setValue={setValue} invalid={invalid} hint={hint} />
       );
 
     case "textarea":
@@ -235,6 +251,69 @@ function LeafControl({
     default:
       return null;
   }
+}
+
+// Number entry. Plain input by default (unchanged); when a hint asks for it,
+// gains a unit suffix and/or big +/- steppers for easy phone/elderly use. The
+// steppers only clamp to the hint's soft min/max — typing stays unrestricted and
+// no new validation gate is introduced.
+function NumberControl({
+  id,
+  value,
+  setValue,
+  invalid,
+  hint,
+}: {
+  id: string;
+  value: unknown;
+  setValue: (v: unknown) => void;
+  invalid: boolean;
+  hint?: FieldHint;
+}) {
+  const num = typeof value === "number" ? value : undefined;
+
+  const field = (
+    <div className="relative flex-1">
+      <Input
+        id={id}
+        type="number"
+        inputMode="decimal"
+        value={num ?? ""}
+        onChange={(e) => setValue(numberFromInput(e.target.value))}
+        aria-invalid={invalid}
+        className={cn("h-11 text-base", hint?.unit && "pr-12")}
+      />
+      {hint?.unit ? (
+        <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-muted-foreground">
+          {hint.unit}
+        </span>
+      ) : null}
+    </div>
+  );
+
+  if (!hint?.stepper) return field;
+
+  const step = hint.step ?? 1;
+  const clamp = (n: number) => {
+    let x = n;
+    if (hint.min != null) x = Math.max(hint.min, x);
+    if (hint.max != null) x = Math.min(hint.max, x);
+    // Round to the step's precision to avoid 0.30000000004 drift.
+    return Math.round(x / step) * step;
+  };
+  const bump = (dir: 1 | -1) => setValue(clamp((num ?? hint.min ?? 0) + dir * step));
+
+  return (
+    <div className="flex items-stretch gap-2">
+      <button type="button" onClick={() => bump(-1)} aria-label="Decrease" className={STEP_BTN}>
+        <Minus className="size-4" aria-hidden />
+      </button>
+      {field}
+      <button type="button" onClick={() => bump(1)} aria-label="Increase" className={STEP_BTN}>
+        <Plus className="size-4" aria-hidden />
+      </button>
+    </div>
+  );
 }
 
 function SelectControl({
@@ -440,40 +519,71 @@ function FrequencyGrid({
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full border-separate border-spacing-y-2 text-sm">
-        <thead>
-          <tr>
-            <th className="text-left font-medium" />
-            {cols.map((c) => (
-              <th key={c} className="px-2 text-center font-medium text-muted-foreground">
-                {c}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => (
-            <tr key={r} className={cn(invalid && !grid[r] && "outline outline-1 outline-destructive/40")}>
-              <td className="whitespace-nowrap pr-3 font-medium">{r}</td>
+    <>
+      {/* Mobile: each row its own card with full-size, tappable option buttons. */}
+      <div className="space-y-3 sm:hidden">
+        {rows.map((r) => (
+          <div
+            key={r}
+            className={cn(
+              "rounded-lg border p-3",
+              invalid && !grid[r] ? "border-destructive/60" : "border-border",
+            )}
+          >
+            <p className="mb-2 font-medium">{r}</p>
+            <div className="flex flex-wrap gap-2" role="group" aria-label={r}>
               {cols.map((c) => (
-                <td key={c} className="px-1 text-center">
-                  <button
-                    type="button"
-                    onClick={() => set(r, c)}
-                    aria-pressed={grid[r] === c}
-                    aria-label={`${r}: ${c}`}
-                    className={cn(
-                      "size-8 rounded-full border transition-colors",
-                      grid[r] === c ? "border-primary bg-primary" : "border-input bg-background hover:bg-muted",
-                    )}
-                  />
-                </td>
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => set(r, c)}
+                  aria-pressed={grid[r] === c}
+                  className={cn(segClass(grid[r] === c), "flex-1 basis-[45%] text-sm")}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* ≥sm: the compact matrix. */}
+      <div className="hidden overflow-x-auto sm:block">
+        <table className="w-full border-separate border-spacing-y-2 text-sm">
+          <thead>
+            <tr>
+              <th className="text-left font-medium" />
+              {cols.map((c) => (
+                <th key={c} className="px-2 text-center font-medium text-muted-foreground">
+                  {c}
+                </th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r} className={cn(invalid && !grid[r] && "outline outline-1 outline-destructive/40")}>
+                <td className="whitespace-nowrap pr-3 font-medium">{r}</td>
+                {cols.map((c) => (
+                  <td key={c} className="px-1 text-center">
+                    <button
+                      type="button"
+                      onClick={() => set(r, c)}
+                      aria-pressed={grid[r] === c}
+                      aria-label={`${r}: ${c}`}
+                      className={cn(
+                        "size-8 rounded-full border transition-colors",
+                        grid[r] === c ? "border-primary bg-primary" : "border-input bg-background hover:bg-muted",
+                      )}
+                    />
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 }

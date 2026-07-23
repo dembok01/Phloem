@@ -1,7 +1,8 @@
 "use client";
 
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
+import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type NavItem = { href: string; label: string; exact?: boolean };
@@ -34,11 +35,23 @@ export function NavTabs({ items }: { items: NavItem[] }) {
                   : "text-muted-foreground hover:bg-muted hover:text-foreground",
               )}
             >
-              {item.label}
+              <TabLabel label={item.label} />
             </Link>
           );
         })}
       </div>
     </nav>
+  );
+}
+
+/** Renders the tab label with a spinner while its own navigation is in flight
+ * (useLinkStatus is scoped to the nearest parent Link). */
+function TabLabel({ label }: { label: string }) {
+  const { pending } = useLinkStatus();
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      {label}
+      {pending ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : null}
+    </span>
   );
 }

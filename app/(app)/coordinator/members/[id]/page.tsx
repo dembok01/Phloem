@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { MessageCircle, Phone } from "lucide-react";
 import { ActivationMoment } from "@/components/activation-moment";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Monogram } from "@/components/monogram";
 import { PageHeader } from "@/components/page-header";
@@ -68,6 +68,9 @@ type Pro = {
   whatsapp: string | null;
 };
 
+// Cycle rows carry `id` so active-cycle consults can be matched in-memory.
+type CycleRow = ProgramCycle & { id: string };
+
 export default async function CoordinatorMemberPage({
   params,
   searchParams,
@@ -87,46 +90,49 @@ export default async function CoordinatorMemberPage({
     .maybeSingle();
   if (!member) notFound();
 
-  const [{ data: contacts }, { data: consults }, { data: assignments }, { data: pros }, { data: pkg }] =
-    await Promise.all([
-      supabase.from("member_contacts").select("phone, whatsapp").eq("member_id", id).maybeSingle(),
-      supabase
-        .from("consultations")
-        .select("id, type, cycle_id, meeting_status, report_status, scheduled_at, mode, meeting_link")
-        .eq("member_id", id),
-      supabase.from("assignments").select("care_role, care_user_id").eq("member_id", id).eq("active", true),
-      supabase
-        .from("profiles")
-        .select("id, full_name, role, specialization, phone, whatsapp")
-        .in("role", CARE_ROLES)
-        .eq("status", "active")
-        .order("full_name"),
-      supabase
-        .from("packages")
-        .select("id, status, start_date, end_date, duration_months, total_paused_days, psych_override, paused_at")
-        .eq("member_id", id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-    ]);
+  const [
+    { data: contacts },
+    { data: consults },
+    { data: assignments },
+    { data: pros },
+    { data: pkg },
+    { data: caregiver },
+  ] = await Promise.all([
+    supabase.from("member_contacts").select("phone, whatsapp").eq("member_id", id).maybeSingle(),
+    supabase
+      .from("consultations")
+      .select("id, type, cycle_id, meeting_status, report_status, scheduled_at, mode, meeting_link")
+      .eq("member_id", id),
+    supabase.from("assignments").select("care_role, care_user_id").eq("member_id", id).eq("active", true),
+    supabase
+      .from("profiles")
+      .select("id, full_name, role, specialization, phone, whatsapp")
+      .in("role", CARE_ROLES)
+      .eq("status", "active")
+      .order("full_name"),
+    supabase
+      .from("packages")
+      .select("id, status, start_date, end_date, duration_months, total_paused_days, psych_override, paused_at")
+      .eq("member_id", id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    // Caregiver only needs member.caregiver_id (known now) → fold into the batch.
+    member.caregiver_id
+      ? supabase.from("profiles").select("full_name, phone, whatsapp").eq("id", member.caregiver_id).maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
 
+  // Cycles depend on the package id fetched above. Select `id` so the active
+  // cycle's review consultations can be filtered from the `consults` list already
+  // fetched — no second consultations query, no cycle-id re-lookup.
   const { data: cycles } = pkg
     ? await supabase
         .from("cycles")
-        .select("number, start_date, end_date, status")
+        .select("id, number, start_date, end_date, status")
         .eq("package_id", pkg.id)
         .order("number")
-    : { data: [] as ProgramCycle[] };
-
-  const caregiver = member.caregiver_id
-    ? (
-        await supabase
-          .from("profiles")
-          .select("full_name, phone, whatsapp")
-          .eq("id", member.caregiver_id)
-          .maybeSingle()
-      ).data
-    : null;
+    : { data: [] as CycleRow[] };
 
   const prosByRole = new Map<string, Pro[]>();
   const proById = new Map<string, Pro>();
@@ -139,10 +145,10 @@ export default async function CoordinatorMemberPage({
   const assignedByRole = new Map<string, string>();
   for (const a of assignments ?? []) assignedByRole.set(a.care_role, a.care_user_id);
 
-  const allConsults = consults ?? [];
-  const cycleList = (cycles ?? []) as ProgramCycle[];
+  const allConsults = (consults ?? []) as ConsultRow[];
+  const cycleList = (cycles ?? []) as CycleRow[];
   const cycleNumberById = new Map<string, number>();
-  // cycles fetched without id; re-fetch mapping only if a program is running.
+  for (const c of cycleList) cycleNumberById.set(c.id, c.number);
   const activeCycle = cycleList.find((c) => c.status === "active");
 
   // Eligibility for activation mirrors the RPC (§6): initial (cycle_id NULL)
@@ -154,12 +160,14 @@ export default async function CoordinatorMemberPage({
   const eligibleToStart = ["doctor", "nutritionist", "trainer"].every((t) => submittedInitial.has(t as CareRole));
   const psychSubmitted = submittedInitial.has("psychologist");
 
-  // Consultations worth showing now: the initial round + the active cycle's review round.
-  const activeCycleConsults = await getActiveCycleConsults(supabase, id, pkg?.id ?? null);
+  // Consultations worth showing now: the initial round + the active cycle's review
+  // round — both filtered from the full `consults` list already fetched above.
+  const activeCycleConsults = activeCycle
+    ? allConsults.filter((c) => c.cycle_id === activeCycle.id)
+    : [];
   const shownConsults = [...initialConsults, ...activeCycleConsults].sort(
     (a, b) => CARE_ROLES.indexOf(a.type) - CARE_ROLES.indexOf(b.type),
   );
-  for (const c of activeCycleConsults) if (c.cycle_id && activeCycle) cycleNumberById.set(c.cycle_id, activeCycle.number);
 
   const redFlags = parseRedFlags(member.red_flags);
 
@@ -255,9 +263,13 @@ export default async function CoordinatorMemberPage({
                         </option>
                       ))}
                     </select>
-                    <Button type="submit" variant="outline" size="sm">
+                    <SubmitButton
+                      variant="outline"
+                      size="sm"
+                      pendingText={assigned ? "Reassigning…" : "Assigning…"}
+                    >
                       {assigned ? "Reassign" : "Assign"}
-                    </Button>
+                    </SubmitButton>
                   </form>
                 ) : (
                   <span className="text-xs text-muted-foreground">No active {role}s — invite one first</span>
@@ -320,9 +332,9 @@ export default async function CoordinatorMemberPage({
                           <span className="mb-1 block text-muted-foreground">Meeting link (optional)</span>
                           <input type="url" name="link" placeholder="https://…" className={cn(SELECT_CLASS, "w-full")} />
                         </label>
-                        <Button type="submit" size="sm">
+                        <SubmitButton size="sm" pendingText="Saving…">
                           Save
-                        </Button>
+                        </SubmitButton>
                       </form>
                     </details>
 
@@ -330,9 +342,9 @@ export default async function CoordinatorMemberPage({
                       <form action={markMeetingDone}>
                         <input type="hidden" name="member_id" value={member.id} />
                         <input type="hidden" name="consultation_id" value={c.id} />
-                        <Button type="submit" variant="outline" size="sm">
+                        <SubmitButton variant="outline" size="sm" pendingText="Marking…">
                           Mark meeting done
-                        </Button>
+                        </SubmitButton>
                       </form>
                     ) : null}
                   </div>
@@ -362,7 +374,6 @@ export default async function CoordinatorMemberPage({
   );
 }
 
-type SB = Awaited<ReturnType<typeof createClient>>;
 type ConsultRow = {
   id: string;
   type: CareRole;
@@ -373,29 +384,6 @@ type ConsultRow = {
   mode: string | null;
   meeting_link: string | null;
 };
-
-// The active cycle's review consultations (with their cycle_id) so the coordinator
-// can schedule + mark them done for the current 30-day cycle.
-async function getActiveCycleConsults(
-  supabase: SB,
-  memberId: string,
-  packageId: string | null,
-): Promise<ConsultRow[]> {
-  if (!packageId) return [];
-  const { data: active } = await supabase
-    .from("cycles")
-    .select("id")
-    .eq("package_id", packageId)
-    .eq("status", "active")
-    .maybeSingle();
-  if (!active) return [];
-  const { data } = await supabase
-    .from("consultations")
-    .select("id, type, cycle_id, meeting_status, report_status, scheduled_at, mode, meeting_link")
-    .eq("member_id", memberId)
-    .eq("cycle_id", active.id);
-  return (data ?? []) as ConsultRow[];
-}
 
 function ContactBlock({
   label,

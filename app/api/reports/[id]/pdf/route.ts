@@ -1,4 +1,4 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse, type NextRequest, after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { reportHtml } from "@/lib/reports/html";
@@ -24,14 +24,34 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   // RLS-scoped read = the access gate.
   const { data: report } = await supabase
     .from("reports")
-    .select("id, member_id, content")
+    .select("id, member_id, content, pdf_path")
     .eq("id", id)
     .maybeSingle();
   if (!report) return new NextResponse("Not found", { status: 404 });
 
-  await supabase.rpc("log_report_view", { p_report: id });
+  // Audit the view without blocking the download (it's a fire-and-forget log).
+  after(async () => {
+    await supabase.rpc("log_report_view", { p_report: id });
+  });
 
+  // Private bucket write + pdf_path cache use the service client (the bucket is
+  // private; reports are immutable to clinicians). pdf_path is a derived artifact
+  // pointer, not workflow state, so §0.4's "transition via RPC" rule doesn't apply.
   const content = parseReportContent(report.content);
+  const admin = createAdminClient();
+  const objectPath = report.pdf_path ?? `${report.member_id}/${report.id}.pdf`;
+  const filename = `${slugify(content.title)}.pdf`;
+
+  // Fast path: the PDF was already generated and cached. Reports are immutable, so
+  // re-sign the stored object instead of launching a headless Chromium again.
+  if (report.pdf_path) {
+    const { data: cachedSigned } = await admin.storage
+      .from("reports")
+      .createSignedUrl(report.pdf_path, 600, { download: filename });
+    if (cachedSigned) return NextResponse.redirect(cachedSigned.signedUrl, 302);
+    // Signing the cached object failed (e.g. deleted) — fall through and regenerate.
+  }
+
   let pdf: Buffer;
   try {
     pdf = await renderPdf(await reportHtml(content));
@@ -42,11 +62,6 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     );
   }
 
-  // Private bucket write + pdf_path cache use the service client (the bucket is
-  // private; reports are immutable to clinicians). pdf_path is a derived artifact
-  // pointer, not workflow state, so §0.4's "transition via RPC" rule doesn't apply.
-  const admin = createAdminClient();
-  const objectPath = `${report.member_id}/${report.id}.pdf`;
   const { error: upErr } = await admin.storage
     .from("reports")
     .upload(objectPath, pdf, { contentType: "application/pdf", upsert: true });
@@ -55,7 +70,6 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   }
   await admin.from("reports").update({ pdf_path: objectPath }).eq("id", report.id);
 
-  const filename = `${slugify(content.title)}.pdf`;
   const { data: signed, error: signErr } = await admin.storage
     .from("reports")
     .createSignedUrl(objectPath, 600, { download: filename });

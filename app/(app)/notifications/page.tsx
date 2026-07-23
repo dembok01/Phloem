@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Bell } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { formatDateTimeIST } from "@/lib/datetime";
@@ -27,9 +27,9 @@ export default async function NotificationsPage() {
         actions={
           unread > 0 ? (
             <form action={markAllRead}>
-              <Button type="submit" variant="outline" size="sm">
+              <SubmitButton variant="outline" size="sm" pendingText="Marking…">
                 Mark all as read
-              </Button>
+              </SubmitButton>
             </form>
           ) : null
         }
@@ -66,9 +66,9 @@ export default async function NotificationsPage() {
               {!n.read_at ? (
                 <form action={markOneRead}>
                   <input type="hidden" name="id" value={n.id} />
-                  <Button type="submit" variant="ghost" size="xs">
+                  <SubmitButton variant="ghost" size="xs" pendingText="…">
                     Mark read
-                  </Button>
+                  </SubmitButton>
                 </form>
               ) : null}
             </li>

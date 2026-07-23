@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -69,9 +69,9 @@ export default async function LoginPage({
                 className="h-11 text-base"
               />
             </div>
-            <Button type="submit" className="h-11 w-full text-base">
+            <SubmitButton className="h-11 w-full text-base" pendingText="Signing in…">
               Sign in
-            </Button>
+            </SubmitButton>
           </form>
         </CardContent>
       </Card>

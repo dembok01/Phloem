@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/page-header";
@@ -115,9 +115,9 @@ export default async function InvitesPage({
                             ) : null}
                             <form action={revokeInvite}>
                               <input type="hidden" name="id" value={inv.id} />
-                              <Button type="submit" size="sm" variant="destructive">
+                              <SubmitButton size="sm" variant="destructive" pendingText="Revoking…">
                                 Revoke
-                              </Button>
+                              </SubmitButton>
                             </form>
                           </div>
                         )}

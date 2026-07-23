@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -162,7 +163,7 @@ export default async function NewMemberPage({
           <Link href="/admin/members" className={cn(buttonVariants({ variant: "outline" }))}>
             Cancel
           </Link>
-          <Button type="submit">Enroll &amp; send invite</Button>
+          <SubmitButton pendingText="Enrolling…">Enroll &amp; send invite</SubmitButton>
         </div>
       </form>
     </section>

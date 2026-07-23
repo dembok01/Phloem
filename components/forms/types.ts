@@ -59,6 +59,19 @@ export type FormValues = Record<string, unknown>;
 /** One row of a repeat_group. */
 export type RepeatRow = Record<string, unknown>;
 
+/**
+ * Soft, advisory rendering affordances for a field (units, a +/- stepper). These
+ * are presentation-only hints — they never add a validation gate. Passed to
+ * DynamicForm out-of-band so the template schema stays untouched.
+ */
+export type FieldHint = {
+  unit?: string;
+  stepper?: boolean;
+  min?: number;
+  max?: number;
+  step?: number;
+};
+
 /** The scale ranges keyed by field type. */
 export const SCALE_RANGES: Record<"scale_1_5" | "scale_0_5" | "scale_1_10", number[]> = {
   scale_1_5: [1, 2, 3, 4, 5],
