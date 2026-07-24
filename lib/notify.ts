@@ -6,6 +6,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
+import { logEvent, logError } from "@/lib/observe";
 
 type Admin = SupabaseClient<Database>;
 
@@ -43,7 +44,11 @@ export async function dispatchNotificationEmails(admin: Admin, limit = 100): Pro
     .is("email_sent_at", null)
     .order("created_at", { ascending: true })
     .limit(limit);
-  if (error || !data) return { sent: 0 };
+  if (error) {
+    logError("notify.dispatch.query_failed", error);
+    return { sent: 0 };
+  }
+  if (!data || data.length === 0) return { sent: 0 };
 
   let sent = 0;
   for (const n of data) {
@@ -57,5 +62,6 @@ export async function dispatchNotificationEmails(admin: Admin, limit = 100): Pro
       sent++;
     }
   }
+  if (sent > 0 || data.length > 0) logEvent("notify.dispatch", { considered: data.length, sent });
   return { sent };
 }
