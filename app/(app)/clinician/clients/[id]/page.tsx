@@ -19,7 +19,8 @@ import { CLEARED, resolveClearance } from "@/lib/clearance";
 import { ClinicalForm } from "@/components/forms/ClinicalForm";
 import { FeedbackForm } from "@/components/forms/FeedbackForm";
 import { DocumentList, type DocumentRow } from "@/components/documents/document-list";
-import type { FormTemplateSchema, FormValues } from "@/components/forms/types";
+import type { FormValues } from "@/components/forms/types";
+import { parseFormTemplate } from "@/components/forms/schema";
 
 type CareRole = Database["public"]["Enums"]["care_role"];
 
@@ -559,7 +560,7 @@ async function FormPanel({
   if (!template) {
     return <Card><CardContent className="py-8 text-sm text-muted-foreground">Form template missing.</CardContent></Card>;
   }
-  const schema = template.schema as unknown as FormTemplateSchema;
+  const schema = parseFormTemplate(template.schema);
 
   // Ensure a draft (fr_own_clinical: respondent_id = self).
   const { data: existing } = await supabase
@@ -678,7 +679,7 @@ async function FeedbackPanel({
 
   return (
     <FeedbackForm
-      template={template.schema as unknown as FormTemplateSchema}
+      template={parseFormTemplate(template.schema)}
       responseId={draft.id}
       initialAnswers={(draft.answers as unknown as FormValues | null) ?? {}}
     />
