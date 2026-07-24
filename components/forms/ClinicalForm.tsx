@@ -9,15 +9,12 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Check, Circle, CircleCheck, Loader2, Lock, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { createClient } from "@/lib/supabase/client";
-import type { Json } from "@/lib/supabase/database.types";
 import { cn } from "@/lib/utils";
 import { DynamicForm } from "./DynamicForm";
 import { missingRequiredFields } from "./logic";
 import type { FormTemplateSchema, FormValues } from "./types";
+import { useAutosaveDraft, type SaveState } from "./useAutosaveDraft";
 import { submitClinicalForm } from "@/app/(app)/clinician/clients/[id]/actions";
-
-type SaveState = "idle" | "saving" | "saved" | "error";
 
 export function ClinicalForm({
   template,
@@ -37,33 +34,13 @@ export function ClinicalForm({
   lockedReason?: string;
 }) {
   const router = useRouter();
-  const supabase = React.useMemo(() => createClient(), []);
   const [values, setValues] = React.useState<FormValues>(initialAnswers);
   const [errors, setErrors] = React.useState<Set<string>>(new Set());
-  const [saveState, setSaveState] = React.useState<SaveState>("idle");
   const [submitting, setSubmitting] = React.useState(false);
   const [submitError, setSubmitError] = React.useState<string | null>(null);
-  const dirty = React.useRef(false);
-  const timer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  React.useEffect(() => {
-    if (locked || !dirty.current) return;
-    setSaveState("saving");
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(async () => {
-      const { error } = await supabase
-        .from("form_responses")
-        .update({ answers: values as unknown as Json })
-        .eq("id", responseId);
-      setSaveState(error ? "error" : "saved");
-    }, 800);
-    return () => {
-      if (timer.current) clearTimeout(timer.current);
-    };
-  }, [values, supabase, responseId, locked]);
+  const saveState = useAutosaveDraft(responseId, values, { paused: locked });
 
   function onChange(key: string, value: unknown) {
-    dirty.current = true;
     setValues((v) => ({ ...v, [key]: value }));
     setErrors((prev) => {
       if (!prev.has(key)) return prev;

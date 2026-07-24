@@ -14,8 +14,7 @@ import { DynamicForm } from "./DynamicForm";
 import { missingRequiredFields } from "./logic";
 import type { FormTemplateSchema, FormValues } from "./types";
 import { submitFeedback } from "@/app/(app)/clinician/clients/[id]/actions";
-
-type SaveState = "idle" | "saving" | "saved" | "error";
+import { useAutosaveDraft, type SaveState } from "./useAutosaveDraft";
 
 export function FeedbackForm({
   template,
@@ -30,31 +29,12 @@ export function FeedbackForm({
   const supabase = React.useMemo(() => createClient(), []);
   const [values, setValues] = React.useState<FormValues>(initialAnswers);
   const [errors, setErrors] = React.useState<Set<string>>(new Set());
-  const [saveState, setSaveState] = React.useState<SaveState>("idle");
   const [submitting, setSubmitting] = React.useState(false);
   const [submitError, setSubmitError] = React.useState<string | null>(null);
   const [done, setDone] = React.useState(false);
-  const dirty = React.useRef(false);
-  const timer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  React.useEffect(() => {
-    if (!dirty.current) return;
-    setSaveState("saving");
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(async () => {
-      const { error } = await supabase
-        .from("form_responses")
-        .update({ answers: values as unknown as Json })
-        .eq("id", responseId);
-      setSaveState(error ? "error" : "saved");
-    }, 800);
-    return () => {
-      if (timer.current) clearTimeout(timer.current);
-    };
-  }, [values, supabase, responseId]);
+  const saveState = useAutosaveDraft(responseId, values);
 
   function onChange(key: string, value: unknown) {
-    dirty.current = true;
     setValues((v) => ({ ...v, [key]: value }));
     setErrors((prev) => {
       if (!prev.has(key)) return prev;

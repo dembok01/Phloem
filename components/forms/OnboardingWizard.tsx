@@ -19,15 +19,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Check, CheckCircle2, Loader2, AlertTriangle, HeartHandshake } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { createClient } from "@/lib/supabase/client";
-import type { Json } from "@/lib/supabase/database.types";
 import { cn } from "@/lib/utils";
 import { computeRedFlags, hasHighFlag } from "@/lib/red-flags";
 import { DynamicForm } from "./DynamicForm";
 import { missingRequiredFields } from "./logic";
 import { buildCards, cardIndexOfField, FIELD_HINTS } from "./onboarding-flow";
 import type { FormTemplateSchema, FormValues } from "./types";
-import { SaveIndicator, type SaveState } from "./onboarding/SaveIndicator";
+import { SaveIndicator } from "./onboarding/SaveIndicator";
+import { useAutosaveDraft } from "./useAutosaveDraft";
 import { OnboardingProgress } from "./onboarding/OnboardingProgress";
 import { PrefillReviewCard } from "./onboarding/PrefillReviewCard";
 import { InterludeCard } from "./onboarding/InterludeCard";
@@ -48,7 +47,6 @@ export function OnboardingWizard({
   initialAnswers: FormValues;
 }) {
   const router = useRouter();
-  const supabase = React.useMemo(() => createClient(), []);
   const cards = React.useMemo(() => buildCards(template), [template]);
   // v2 key: card-indexed. Drafts saved under the old :section key fall back to the
   // welcome step once (answers are preserved server-side), rather than mis-resuming.
@@ -59,11 +57,9 @@ export function OnboardingWizard({
   const [welcome, setWelcome] = React.useState(false);
   const [done, setDone] = React.useState(false);
   const [errors, setErrors] = React.useState<Set<string>>(new Set());
-  const [saveState, setSaveState] = React.useState<SaveState>("idle");
   const [submitting, setSubmitting] = React.useState(false);
   const [submitError, setSubmitError] = React.useState<string | null>(null);
-  const dirty = React.useRef(false);
-  const timer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveState = useAutosaveDraft(responseId, values);
 
   // Resume the card the caregiver last reached; first-ever visit gets the welcome.
   React.useEffect(() => {
@@ -76,23 +72,6 @@ export function OnboardingWizard({
     if (Number.isInteger(saved) && saved >= 0 && saved < cards.length) setCardIndex(saved);
   }, [storageKey, cards.length]);
 
-  // Debounced autosave of the whole answer set to the draft row.
-  React.useEffect(() => {
-    if (!dirty.current) return;
-    setSaveState("saving");
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(async () => {
-      const { error } = await supabase
-        .from("form_responses")
-        .update({ answers: values as unknown as Json })
-        .eq("id", responseId);
-      setSaveState(error ? "error" : "saved");
-    }, 800);
-    return () => {
-      if (timer.current) clearTimeout(timer.current);
-    };
-  }, [values, supabase, responseId]);
-
   const current = cards[cardIndex];
   const isLast = cardIndex === cards.length - 1;
   const flags = computeRedFlags(values);
@@ -103,7 +82,6 @@ export function OnboardingWizard({
   const firstName = /^[A-Za-z]\.?$/.test(firstToken) ? (memberName ?? "") : firstToken;
 
   function onChange(key: string, value: unknown) {
-    dirty.current = true;
     setValues((v) => ({ ...v, [key]: value }));
     setErrors((prev) => {
       if (!prev.has(key)) return prev;
