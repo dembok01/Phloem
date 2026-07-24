@@ -1,3 +1,4 @@
+import { cache } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CheckCircle2, Eye, FileCheck2, Lock, ShieldAlert } from "lucide-react";
@@ -271,8 +272,10 @@ function renderScopedValue(v: unknown): string {
 // The recent doctor reports (newest first). The clearance value is resolved by
 // resolveClearance() — the TS mirror of the 0015 gate — so an unchanged review
 // (no clearance key) carries the prior clearance forward. limit(6) covers a few
-// review cycles while staying bounded.
-async function doctorReports(supabase: SB, memberId: string) {
+// review cycles while staying bounded. React.cache() memoizes per memberId so
+// the panels share one fetch per render (and future co-rendered panels too).
+const doctorReports = cache(async (memberId: string) => {
+  const supabase = await createClient();
   const { data } = await supabase
     .from("reports")
     .select("id, type, content, created_at")
@@ -281,15 +284,15 @@ async function doctorReports(supabase: SB, memberId: string) {
     .order("created_at", { ascending: false })
     .limit(6);
   return data ?? [];
-}
+});
 
 function sectionsOf(content: Json | null | undefined): { heading: string; kind: string; data: unknown }[] {
   const c = content as { sections?: { heading: string; kind: string; data: unknown }[] } | null;
   return Array.isArray(c?.sections) ? c!.sections : [];
 }
 
-async function DirectivesPanel({ supabase, memberId }: { supabase: SB; memberId: string }) {
-  const report = (await doctorReports(supabase, memberId))[0] ?? null;
+async function DirectivesPanel({ memberId }: { supabase: SB; memberId: string }) {
+  const report = (await doctorReports(memberId))[0] ?? null;
   const wanted = new Set(["Nutrition Directives", "Exercise Clearance", "Team Flags & Notes"]);
   const sections = sectionsOf(report?.content).filter((s) => wanted.has(s.heading));
   return (
@@ -315,8 +318,8 @@ async function DirectivesPanel({ supabase, memberId }: { supabase: SB; memberId:
   );
 }
 
-async function ClearancePanel({ supabase, memberId }: { supabase: SB; memberId: string }) {
-  const reports = await doctorReports(supabase, memberId);
+async function ClearancePanel({ memberId }: { supabase: SB; memberId: string }) {
+  const reports = await doctorReports(memberId);
   const report = reports[0] ?? null;
   // Clearance VALUE via the resolver (last non-empty wins); the section markup
   // still renders from the newest report row.
@@ -588,7 +591,7 @@ async function FormPanel({
   let locked = false;
   let lockedReason: string | undefined;
   if (role === "trainer") {
-    const clearance = resolveClearance(await doctorReports(supabase, memberId));
+    const clearance = resolveClearance(await doctorReports(memberId));
     if (!(clearance !== null && CLEARED.has(clearance))) {
       locked = true;
       lockedReason =
