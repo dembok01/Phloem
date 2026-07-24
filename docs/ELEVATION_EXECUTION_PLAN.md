@@ -1011,4 +1011,41 @@ Tier 2 (structural: DAL, Suspense, forms engine v2, ActionResult, lifecycle test
 
 ## Divergences
 
-(Record any plan-vs-reality discrepancies here as you execute, with the resolution taken.)
+Recorded during execution (2026-07-24), per the Global Constraints rule.
+
+- **D-1 · Migration numbering.** The blueprint/plan assumed `0010` was the next free
+  migration, but the repo had already advanced to `0014_member_documents.sql`. The four
+  planned migrations were renumbered:
+  - Task 2 `0010_correctness` → **`0015_correctness.sql`** (applied).
+  - Task 4 `0011_fail_closed_owners` → **`0016_fail_closed_owners.sql`**.
+  - Task 5 `0012_hot_path_indexes` → **`0017_hot_path_indexes.sql`**.
+  - Task 7 `0013_report_sharing` → **skipped** (see D-2).
+  The base-function references the plan copies from (`submit_clinical_form` 0003:280,
+  `resume_program` 0003:422, `close_cycle_open_next` 0003:452,
+  `compile_performance_report` 0006:180, `run_daily_jobs` 0006:213) were all still the
+  latest definitions and copied verbatim.
+
+- **D-2 · Task 7 report-sharing already shipped.** `set_report_sharing(p_report, p_shared)`
+  (note: `p_shared`, not the plan's `p_share`), the `setReportSharing` server action, the
+  admin member-page "Family sharing" card, and `ReportShareToggle` all already exist
+  (migration `0010_report_sharing_rpc.sql` + P-1 UI). The existing RPC is admin-only and
+  raises `not_found` / `not_shareable`, matching the plan's intent; it omits the plan's
+  optional caregiver `_notify` and `for update` lock (deliberate, left as-is — no new write
+  path). Task 7 was reduced to: register `not_shareable` in the new `lib/rpc-errors.ts`, and
+  add the share-toggle assertions to the suite file.
+
+- **D-3 · §16 suite cannot run against the shared dev DB.** The suite
+  (`supabase/tests/rls.test.sql`) uses global-count assertions calibrated to a fresh `npm
+  run seed` baseline (exactly M1 + M2, unassigned). The hosted dev project has since become a
+  rich demo environment (12 members; M1 fully assigned with a live program; M2 assigned),
+  and the environment override forbids `supabase db reset`. So the full suite raises on its
+  own fixture inserts (`one_active_per_role`) before reaching any assertion. Resolution:
+  RLS-affecting migrations are verified with **targeted, rolled-back transactional probes**
+  against the real seeded personas; the suite file is still extended (Tasks 4 & 7) so it
+  stays correct for the CI path (`SUPABASE_DB_URL` against a freshly-seeded project). This is
+  a pre-existing condition, independent of the elevation work.
+
+- **D-4 · Types regeneration is a no-op for body-only migrations.** `0015` changed only
+  function bodies + added an index (no signature/column change), so
+  `lib/supabase/database.types.ts` (already current through 0014) is byte-identical after
+  regeneration — not rewritten, to avoid spurious churn. Same expected for `0016`/`0017`.
