@@ -7,6 +7,7 @@
     "build": "next build --turbopack",
     "start": "next start",
     "lint": "eslint",
+    "typecheck": "tsc --noEmit",
     "seed": "tsx scripts/seed.ts",
     "cron:dev": "tsx scripts/cron-dev.ts",
     "test:unit": "tsx --test lib/red-flags.test.ts",
