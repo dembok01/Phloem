@@ -49,3 +49,16 @@ export function isTodayIST(iso: string | null | undefined): boolean {
   const d = new Date(iso);
   return !Number.isNaN(d.getTime()) && fmt(d) === fmt(new Date());
 }
+
+/**
+ * Whole IST calendar days between an IST date (`YYYY-MM-DD`) and today (IST),
+ * non-negative. India is a fixed +05:30 offset (no DST), so the shift is
+ * deterministic regardless of the server timezone. (Was duplicated in the portal
+ * page, progress bar, and program card — folded here in T2.1.)
+ */
+export function istDaysSince(startIso: string): number {
+  const istNow = new Date(Date.now() + 5.5 * 3600_000);
+  const today = Date.UTC(istNow.getUTCFullYear(), istNow.getUTCMonth(), istNow.getUTCDate());
+  const start = new Date(startIso + "T00:00:00Z").getTime();
+  return Math.max(0, Math.round((today - start) / 86400_000));
+}
