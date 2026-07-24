@@ -372,6 +372,38 @@ insert into results select pg_temp.assert_eq('doc: admin sees the document',
 
 reset role;
 
+-- ============ report sharing toggle (H-3 — set_report_sharing, 0010) ============
+-- A doctor report is caregiver-invisible until share_with_caregiver flips true.
+-- Fixture aaaa-0002 is M1's doctor_initial; M1's caregiver is caregiver@phloem.local.
+select set_config('request.jwt.claims',
+  json_build_object('sub', (select id from ids where email = 'caregiver@phloem.local'),
+                    'role', 'authenticated')::text, true);
+set local role authenticated;
+insert into results select pg_temp.assert_eq('share: caregiver 0 doctor reports before sharing',
+  (select count(*) from reports where type = 'doctor_initial'), 0);
+
+reset role;
+update reports set share_with_caregiver = true where id = 'aaaaaaaa-0000-4000-8000-000000000002';
+select set_config('request.jwt.claims',
+  json_build_object('sub', (select id from ids where email = 'caregiver@phloem.local'),
+                    'role', 'authenticated')::text, true);
+set local role authenticated;
+insert into results select pg_temp.assert_eq('share: caregiver sees the doctor report once shared',
+  (select count(*) from reports where type = 'doctor_initial'), 1);
+
+reset role;
+update reports set share_with_caregiver = false where id = 'aaaaaaaa-0000-4000-8000-000000000002';
+select set_config('request.jwt.claims',
+  json_build_object('sub', (select id from ids where email = 'caregiver@phloem.local'),
+                    'role', 'authenticated')::text, true);
+set local role authenticated;
+insert into results select pg_temp.assert_eq('share: hidden again after unsharing',
+  (select count(*) from reports where type = 'doctor_initial'), 0);
+
+reset role;
+insert into results select pg_temp.assert_true('share: set_report_sharing NOT executable by anon',
+  not has_function_privilege('anon', 'public.set_report_sharing(uuid, boolean)', 'execute'));
+
 select line from results;
 
 rollback;

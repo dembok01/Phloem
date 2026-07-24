@@ -1073,3 +1073,17 @@ Recorded during execution (2026-07-24), per the Global Constraints rule.
   reproduced verbatim from their latest definitions (0003/0005/0008/0010/0011/0012/0013 and
   the 0015 versions of submit_clinical_form/resume_program/close_cycle_open_next); only the
   guard changed. This pushed the indexes migration to `0018`.
+
+- **D-6 · Task 8 session-profile cache already shipped.** `lib/queries/session.ts` was NOT
+  created: `lib/auth.ts` already exports `getSessionProfile`, wrapped in `React.cache()`, and
+  all three call sites the plan targets (`app/(app)/layout.tsx`, the clinician client page,
+  `app/(app)/portal/page.tsx`) already consume it — delivered by the earlier performance
+  pass. So Task 8 reduced to Step 3: wrapping the clinician page's `doctorReports` in
+  `React.cache()` (keyed on memberId, creates its own client). Note the three doctor-report
+  readers render in mutually-exclusive tabs, so the practical de-duplication is future-proofing
+  rather than a live 3× fetch; the cache is still correct and matches the plan's intent. The
+  Tier-2 DAL (T2.1) can later fold `getSessionProfile` into `lib/queries/`.
+- **D-7 · Task 7 verification.** The `set_report_sharing` RPC + `setReportSharing` action +
+  admin card already existed (D-2); this task added the share-toggle assertions to the suite
+  file and verified live: caregiver visibility 0 → 1 → 0 across an admin toggle, and anon
+  cannot execute the RPC.
