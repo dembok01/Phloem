@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { actionOk, actionFail, actionFromError, type ActionResult } from "@/lib/action-result";
 
 // P-4 — a caregiver sets the "Larger text & simpler view" preference on their
 // parent's OWN login, persisted server-side so it holds across the elderly
@@ -13,19 +14,19 @@ const schema = z.object({ memberId: z.string().uuid(), enabled: z.boolean() });
 export async function setMemberElderlyModeAction(
   memberId: string,
   enabled: boolean,
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<ActionResult> {
   const parsed = schema.safeParse({ memberId, enabled });
-  if (!parsed.success) return { ok: false, error: "invalid" };
+  if (!parsed.success) return actionFail("invalid");
 
   const supabase = await createClient();
   const { error } = await supabase.rpc("set_member_elderly_mode", {
     p_member: parsed.data.memberId,
     p_enabled: parsed.data.enabled,
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) return actionFromError(error, "Could not update the setting. Please try again.");
 
   revalidatePath("/portal");
-  return { ok: true };
+  return actionOk(undefined);
 }
 
 // P-3 — point the member row at an uploaded photo (or clear it). The bytes are
@@ -40,18 +41,18 @@ const photoSchema = z.object({
 export async function setMemberPhotoAction(
   memberId: string,
   path: string | null,
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<ActionResult> {
   const parsed = photoSchema.safeParse({ memberId, path });
-  if (!parsed.success) return { ok: false, error: "invalid" };
+  if (!parsed.success) return actionFail("invalid");
 
   const supabase = await createClient();
   const { error } = await supabase.rpc("set_member_photo", {
     p_member: parsed.data.memberId,
     p_path: parsed.data.path as string, // RPC accepts NULL to clear
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) return actionFromError(error, "Could not update the photo. Please try again.");
 
   revalidatePath("/portal");
   revalidatePath(`/admin/members/${parsed.data.memberId}`);
-  return { ok: true };
+  return actionOk(undefined);
 }

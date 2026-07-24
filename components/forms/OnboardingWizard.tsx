@@ -170,7 +170,7 @@ export function OnboardingWizard({
         response_id: responseId,
         answers: values,
       });
-      if ("error" in result) {
+      if (!result.ok) {
         setSubmitError(result.error);
         setSubmitting(false);
         return;

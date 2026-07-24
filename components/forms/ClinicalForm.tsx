@@ -107,12 +107,12 @@ export function ClinicalForm({
         consultation_id: consultationId,
         answers: values,
       });
-      if ("error" in result) {
+      if (!result.ok) {
         setSubmitError(result.error);
         setSubmitting(false);
         return;
       }
-      router.push(`/reports/${result.reportId}`);
+      router.push(`/reports/${result.data.reportId}`);
     } catch {
       setSubmitError("Something went wrong submitting the form. Please try again.");
       setSubmitting(false);

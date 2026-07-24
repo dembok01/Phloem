@@ -6,7 +6,8 @@ import { createClient } from "@/lib/supabase/server";
 import type { Json } from "@/lib/supabase/database.types";
 import { computeRedFlags } from "@/lib/red-flags";
 import { buildOnboardingSummary } from "@/lib/reports/build/onboarding-summary";
-import { rpcErrorMessage, type RpcErrorCode } from "@/lib/rpc-errors";
+import { type RpcErrorCode } from "@/lib/rpc-errors";
+import { actionOk, actionFail, actionFromError, type ActionResult } from "@/lib/action-result";
 
 const uuid = z.string().uuid();
 
@@ -32,14 +33,6 @@ const RPC_MESSAGES: Partial<Record<RpcErrorCode, string>> = {
   not_allowed: "You don't have permission to submit this onboarding.",
 };
 
-function friendly(message: string): string {
-  return rpcErrorMessage(
-    { message },
-    "Something went wrong submitting onboarding. Your answers are saved — please try again.",
-    RPC_MESSAGES,
-  );
-}
-
 /**
  * Persist the caregiver's final answers to their draft (RLS-owned) and run §6
  * `submit_onboarding`: it applies the §4 data-split (contacts → member_contacts,
@@ -51,9 +44,9 @@ export async function submitOnboarding(input: {
   member_id: string;
   response_id: string;
   answers: Record<string, unknown>;
-}): Promise<{ ok: true } | { error: string }> {
+}): Promise<ActionResult> {
   const parsed = submitSchema.safeParse(input);
-  if (!parsed.success) return { error: "Invalid onboarding data." };
+  if (!parsed.success) return actionFail("Invalid onboarding data.");
   const { member_id, response_id, answers } = parsed.data;
 
   const supabase = await createClient();
@@ -65,7 +58,7 @@ export async function submitOnboarding(input: {
     .update({ answers: answers as unknown as Json })
     .eq("id", response_id)
     .eq("member_id", member_id);
-  if (saveErr) return { error: "Could not save your answers. Please try again." };
+  if (saveErr) return actionFail("Could not save your answers. Please try again.");
 
   // Build the §8 onboarding_summary content (contacts are never read here — the
   // builder uses demographics/health only) and pass it to the RPC, which stays
@@ -85,9 +78,15 @@ export async function submitOnboarding(input: {
     p_response: response_id,
     p_report_content: content as unknown as Json,
   });
-  if (rpcErr) return { error: friendly(rpcErr.message) };
+  if (rpcErr) {
+    return actionFromError(
+      rpcErr,
+      "Something went wrong submitting onboarding. Your answers are saved — please try again.",
+      RPC_MESSAGES,
+    );
+  }
 
   revalidatePath("/portal");
   revalidatePath(`/portal/onboarding/${member_id}`);
-  return { ok: true };
+  return actionOk(undefined);
 }
