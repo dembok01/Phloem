@@ -6,6 +6,8 @@ import { createClient } from "@/lib/supabase/server";
 import type { Json } from "@/lib/supabase/database.types";
 import { computeRedFlags } from "@/lib/red-flags";
 import { buildOnboardingSummary } from "@/lib/reports/build/onboarding-summary";
+import { type RpcErrorCode } from "@/lib/rpc-errors";
+import { actionOk, actionFail, actionFromError, type ActionResult } from "@/lib/action-result";
 
 const uuid = z.string().uuid();
 
@@ -25,18 +27,11 @@ export async function markVideoWatched(memberId: string): Promise<void> {
   revalidatePath(`/portal/onboarding/${parsed.data}`);
 }
 
-const RPC_MESSAGES: Record<string, string> = {
+const RPC_MESSAGES: Partial<Record<RpcErrorCode, string>> = {
   video_not_watched: "Please watch the welcome video first.",
   invalid_response: "We couldn't find your saved answers. Please refresh and try again.",
   not_allowed: "You don't have permission to submit this onboarding.",
 };
-
-function friendly(message: string): string {
-  for (const [key, text] of Object.entries(RPC_MESSAGES)) {
-    if (message.includes(key)) return text;
-  }
-  return "Something went wrong submitting onboarding. Your answers are saved — please try again.";
-}
 
 /**
  * Persist the caregiver's final answers to their draft (RLS-owned) and run §6
@@ -49,9 +44,9 @@ export async function submitOnboarding(input: {
   member_id: string;
   response_id: string;
   answers: Record<string, unknown>;
-}): Promise<{ ok: true } | { error: string }> {
+}): Promise<ActionResult> {
   const parsed = submitSchema.safeParse(input);
-  if (!parsed.success) return { error: "Invalid onboarding data." };
+  if (!parsed.success) return actionFail("Invalid onboarding data.");
   const { member_id, response_id, answers } = parsed.data;
 
   const supabase = await createClient();
@@ -63,7 +58,7 @@ export async function submitOnboarding(input: {
     .update({ answers: answers as unknown as Json })
     .eq("id", response_id)
     .eq("member_id", member_id);
-  if (saveErr) return { error: "Could not save your answers. Please try again." };
+  if (saveErr) return actionFail("Could not save your answers. Please try again.");
 
   // Build the §8 onboarding_summary content (contacts are never read here — the
   // builder uses demographics/health only) and pass it to the RPC, which stays
@@ -83,9 +78,15 @@ export async function submitOnboarding(input: {
     p_response: response_id,
     p_report_content: content as unknown as Json,
   });
-  if (rpcErr) return { error: friendly(rpcErr.message) };
+  if (rpcErr) {
+    return actionFromError(
+      rpcErr,
+      "Something went wrong submitting onboarding. Your answers are saved — please try again.",
+      RPC_MESSAGES,
+    );
+  }
 
   revalidatePath("/portal");
   revalidatePath(`/portal/onboarding/${member_id}`);
-  return { ok: true };
+  return actionOk(undefined);
 }

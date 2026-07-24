@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionProfile } from "@/lib/auth";
 import type { Database } from "@/lib/supabase/database.types";
-import { formatDateIST, formatDateTimeIST } from "@/lib/datetime";
+import { formatDateIST, formatDateTimeIST, istDaysSince } from "@/lib/datetime";
 import { CareTeamCard, type CareTeamMember } from "@/components/portal/care-team-card";
 
 type MemberStatus = Database["public"]["Enums"]["member_status"];
@@ -70,14 +70,6 @@ function storyLine(status: MemberStatus, opts: { cycle?: number; total?: number;
 async function careTeam(supabase: SB, memberId: string): Promise<CareTeamMember[]> {
   const { data } = await supabase.rpc("get_care_team", { p_member: memberId });
   return Array.isArray(data) ? (data as unknown as CareTeamMember[]) : [];
-}
-
-// Whole days between an IST calendar date and today (IST), non-negative.
-function istDaysBetween(startIso: string): number {
-  const istNow = new Date(Date.now() + 5.5 * 3600_000);
-  const today = Date.UTC(istNow.getUTCFullYear(), istNow.getUTCMonth(), istNow.getUTCDate());
-  const start = new Date(startIso + "T00:00:00Z").getTime();
-  return Math.max(0, Math.round((today - start) / 86400_000));
 }
 
 function greetingIST(): string {
@@ -213,7 +205,7 @@ async function CaregiverMember({
   const cycleList = cycles ?? [];
   const active = cycleList.find((c) => c.status === "active");
   const paused = pkg?.status === "paused";
-  const day = active ? Math.min(Math.max(istDaysBetween(active.start_date) + 1, 1), 30) : undefined;
+  const day = active ? Math.min(Math.max(istDaysSince(active.start_date) + 1, 1), 30) : undefined;
   const story = storyLine(member.status, {
     cycle: active?.number,
     total: cycleList.length,

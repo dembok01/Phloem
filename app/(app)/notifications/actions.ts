@@ -9,7 +9,11 @@ import { createClient } from "@/lib/supabase/server";
 
 export async function markAllRead(): Promise<void> {
   const supabase = await createClient();
-  await supabase.from("notifications").update({ read_at: new Date().toISOString() }).is("read_at", null);
+  const { error } = await supabase
+    .from("notifications")
+    .update({ read_at: new Date().toISOString() })
+    .is("read_at", null);
+  if (error) console.error("[notifications] update failed:", error.message);
   revalidatePath("/notifications");
 }
 
@@ -17,10 +21,11 @@ export async function markOneRead(formData: FormData): Promise<void> {
   const id = z.string().uuid().safeParse(formData.get("id"));
   if (!id.success) return;
   const supabase = await createClient();
-  await supabase
+  const { error } = await supabase
     .from("notifications")
     .update({ read_at: new Date().toISOString() })
     .eq("id", id.data)
     .is("read_at", null);
+  if (error) console.error("[notifications] update failed:", error.message);
   revalidatePath("/notifications");
 }

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { rpcErrorCode, type RpcErrorCode } from "@/lib/rpc-errors";
 
 // §6 program-lifecycle actions shared by the coordinator + admin member pages.
 // Every mutation goes through a §6 RPC, which is the enforcement boundary: a
@@ -13,17 +14,17 @@ import { createClient } from "@/lib/supabase/server";
 const id = z.string().uuid();
 const months = z.coerce.number().int().min(1).max(24);
 
-// Map raw RPC exceptions to short error codes the pages render.
-const CODES: [string, string][] = [
-  ["initial_reports_incomplete", "initial_incomplete"],
-  ["no_package_to_start", "no_package"],
-  ["not_active", "not_active"],
-  ["not_paused", "not_paused"],
-  ["not_allowed", "not_allowed"],
-];
+// Redirect codes stay identical so the pages' ERROR copy maps keep working.
+const REDIRECT_CODE: Partial<Record<RpcErrorCode, string>> = {
+  initial_reports_incomplete: "initial_incomplete",
+  no_package_to_start: "no_package",
+  not_active: "not_active",
+  not_paused: "not_paused",
+  not_allowed: "not_allowed",
+};
 function code(message: string): string {
-  for (const [needle, c] of CODES) if (message.includes(needle)) return c;
-  return "failed";
+  const c = rpcErrorCode({ message });
+  return (c && REDIRECT_CODE[c]) ?? "failed";
 }
 
 function to(formData: FormData): string {

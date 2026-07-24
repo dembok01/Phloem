@@ -5,6 +5,8 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import type { Database, Json } from "@/lib/supabase/database.types";
 import { buildClinicalReport } from "@/lib/reports/build/clinical";
+import { type RpcErrorCode } from "@/lib/rpc-errors";
+import { actionOk, actionFail, actionFromError, type ActionResult } from "@/lib/action-result";
 
 type CareRole = Database["public"]["Enums"]["care_role"];
 type ReportType = Database["public"]["Enums"]["report_type"];
@@ -28,7 +30,7 @@ function reportTypeFor(role: CareRole, isInitial: boolean): ReportType {
   }
 }
 
-const RPC_MESSAGES: Record<string, string> = {
+const RPC_MESSAGES: Partial<Record<RpcErrorCode, string>> = {
   awaiting_doctor_clearance:
     "The doctor has not cleared this member for exercise yet — the form stays locked until then.",
   meeting_not_done: "This meeting hasn't been marked done by the coordinator yet.",
@@ -43,25 +45,17 @@ const feedbackSchema = z.object({ response_id: z.string().uuid() });
  * that the caller owns the draft and is the assigned nutritionist/trainer, and
  * compiles the performance report once both feedbacks are in).
  */
-export async function submitFeedback(input: {
-  response_id: string;
-}): Promise<{ ok: true } | { error: string }> {
+export async function submitFeedback(input: { response_id: string }): Promise<ActionResult> {
   const parsed = feedbackSchema.safeParse(input);
-  if (!parsed.success) return { error: "Invalid feedback." };
+  if (!parsed.success) return actionFail("Invalid feedback.");
   const supabase = await createClient();
   const { error } = await supabase.rpc("submit_feedback", { p_response: parsed.data.response_id });
   if (error) {
-    return {
-      error: error.message.includes("not_allowed")
-        ? "You can only submit your own feedback for a member you're assigned to."
-        : "Could not submit your feedback. Please try again.",
-    };
+    return actionFromError(error, "Could not submit your feedback. Please try again.", {
+      not_allowed: "You can only submit your own feedback for a member you're assigned to.",
+    });
   }
-  return { ok: true };
-}
-function friendly(message: string): string {
-  for (const [key, text] of Object.entries(RPC_MESSAGES)) if (message.includes(key)) return text;
-  return "Could not submit the form. Please try again.";
+  return actionOk(undefined);
 }
 
 /**
@@ -74,9 +68,9 @@ export async function submitClinicalForm(input: {
   member_id: string;
   consultation_id: string;
   answers: Record<string, unknown>;
-}): Promise<{ reportId: string } | { error: string }> {
+}): Promise<ActionResult<{ reportId: string }>> {
   const parsed = submitSchema.safeParse(input);
-  if (!parsed.success) return { error: "Invalid form data." };
+  if (!parsed.success) return actionFail("Invalid form data.");
   const { member_id, consultation_id, answers } = parsed.data;
 
   const supabase = await createClient();
@@ -88,7 +82,7 @@ export async function submitClinicalForm(input: {
     .select("type, cycle_id")
     .eq("id", consultation_id)
     .maybeSingle();
-  if (!cons) return { error: "Consultation not found." };
+  if (!cons) return actionFail("Consultation not found.");
 
   const { data: member } = await supabase
     .from("members")
@@ -114,8 +108,8 @@ export async function submitClinicalForm(input: {
     p_answers: answers as unknown as Json,
     p_report_content: content as unknown as Json,
   });
-  if (rpcErr) return { error: friendly(rpcErr.message) };
+  if (rpcErr) return actionFromError(rpcErr, "Could not submit the form. Please try again.", RPC_MESSAGES);
 
   revalidatePath(`/clinician/clients/${member_id}`);
-  return { reportId: reportId as string };
+  return actionOk({ reportId: reportId as string });
 }

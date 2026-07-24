@@ -79,7 +79,7 @@ export function FeedbackForm({
     await supabase.from("form_responses").update({ answers: values as unknown as Json }).eq("id", responseId);
     try {
       const result = await submitFeedback({ response_id: responseId });
-      if ("error" in result) {
+      if (!result.ok) {
         setSubmitError(result.error);
         setSubmitting(false);
         return;

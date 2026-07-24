@@ -15,6 +15,8 @@ import { createClient } from "@/lib/supabase/server";
 // eligibility (all initial reports in) and role, so this wrapper stays thin.
 const schema = z.object({ memberId: z.string().uuid(), targetColumn: z.string().min(1) });
 
+// Deliberately NOT lib/action-result's ActionResult: `reason` is a UI-routing
+// discriminant (needs_dialog → open the member page's dialog), not an error.
 type MoveResult =
   | { ok: true; message: string }
   | { ok: false; reason: "needs_dialog" | "ineligible" | "invalid" };

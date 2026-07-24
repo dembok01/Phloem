@@ -1,3 +1,4 @@
+import { cache } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CheckCircle2, Eye, FileCheck2, Lock, ShieldAlert } from "lucide-react";
@@ -13,14 +14,13 @@ import type { Database, Json } from "@/lib/supabase/database.types";
 import { formatDateTimeIST } from "@/lib/datetime";
 import { hasHighFlag, parseRedFlags } from "@/lib/red-flags";
 import { humanize } from "@/lib/reports/build/helpers";
+import { CLEARED, resolveClearance } from "@/lib/clearance";
 import { ClinicalForm } from "@/components/forms/ClinicalForm";
 import { FeedbackForm } from "@/components/forms/FeedbackForm";
 import { DocumentList, type DocumentRow } from "@/components/documents/document-list";
 import type { FormTemplateSchema, FormValues } from "@/components/forms/types";
 
 type CareRole = Database["public"]["Enums"]["care_role"];
-
-const CLEARED = new Set(["cleared", "cleared_with_restrictions"]);
 
 const TABS: Record<CareRole, [string, string][]> = {
   doctor: [
@@ -269,25 +269,30 @@ function renderScopedValue(v: unknown): string {
   return v === "" || v == null ? "—" : String(v);
 }
 
-async function latestDoctorReport(supabase: SB, memberId: string) {
+// The recent doctor reports (newest first). The clearance value is resolved by
+// resolveClearance() — the TS mirror of the 0015 gate — so an unchanged review
+// (no clearance key) carries the prior clearance forward. limit(6) covers a few
+// review cycles while staying bounded. React.cache() memoizes per memberId so
+// the panels share one fetch per render (and future co-rendered panels too).
+const doctorReports = cache(async (memberId: string) => {
+  const supabase = await createClient();
   const { data } = await supabase
     .from("reports")
-    .select("id, content, created_at")
+    .select("id, type, content, created_at")
     .eq("member_id", memberId)
     .in("type", ["doctor_initial", "doctor_review"])
     .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  return data;
-}
+    .limit(6);
+  return data ?? [];
+});
 
 function sectionsOf(content: Json | null | undefined): { heading: string; kind: string; data: unknown }[] {
   const c = content as { sections?: { heading: string; kind: string; data: unknown }[] } | null;
   return Array.isArray(c?.sections) ? c!.sections : [];
 }
 
-async function DirectivesPanel({ supabase, memberId }: { supabase: SB; memberId: string }) {
-  const report = await latestDoctorReport(supabase, memberId);
+async function DirectivesPanel({ memberId }: { supabase: SB; memberId: string }) {
+  const report = (await doctorReports(memberId))[0] ?? null;
   const wanted = new Set(["Nutrition Directives", "Exercise Clearance", "Team Flags & Notes"]);
   const sections = sectionsOf(report?.content).filter((s) => wanted.has(s.heading));
   return (
@@ -313,12 +318,12 @@ async function DirectivesPanel({ supabase, memberId }: { supabase: SB; memberId:
   );
 }
 
-async function ClearancePanel({ supabase, memberId }: { supabase: SB; memberId: string }) {
-  const report = await latestDoctorReport(supabase, memberId);
-  const clearance =
-    report && report.content && typeof report.content === "object" && !Array.isArray(report.content)
-      ? (report.content as Record<string, unknown>).clearance
-      : null;
+async function ClearancePanel({ memberId }: { supabase: SB; memberId: string }) {
+  const reports = await doctorReports(memberId);
+  const report = reports[0] ?? null;
+  // Clearance VALUE via the resolver (last non-empty wins); the section markup
+  // still renders from the newest report row.
+  const clearance = resolveClearance(reports);
   const clearanceSection = sectionsOf(report?.content).find((s) => s.heading === "Exercise Clearance");
   // Three distinct states (C4): full clearance is the only green; restrictions
   // are cautionary and render Honey with the restriction list front and centre.
@@ -586,12 +591,8 @@ async function FormPanel({
   let locked = false;
   let lockedReason: string | undefined;
   if (role === "trainer") {
-    const report = await latestDoctorReport(supabase, memberId);
-    const clearance =
-      report && report.content && typeof report.content === "object" && !Array.isArray(report.content)
-        ? (report.content as Record<string, unknown>).clearance
-        : null;
-    if (!(typeof clearance === "string" && CLEARED.has(clearance))) {
+    const clearance = resolveClearance(await doctorReports(memberId));
+    if (!(clearance !== null && CLEARED.has(clearance))) {
       locked = true;
       lockedReason =
         "Awaiting the doctor's clearance. This form unlocks once a doctor report clears the member for exercise (cleared or cleared with restrictions).";

@@ -266,6 +266,33 @@ insert into results select pg_temp.assert_eq('suspended doctor: 0 form_responses
 
 reset role;
 
+-- ============ persona: SUSPENDED CAREGIVER (S-2/S-4 fail-closed — 0016/0017) ============
+-- "suspend = instant lockout" for the caregiver persona, mirroring the doctor block.
+update profiles set status = 'suspended' where email = 'caregiver@phloem.local';
+select set_config('request.jwt.claims',
+  json_build_object('sub', (select id from profiles where email = 'caregiver@phloem.local'),
+                    'role', 'authenticated')::text, true);
+set local role authenticated;
+
+insert into results select pg_temp.assert_eq('suspended caregiver: 0 members',
+  (select count(*) from members), 0);
+insert into results select pg_temp.assert_eq('suspended caregiver: 0 member_contacts',
+  (select count(*) from member_contacts), 0);
+insert into results select pg_temp.assert_eq('suspended caregiver: 0 reports',
+  (select count(*) from reports), 0);
+insert into results select pg_temp.assert_eq('suspended caregiver: 0 consultations',
+  (select count(*) from consultations), 0);
+insert into results select pg_temp.assert_eq('suspended caregiver: 0 form_responses',
+  (select count(*) from form_responses), 0);
+insert into results select pg_temp.assert_eq('suspended caregiver: 0 notifications',
+  (select count(*) from notifications), 0);
+-- get_care_team fails closed for the suspended caregiver (0017 null guard).
+insert into results select pg_temp.assert_eq('suspended caregiver: get_care_team is empty',
+  jsonb_array_length(get_care_team('11111111-1111-4111-8111-111111111111')), 0);
+
+reset role;
+update profiles set status = 'active' where email = 'caregiver@phloem.local';  -- restore for later blocks
+
 -- ============ §9 cron RPC is service-only (not client-callable) ============
 insert into results select pg_temp.assert_true('run_daily_jobs NOT executable by authenticated',
   not has_function_privilege('authenticated', 'public.run_daily_jobs(date)', 'execute'));
@@ -344,6 +371,38 @@ insert into results select pg_temp.assert_eq('doc: admin sees the document',
   (select count(*) from member_documents), 1);
 
 reset role;
+
+-- ============ report sharing toggle (H-3 — set_report_sharing, 0010) ============
+-- A doctor report is caregiver-invisible until share_with_caregiver flips true.
+-- Fixture aaaa-0002 is M1's doctor_initial; M1's caregiver is caregiver@phloem.local.
+select set_config('request.jwt.claims',
+  json_build_object('sub', (select id from ids where email = 'caregiver@phloem.local'),
+                    'role', 'authenticated')::text, true);
+set local role authenticated;
+insert into results select pg_temp.assert_eq('share: caregiver 0 doctor reports before sharing',
+  (select count(*) from reports where type = 'doctor_initial'), 0);
+
+reset role;
+update reports set share_with_caregiver = true where id = 'aaaaaaaa-0000-4000-8000-000000000002';
+select set_config('request.jwt.claims',
+  json_build_object('sub', (select id from ids where email = 'caregiver@phloem.local'),
+                    'role', 'authenticated')::text, true);
+set local role authenticated;
+insert into results select pg_temp.assert_eq('share: caregiver sees the doctor report once shared',
+  (select count(*) from reports where type = 'doctor_initial'), 1);
+
+reset role;
+update reports set share_with_caregiver = false where id = 'aaaaaaaa-0000-4000-8000-000000000002';
+select set_config('request.jwt.claims',
+  json_build_object('sub', (select id from ids where email = 'caregiver@phloem.local'),
+                    'role', 'authenticated')::text, true);
+set local role authenticated;
+insert into results select pg_temp.assert_eq('share: hidden again after unsharing',
+  (select count(*) from reports where type = 'doctor_initial'), 0);
+
+reset role;
+insert into results select pg_temp.assert_true('share: set_report_sharing NOT executable by anon',
+  not has_function_privilege('anon', 'public.set_report_sharing(uuid, boolean)', 'execute'));
 
 select line from results;
 

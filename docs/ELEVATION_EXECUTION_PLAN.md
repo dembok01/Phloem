@@ -1011,4 +1011,79 @@ Tier 2 (structural: DAL, Suspense, forms engine v2, ActionResult, lifecycle test
 
 ## Divergences
 
-(Record any plan-vs-reality discrepancies here as you execute, with the resolution taken.)
+Recorded during execution (2026-07-24), per the Global Constraints rule.
+
+- **D-1 · Migration numbering.** The blueprint/plan assumed `0010` was the next free
+  migration, but the repo had already advanced to `0014_member_documents.sql`. The four
+  planned migrations were renumbered:
+  - Task 2 `0010_correctness` → **`0015_correctness.sql`** (applied).
+  - Task 4 `0011_fail_closed_owners` → **`0016_fail_closed_owners.sql`**.
+  - Task 5 `0012_hot_path_indexes` → **`0018_hot_path_indexes.sql`** (bumped past the
+    unplanned `0017` — see D-5).
+  - Task 7 `0013_report_sharing` → **skipped** (see D-2).
+  The base-function references the plan copies from (`submit_clinical_form` 0003:280,
+  `resume_program` 0003:422, `close_cycle_open_next` 0003:452,
+  `compile_performance_report` 0006:180, `run_daily_jobs` 0006:213) were all still the
+  latest definitions and copied verbatim.
+
+- **D-2 · Task 7 report-sharing already shipped.** `set_report_sharing(p_report, p_shared)`
+  (note: `p_shared`, not the plan's `p_share`), the `setReportSharing` server action, the
+  admin member-page "Family sharing" card, and `ReportShareToggle` all already exist
+  (migration `0010_report_sharing_rpc.sql` + P-1 UI). The existing RPC is admin-only and
+  raises `not_found` / `not_shareable`, matching the plan's intent; it omits the plan's
+  optional caregiver `_notify` and `for update` lock (deliberate, left as-is — no new write
+  path). Task 7 was reduced to: register `not_shareable` in the new `lib/rpc-errors.ts`, and
+  add the share-toggle assertions to the suite file.
+
+- **D-3 · §16 suite cannot run against the shared dev DB.** The suite
+  (`supabase/tests/rls.test.sql`) uses global-count assertions calibrated to a fresh `npm
+  run seed` baseline (exactly M1 + M2, unassigned). The hosted dev project has since become a
+  rich demo environment (12 members; M1 fully assigned with a live program; M2 assigned),
+  and the environment override forbids `supabase db reset`. So the full suite raises on its
+  own fixture inserts (`one_active_per_role`) before reaching any assertion. Resolution:
+  RLS-affecting migrations are verified with **targeted, rolled-back transactional probes**
+  against the real seeded personas; the suite file is still extended (Tasks 4 & 7) so it
+  stays correct for the CI path (`SUPABASE_DB_URL` against a freshly-seeded project). This is
+  a pre-existing condition, independent of the elevation work.
+
+- **D-4 · Types regeneration is a no-op for body-only migrations.** `0015` changed only
+  function bodies + added an index (no signature/column change), so
+  `lib/supabase/database.types.ts` (already current through 0014) is byte-identical after
+  regeneration — not rewritten, to avoid spurious churn. Same for `0016`/`0017`/`0018`.
+
+- **D-5 · CRITICAL: suspended-user RPC bypass (new migration `0017_rpc_fail_closed.sql`).**
+  Verifying Task 4 surfaced a systemic security bug the plan did not anticipate: the plan
+  (and the codebase) assumed `auth_role()` returning NULL fails closed *everywhere*. That
+  holds for RLS USING clauses (NULL ⇒ deny), but NOT for the ~20 security-definer RPCs whose
+  guards read `if auth_role() not in (...) then raise 'not_allowed'`. `NULL not in (...)` is
+  NULL, so the IF is skipped and the RPC PROCEEDS. Proven empirically: a **suspended
+  coordinator** got past `resume_program`'s guard (reached `not_paused`), and a suspended
+  caregiver still read a full care team from `get_care_team`. So a suspended
+  admin/coordinator/clinician could bypass every write-path authorization check within their
+  unexpired-JWT window — the plan's Task 4 (is_caregiver_of + 3 policies) did NOT deliver its
+  stated goal ("suspend = instant lockout for every persona").
+  Resolution (user approved "fix comprehensively"): new migration `0017_rpc_fail_closed.sql`
+  prepends `if auth_role() is null then raise 'not_allowed'` to every non-service RPC, makes
+  `is_caregiver_of`/`is_member_self` strict booleans (`coalesce(... , false)`), adds an
+  `if r is null then return '[]'` guard to `get_care_team`, and switches the service RPCs’
+  `<> 'admin'` to `is distinct from 'admin'` (cron path with `auth.uid() IS NULL` still runs;
+  `run_daily_jobs`'s copy of that guard is fixed in `0018` where it is reproduced for the
+  advisory lock). Verified: all 23 RPCs now raise `not_allowed`/return `[]` for a suspended
+  caller, while active admin/coordinator/caregiver retain full function. Function bodies were
+  reproduced verbatim from their latest definitions (0003/0005/0008/0010/0011/0012/0013 and
+  the 0015 versions of submit_clinical_form/resume_program/close_cycle_open_next); only the
+  guard changed. This pushed the indexes migration to `0018`.
+
+- **D-6 · Task 8 session-profile cache already shipped.** `lib/queries/session.ts` was NOT
+  created: `lib/auth.ts` already exports `getSessionProfile`, wrapped in `React.cache()`, and
+  all three call sites the plan targets (`app/(app)/layout.tsx`, the clinician client page,
+  `app/(app)/portal/page.tsx`) already consume it — delivered by the earlier performance
+  pass. So Task 8 reduced to Step 3: wrapping the clinician page's `doctorReports` in
+  `React.cache()` (keyed on memberId, creates its own client). Note the three doctor-report
+  readers render in mutually-exclusive tabs, so the practical de-duplication is future-proofing
+  rather than a live 3× fetch; the cache is still correct and matches the plan's intent. The
+  Tier-2 DAL (T2.1) can later fold `getSessionProfile` into `lib/queries/`.
+- **D-7 · Task 7 verification.** The `set_report_sharing` RPC + `setReportSharing` action +
+  admin card already existed (D-2); this task added the share-toggle assertions to the suite
+  file and verified live: caregiver visibility 0 → 1 → 0 across an admin toggle, and anon
+  cannot execute the RPC.

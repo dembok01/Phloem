@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { GrowthRings } from "@/components/growth-rings";
-import { formatDateIST } from "@/lib/datetime";
+import { formatDateIST, istDaysSince } from "@/lib/datetime";
 import {
   activateProgram,
   deactivateMember,
@@ -269,10 +269,7 @@ function DurationForm({
 function activeDay(cycles: ProgramCycle[]): number | null {
   const active = cycles.find((c) => c.status === "active");
   if (!active) return null;
-  const istNow = new Date(Date.now() + 5.5 * 3600_000);
-  const today = Date.UTC(istNow.getUTCFullYear(), istNow.getUTCMonth(), istNow.getUTCDate());
-  const start = new Date(active.start_date + "T00:00:00Z").getTime();
-  return Math.min(Math.max(Math.round((today - start) / 86400_000) + 1, 1), 30);
+  return Math.min(Math.max(istDaysSince(active.start_date) + 1, 1), 30);
 }
 
 function CycleTimeline({ cycles }: { cycles: ProgramCycle[] }) {

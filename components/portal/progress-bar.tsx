@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { formatDateIST } from "@/lib/datetime";
+import { formatDateIST, istDaysSince } from "@/lib/datetime";
 
 export type ProgressCycle = { number: number; start_date: string; end_date: string; status: string };
 
@@ -14,7 +14,7 @@ export function ProgressBar({
 }) {
   if (cycles.length === 0) return null;
   const active = cycles.find((c) => c.status === "active");
-  const dayOfCycle = active ? istDaysBetween(active.start_date) + 1 : null;
+  const dayOfCycle = active ? istDaysSince(active.start_date) + 1 : null;
 
   return (
     <div className="space-y-3">
@@ -53,12 +53,4 @@ export function ProgressBar({
       </div>
     </div>
   );
-}
-
-// Whole days between an IST calendar date and today (IST), non-negative.
-function istDaysBetween(startIso: string): number {
-  const istNow = new Date(Date.now() + 5.5 * 3600_000);
-  const today = Date.UTC(istNow.getUTCFullYear(), istNow.getUTCMonth(), istNow.getUTCDate());
-  const start = new Date(startIso + "T00:00:00Z").getTime();
-  return Math.max(0, Math.round((today - start) / 86400_000));
 }

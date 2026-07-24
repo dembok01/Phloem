@@ -123,6 +123,19 @@ Fully specified, step-by-step with complete code, in **`docs/ELEVATION_EXECUTION
 
 Types are regenerated after every migration via MCP `generate_typescript_types` → `lib/supabase/database.types.ts`; the §16 suite re-runs after every migration.
 
+**✅ Tier 1 complete — 2026-07-24** (branch `elevation/tier1-2`). Landed as migrations
+`0015_correctness`, `0016_fail_closed_owners`, `0018_hot_path_indexes` — renumbered from the
+plan's `0010`–`0012` because the repo had already reached `0014` — plus an **unplanned
+`0017_rpc_fail_closed`** that closes a critical *suspended-user RPC-authorization bypass*
+surfaced while verifying T1.4 (NULL three-valued logic let suspended admins/coordinators/
+clinicians skip every `if auth_role() not in (...) then raise` guard; all 23 RPCs now fail
+closed, verified empirically). T1.7's `set_report_sharing` RPC + admin toggle were already
+shipped (`0010_report_sharing_rpc`); T1.8's `React.cache()` session profile already existed
+(`lib/auth.ts`). The §16 suite file is extended (suspended-caregiver + share-toggle blocks)
+but cannot execute against the drifted shared dev project (12 members vs. the seed's 2), so
+every RLS/RPC change was verified with targeted rolled-back probes instead. Full detail and
+rationale: `docs/ELEVATION_EXECUTION_PLAN.md` § Divergences (D-1…D-7).
+
 ### Tier 2 — days–weeks, structural elevation
 
 - **T2.1 Data-access layer** `lib/queries/{session,members,cycles,reports,consultations}.ts` — `cache()`-wrapped RLS-scoped reads; drains the duplication table (eligibility calc ×2, status-label dicts ×3, `pkg ? cycles : []` ×3, FK-shape coercion ×3, IST day math ×2 → fold into `lib/datetime.ts`). L · impact 8 · one page per PR under CI. Verify: build + `scripts/shot-one.ts` spot diffs; behavior identical.
