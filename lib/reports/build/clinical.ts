@@ -193,9 +193,12 @@ export function buildClinicalReport(type: ReportType, input: ClinicalInput): Cli
         listSection("Next-Month Goals", goalList(a.next_month_goals)),
         teamFlagsSection(a),
       ];
-      // Carry the new clearance when the doctor updated it (Phase 7 refines
-      // carry-forward of an unchanged clearance across cycles).
-      return { ...base, sections, clearance: textOr(a.clearance, "") };
+      // An unchanged review stores NO clearance key; the DB gate (migration
+      // 0015) and resolveClearance() then carry the prior clearance forward.
+      const reviewClearance = a.clearance_change === "updated" ? textOr(a.clearance, "") : "";
+      return reviewClearance !== ""
+        ? { ...base, sections, clearance: reviewClearance }
+        : { ...base, sections };
     }
 
     case "nutrition_plan": {
