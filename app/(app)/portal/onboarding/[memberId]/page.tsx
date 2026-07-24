@@ -8,7 +8,8 @@ import { getSessionProfile } from "@/lib/auth";
 import type { Json } from "@/lib/supabase/database.types";
 import { VideoGate } from "@/components/forms/VideoGate";
 import { OnboardingWizard } from "@/components/forms/OnboardingWizard";
-import type { FormTemplateSchema, FormValues } from "@/components/forms/types";
+import type { FormValues } from "@/components/forms/types";
+import { parseFormTemplate } from "@/components/forms/schema";
 
 // member_status values at or beyond a completed questionnaire.
 const DONE_STATUSES = new Set([
@@ -70,7 +71,7 @@ export default async function OnboardingPage({
     .limit(1)
     .maybeSingle();
   if (!template) redirect("/portal");
-  const schema = template.schema as unknown as FormTemplateSchema;
+  const schema = parseFormTemplate(template.schema);
 
   // Ensure a single draft response exists; resume from its answers.
   const { data: existing } = await supabase

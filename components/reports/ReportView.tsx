@@ -111,6 +111,13 @@ function SectionBody({ section }: { section: ReportSection }) {
       );
     }
 
+    case "plain_language":
+      return (
+        <div className="report-plain">
+          <p className="report-text">{section.data}</p>
+        </div>
+      );
+
     default:
       return null;
   }

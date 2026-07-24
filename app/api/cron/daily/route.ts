@@ -9,6 +9,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { dispatchNotificationEmails } from "@/lib/notify";
+import { logEvent, logError } from "@/lib/observe";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,16 +39,32 @@ async function handle(req: Request): Promise<NextResponse> {
   }
 
   const admin = createAdminClient();
+  const startedAt = Date.now();
   const { data, error } = await admin.rpc(
     "run_daily_jobs",
     today ? { p_today: today } : {},
   );
   if (error) {
+    logError("cron.daily.rpc_failed", error, { simulated: today ?? null });
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
   // §12 — flush any notification rows (from the jobs above or elsewhere) as email.
   const email = await dispatchNotificationEmails(admin);
-  return NextResponse.json({ ok: true, simulated: today ?? null, summary: data, emails_sent: email.sent });
+  const summary = (data ?? {}) as Record<string, unknown>;
+  // One structured line per run — the observable trace of the time-driven layer.
+  logEvent("cron.daily", {
+    simulated: today ?? null,
+    ...summary,
+    emails_sent: email.sent,
+    duration_ms: Date.now() - startedAt,
+  });
+  return NextResponse.json({
+    ok: true,
+    simulated: today ?? null,
+    summary: data,
+    failures: summary.failures ?? 0,
+    emails_sent: email.sent,
+  });
 }
 
 export async function GET(req: Request): Promise<NextResponse> {

@@ -1,8 +1,9 @@
-import { cache } from "react";
+import { cache, Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CheckCircle2, Eye, FileCheck2, Lock, ShieldAlert } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardSkeleton } from "@/components/ui/skeleton";
 import { Who5Card } from "@/components/charts/who5-card";
 import { Monogram } from "@/components/monogram";
 import { PageHeader } from "@/components/page-header";
@@ -18,7 +19,8 @@ import { CLEARED, resolveClearance } from "@/lib/clearance";
 import { ClinicalForm } from "@/components/forms/ClinicalForm";
 import { FeedbackForm } from "@/components/forms/FeedbackForm";
 import { DocumentList, type DocumentRow } from "@/components/documents/document-list";
-import type { FormTemplateSchema, FormValues } from "@/components/forms/types";
+import type { FormValues } from "@/components/forms/types";
+import { parseFormTemplate } from "@/components/forms/schema";
 
 type CareRole = Database["public"]["Enums"]["care_role"];
 
@@ -133,26 +135,31 @@ export default async function ClinicianClientPage({
         </div>
       </nav>
 
-      {activeTab === "overview" || activeTab === "context" ? (
-        <OverviewPanel role={role} flags={flags} member={member} supabase={supabase} memberId={id} />
-      ) : null}
-      {activeTab === "onboarding" ? <ScopedOnboardingPanel supabase={supabase} memberId={id} /> : null}
-      {activeTab === "directives" ? <DirectivesPanel supabase={supabase} memberId={id} /> : null}
-      {activeTab === "clearance" ? <ClearancePanel supabase={supabase} memberId={id} /> : null}
-      {activeTab === "form" ? (
-        <FormPanel supabase={supabase} role={role} memberId={id} userId={session.user.id} />
-      ) : null}
-      {activeTab === "feedback" ? (
-        <FeedbackPanel supabase={supabase} role={role} memberId={id} userId={session.user.id} />
-      ) : null}
-      {activeTab === "reports" ? (
-        <div className="space-y-4">
-          {/* §3: WHO-5 renders only where psych responses are readable (psychologist/admin). */}
-          {role === "psychologist" ? <Who5Card memberId={id} /> : null}
-          <ReportsPanel supabase={supabase} memberId={id} />
-          {role === "doctor" ? <DocumentsPanel supabase={supabase} memberId={id} /> : null}
-        </div>
-      ) : null}
+      {/* Panel-level streaming (T2.2): the header + tab rail paint immediately;
+          the active panel's queries stream in behind a skeleton. Exactly one panel
+          is non-null per request, so one Suspense boundary is active. */}
+      <Suspense key={activeTab} fallback={<CardSkeleton />}>
+        {activeTab === "overview" || activeTab === "context" ? (
+          <OverviewPanel role={role} flags={flags} member={member} supabase={supabase} memberId={id} />
+        ) : null}
+        {activeTab === "onboarding" ? <ScopedOnboardingPanel supabase={supabase} memberId={id} /> : null}
+        {activeTab === "directives" ? <DirectivesPanel supabase={supabase} memberId={id} /> : null}
+        {activeTab === "clearance" ? <ClearancePanel supabase={supabase} memberId={id} /> : null}
+        {activeTab === "form" ? (
+          <FormPanel supabase={supabase} role={role} memberId={id} userId={session.user.id} />
+        ) : null}
+        {activeTab === "feedback" ? (
+          <FeedbackPanel supabase={supabase} role={role} memberId={id} userId={session.user.id} />
+        ) : null}
+        {activeTab === "reports" ? (
+          <div className="space-y-4">
+            {/* §3: WHO-5 renders only where psych responses are readable (psychologist/admin). */}
+            {role === "psychologist" ? <Who5Card memberId={id} /> : null}
+            <ReportsPanel supabase={supabase} memberId={id} />
+            {role === "doctor" ? <DocumentsPanel supabase={supabase} memberId={id} /> : null}
+          </div>
+        ) : null}
+      </Suspense>
     </section>
   );
 }
@@ -553,7 +560,7 @@ async function FormPanel({
   if (!template) {
     return <Card><CardContent className="py-8 text-sm text-muted-foreground">Form template missing.</CardContent></Card>;
   }
-  const schema = template.schema as unknown as FormTemplateSchema;
+  const schema = parseFormTemplate(template.schema);
 
   // Ensure a draft (fr_own_clinical: respondent_id = self).
   const { data: existing } = await supabase
@@ -672,7 +679,7 @@ async function FeedbackPanel({
 
   return (
     <FeedbackForm
-      template={template.schema as unknown as FormTemplateSchema}
+      template={parseFormTemplate(template.schema)}
       responseId={draft.id}
       initialAnswers={(draft.answers as unknown as FormValues | null) ?? {}}
     />

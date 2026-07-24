@@ -38,7 +38,32 @@ export function NotificationBell() {
 
   React.useEffect(() => {
     load();
-  }, [load]);
+    // Live updates (T2.6): subscribe to our own new notifications. RLS (notif_own)
+    // scopes delivery to this user; load-on-open above remains the fallback.
+    let cancelled = false;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    (async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (cancelled || !user) return;
+      channel = supabase
+        .channel(`notif:${user.id}`)
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
+          (payload) => {
+            const n = payload.new as Notif;
+            setItems((prev) => (prev.some((i) => i.id === n.id) ? prev : [n, ...prev].slice(0, 15)));
+          },
+        )
+        .subscribe();
+    })();
+    return () => {
+      cancelled = true;
+      if (channel) supabase.removeChannel(channel);
+    };
+  }, [load, supabase]);
 
   const unread = items.filter((i) => !i.read_at).length;
   const now = () => new Date().toISOString();
