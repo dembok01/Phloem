@@ -58,6 +58,7 @@ export const REPORT_CSS = `
 .report-doc .report-callout--warning { background:#FBF3E4; border-color:#D9B36A; border-left-color:#8A5A0B; color:#5C3D08; }
 .report-doc .report-callout--danger  { background:#F9ECE8; border-color:#DFA08F; border-left-color:#A63A24; color:#7C2B1B; }
 .report-doc .report-callout--info    { background:#E9F1FA; border-color:#A8C4E4; border-left-color:#2F6DB5; color:#24527E; }
+.report-doc .report-plain { border-radius:10px; padding:14px 16px; background:#EAF3EC; border:1px solid #BFD8C6; border-left:4px solid #3E7C57; color:#22402F; }
 `;
 
 // PDF-only chrome: the branded header band + page setup. Combined with REPORT_CSS.
