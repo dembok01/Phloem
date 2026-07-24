@@ -15,6 +15,7 @@ import { hasHighFlag, parseRedFlags } from "@/lib/red-flags";
 import { humanize } from "@/lib/reports/build/helpers";
 import { ClinicalForm } from "@/components/forms/ClinicalForm";
 import { FeedbackForm } from "@/components/forms/FeedbackForm";
+import { DocumentList, type DocumentRow } from "@/components/documents/document-list";
 import type { FormTemplateSchema, FormValues } from "@/components/forms/types";
 
 type CareRole = Database["public"]["Enums"]["care_role"];
@@ -149,6 +150,7 @@ export default async function ClinicianClientPage({
           {/* §3: WHO-5 renders only where psych responses are readable (psychologist/admin). */}
           {role === "psychologist" ? <Who5Card memberId={id} /> : null}
           <ReportsPanel supabase={supabase} memberId={id} />
+          {role === "doctor" ? <DocumentsPanel supabase={supabase} memberId={id} /> : null}
         </div>
       ) : null}
     </section>
@@ -443,6 +445,29 @@ async function ReportsPanel({ supabase, memberId }: { supabase: SB; memberId: st
             })}
           </ul>
         )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// Documents the family uploaded (§ member documents, migration 0014). Rendered only
+// for the doctor — RLS grants document reads to the assigned doctor + admin only.
+async function DocumentsPanel({ supabase, memberId }: { supabase: SB; memberId: string }) {
+  const { data: docs } = await supabase
+    .from("member_documents")
+    .select("id, category, file_name, storage_path, size_bytes, created_at")
+    .eq("member_id", memberId)
+    .order("created_at", { ascending: false });
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Documents from the family</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <DocumentList
+          documents={(docs ?? []) as DocumentRow[]}
+          emptyHint="The family hasn't uploaded any documents yet."
+        />
       </CardContent>
     </Card>
   );

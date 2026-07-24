@@ -417,6 +417,57 @@ export type Database = {
           },
         ]
       }
+      member_documents: {
+        Row: {
+          category: Database["public"]["Enums"]["document_category"]
+          created_at: string
+          file_name: string
+          id: string
+          member_id: string
+          mime_type: string
+          size_bytes: number
+          storage_path: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          category?: Database["public"]["Enums"]["document_category"]
+          created_at?: string
+          file_name: string
+          id?: string
+          member_id: string
+          mime_type: string
+          size_bytes: number
+          storage_path: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["document_category"]
+          created_at?: string
+          file_name?: string
+          id?: string
+          member_id?: string
+          mime_type?: string
+          size_bytes?: number
+          storage_path?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_documents_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_documents_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       members: {
         Row: {
           age: number | null
@@ -867,6 +918,13 @@ export type Database = {
       care_role: "doctor" | "nutritionist" | "trainer" | "psychologist"
       consult_mode: "video" | "phone" | "in_person"
       cycle_status: "upcoming" | "active" | "closed"
+      document_category:
+        | "blood_work"
+        | "imaging"
+        | "prescription"
+        | "discharge_summary"
+        | "doctor_note"
+        | "other"
       meeting_status: "to_schedule" | "scheduled" | "done" | "cancelled"
       member_status:
         | "invited"
@@ -1034,6 +1092,14 @@ export const Constants = {
       care_role: ["doctor", "nutritionist", "trainer", "psychologist"],
       consult_mode: ["video", "phone", "in_person"],
       cycle_status: ["upcoming", "active", "closed"],
+      document_category: [
+        "blood_work",
+        "imaging",
+        "prescription",
+        "discharge_summary",
+        "doctor_note",
+        "other",
+      ],
       meeting_status: ["to_schedule", "scheduled", "done", "cancelled"],
       member_status: [
         "invited",

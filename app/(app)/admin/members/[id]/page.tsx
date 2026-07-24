@@ -10,6 +10,7 @@ import { Who5Card } from "@/components/charts/who5-card";
 import { MemberTimeline } from "@/components/member-timeline";
 import { RedFlagBanner } from "@/components/red-flag-banner";
 import { ReportShareToggle } from "@/components/admin/report-share-toggle";
+import { DocumentList, type DocumentRow } from "@/components/documents/document-list";
 import { FlashToast } from "@/components/ui/toast";
 import { createClient } from "@/lib/supabase/server";
 import { formatDateTimeIST } from "@/lib/datetime";
@@ -205,8 +206,34 @@ export default async function AdminMemberPage({
         </CardContent>
       </Card>
 
+      <AdminDocumentsCard memberId={member.id} />
+
       {/* C6: the member's whole story in one stream. */}
       <MemberTimeline memberId={member.id} />
     </section>
+  );
+}
+
+// Documents the family uploaded (migration 0014). Admin sees all (doc_admin) and may delete.
+async function AdminDocumentsCard({ memberId }: { memberId: string }) {
+  const supabase = await createClient();
+  const { data: docs } = await supabase
+    .from("member_documents")
+    .select("id, category, file_name, storage_path, size_bytes, created_at")
+    .eq("member_id", memberId)
+    .order("created_at", { ascending: false });
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Documents from the family</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <DocumentList
+          documents={(docs ?? []) as DocumentRow[]}
+          canDelete
+          emptyHint="No documents uploaded yet."
+        />
+      </CardContent>
+    </Card>
   );
 }

@@ -276,6 +276,75 @@ insert into results select pg_temp.assert_true('_build_performance NOT executabl
 insert into results select pg_temp.assert_true('get_care_team NOT executable by anon',
   not has_function_privilege('anon', 'public.get_care_team(uuid)', 'execute'));
 
+-- ============ member_documents (0014): doctor + admin only ============
+-- One document for M1, uploaded by the caregiver. All four clinicians are assigned
+-- to M1 (fixtures above), so "0 documents" for nutritionist/trainer/psychologist
+-- proves the read is doctor-scoped, not merely assignment-scoped.
+reset role;
+update profiles set status = 'active' where email = 'doctor@phloem.local';  -- undo the suspend fixture above
+insert into member_documents(member_id, category, file_name, storage_path, mime_type, size_bytes, uploaded_by)
+  values ('11111111-1111-4111-8111-111111111111', 'blood_work', 'cbc.pdf',
+          '11111111-1111-4111-8111-111111111111/fixture.pdf', 'application/pdf', 1024,
+          (select id from ids where email = 'caregiver@phloem.local'));
+
+reset role;
+select set_config('request.jwt.claims',
+  json_build_object('sub', (select id from ids where email = 'caregiver@phloem.local'), 'role', 'authenticated')::text, true);
+set local role authenticated;
+insert into results select pg_temp.assert_eq('doc: caregiver sees own member document',
+  (select count(*) from member_documents), 1);
+
+reset role;
+select set_config('request.jwt.claims',
+  json_build_object('sub', (select id from ids where email = 'doctor@phloem.local'), 'role', 'authenticated')::text, true);
+set local role authenticated;
+insert into results select pg_temp.assert_eq('doc: assigned doctor sees the document',
+  (select count(*) from member_documents), 1);
+
+reset role;
+select set_config('request.jwt.claims',
+  json_build_object('sub', (select id from ids where email = 'nutritionist@phloem.local'), 'role', 'authenticated')::text, true);
+set local role authenticated;
+insert into results select pg_temp.assert_eq('doc: nutritionist (assigned) sees 0',
+  (select count(*) from member_documents), 0);
+
+reset role;
+select set_config('request.jwt.claims',
+  json_build_object('sub', (select id from ids where email = 'trainer@phloem.local'), 'role', 'authenticated')::text, true);
+set local role authenticated;
+insert into results select pg_temp.assert_eq('doc: trainer (assigned) sees 0',
+  (select count(*) from member_documents), 0);
+
+reset role;
+select set_config('request.jwt.claims',
+  json_build_object('sub', (select id from ids where email = 'psychologist@phloem.local'), 'role', 'authenticated')::text, true);
+set local role authenticated;
+insert into results select pg_temp.assert_eq('doc: psychologist (assigned) sees 0',
+  (select count(*) from member_documents), 0);
+
+reset role;
+select set_config('request.jwt.claims',
+  json_build_object('sub', (select id from ids where email = 'coordinator@phloem.local'), 'role', 'authenticated')::text, true);
+set local role authenticated;
+insert into results select pg_temp.assert_eq('doc: coordinator sees 0',
+  (select count(*) from member_documents), 0);
+
+reset role;
+select set_config('request.jwt.claims',
+  json_build_object('sub', (select id from ids where email = 'elder@phloem.local'), 'role', 'authenticated')::text, true);
+set local role authenticated;
+insert into results select pg_temp.assert_eq('doc: member (own login) sees own document',
+  (select count(*) from member_documents), 1);
+
+reset role;
+select set_config('request.jwt.claims',
+  json_build_object('sub', (select id from ids where email = 'admin@phloem.local'), 'role', 'authenticated')::text, true);
+set local role authenticated;
+insert into results select pg_temp.assert_eq('doc: admin sees the document',
+  (select count(*) from member_documents), 1);
+
+reset role;
+
 select line from results;
 
 rollback;

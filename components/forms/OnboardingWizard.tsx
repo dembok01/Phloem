@@ -31,6 +31,7 @@ import { SaveIndicator, type SaveState } from "./onboarding/SaveIndicator";
 import { OnboardingProgress } from "./onboarding/OnboardingProgress";
 import { PrefillReviewCard } from "./onboarding/PrefillReviewCard";
 import { InterludeCard } from "./onboarding/InterludeCard";
+import { DocumentUploader } from "@/components/documents/document-uploader";
 import { submitOnboarding } from "@/app/(app)/portal/onboarding/[memberId]/actions";
 
 export function OnboardingWizard({
@@ -184,23 +185,40 @@ export function OnboardingWizard({
     }
   }
 
-  // The gentle completion moment — one card, one sentence, one door.
+  // The gentle completion moment — thank you, an optional "add recent reports"
+  // invitation, then the door to the portal.
   if (done) {
     return (
-      <div className="mx-auto flex max-w-md animate-in fade-in zoom-in-95 flex-col items-center gap-4 rounded-2xl border bg-card p-10 text-center shadow-card duration-200 ease-out">
-        <span className="inline-flex size-14 items-center justify-center rounded-full bg-success-tint text-success">
-          <CheckCircle2 className="size-7" aria-hidden />
-        </span>
-        <div className="space-y-1">
-          <p className="font-display text-2xl font-semibold">Thank you</p>
-          <p className="text-muted-foreground">
-            {firstName ? `${firstName}'s` : "The"} onboarding is complete. Your care coordinator
-            reviews the answers and assembles the care team — you&apos;ll hear from us soon.
-          </p>
+      <div className="mx-auto max-w-lg animate-in fade-in space-y-5 duration-200">
+        <div className="flex flex-col items-center gap-4 rounded-2xl border bg-card p-8 text-center shadow-card sm:p-10">
+          <span className="inline-flex size-14 items-center justify-center rounded-full bg-success-tint text-success">
+            <CheckCircle2 className="size-7" aria-hidden />
+          </span>
+          <div className="space-y-1">
+            <p className="font-display text-2xl font-semibold">Thank you</p>
+            <p className="text-muted-foreground">
+              {firstName ? `${firstName}'s` : "The"} onboarding is complete. Your care coordinator
+              reviews the answers and assembles the care team — you&apos;ll hear from us soon.
+            </p>
+          </div>
         </div>
-        <Button size="lg" onClick={() => router.push("/portal?onboarded=1")}>
-          Go to the portal
-        </Button>
+
+        <div className="rounded-2xl border bg-card p-6 shadow-card sm:p-8">
+          <h3 className="font-display text-lg font-semibold">Have any recent reports?</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Add blood work, prescriptions or discharge summaries now — or anytime from your
+            dashboard.
+          </p>
+          <div className="mt-4">
+            <DocumentUploader memberId={memberId} />
+          </div>
+        </div>
+
+        <div className="text-center">
+          <Button size="lg" onClick={() => router.push("/portal?onboarded=1")}>
+            Go to the portal
+          </Button>
+        </div>
       </div>
     );
   }

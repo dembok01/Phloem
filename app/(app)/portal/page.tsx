@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { CalendarDays, ClipboardList, FileText, Users, Video, Phone, MapPin } from "lucide-react";
+import { CalendarDays, ClipboardList, FileText, FolderOpen, Users, Video, Phone, MapPin } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
@@ -273,7 +273,7 @@ async function CaregiverMember({
         </CardContent>
       </Card>
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <PortalLink
           href={`/portal/members/${member.id}/plans`}
           icon={<ClipboardList className="size-5" />}
@@ -285,6 +285,12 @@ async function CaregiverMember({
           icon={<FileText className="size-5" />}
           label="Reports"
           hint="Everything shared with you"
+        />
+        <PortalLink
+          href={`/portal/members/${member.id}/documents`}
+          icon={<FolderOpen className="size-5" />}
+          label="Documents"
+          hint="Upload blood work & reports"
         />
         <PortalLink
           href={`/portal/members/${member.id}/schedule`}
