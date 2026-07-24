@@ -5,7 +5,10 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { GrowthRings, type RingCycle } from "@/components/growth-rings";
-import { Monogram } from "@/components/monogram";
+import { AdherenceCard } from "@/components/charts/adherence-card";
+import { MemberPhoto } from "@/components/member-photo";
+import { MemberPhotoUpload } from "@/components/portal/member-photo-upload";
+import { ElderlyModeToggle } from "@/components/portal/elderly-mode-toggle";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionProfile } from "@/lib/auth";
@@ -99,7 +102,7 @@ export default async function PortalHomePage({
   // RLS scopes this to the signed-in user's own member(s): mem_caregiver / mem_self.
   const { data: members } = await supabase
     .from("members")
-    .select("id, full_name, status, relationship_to_caregiver")
+    .select("id, full_name, status, relationship_to_caregiver, photo_path")
     .order("created_at", { ascending: true });
   const list = members ?? [];
 
@@ -171,11 +174,17 @@ async function CaregiverMember({
   member,
 }: {
   supabase: SB;
-  member: { id: string; full_name: string; status: MemberStatus; relationship_to_caregiver: string | null };
+  member: {
+    id: string;
+    full_name: string;
+    status: MemberStatus;
+    relationship_to_caregiver: string | null;
+    photo_path: string | null;
+  };
 }) {
   const needsOnboarding = member.status === "signed_up" || member.status === "onboarding";
 
-  const [{ data: pkg }, team] = await Promise.all([
+  const [{ data: pkg }, team, { data: elderlyPref }] = await Promise.all([
     supabase
       .from("packages")
       .select("id, status, paused_at")
@@ -184,6 +193,7 @@ async function CaregiverMember({
       .limit(1)
       .maybeSingle(),
     careTeam(supabase, member.id),
+    supabase.rpc("get_member_elderly_mode", { p_member: member.id }),
   ]);
   const { data: cycles } = pkg
     ? await supabase
@@ -225,14 +235,15 @@ async function CaregiverMember({
                   paused={paused}
                   size={112}
                 />
-                <Monogram
+                <MemberPhoto
+                  photoPath={member.photo_path}
                   name={member.full_name}
                   size="md"
                   className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
                 />
               </div>
             ) : (
-              <Monogram name={member.full_name} size="lg" />
+              <MemberPhoto photoPath={member.photo_path} name={member.full_name} size="lg" />
             )}
             <div className="min-w-0 flex-1 space-y-2">
               {member.relationship_to_caregiver ? (
@@ -255,6 +266,8 @@ async function CaregiverMember({
                   {member.status === "onboarding" ? "Continue onboarding" : "Start onboarding"}
                 </Link>
               ) : null}
+              {/* P-3: caregiver adds/updates the parent's photo. */}
+              <MemberPhotoUpload memberId={member.id} hasPhoto={!!member.photo_path} />
             </div>
           </div>
         </CardContent>
@@ -308,6 +321,23 @@ async function CaregiverMember({
         </CardContent>
       </Card>
 
+      {/* P-6: per-cycle adherence trend, from the monthly feedback scores the
+          caregiver may already read (fr_cg). Self-hides until a cycle is scored. */}
+      <AdherenceCard memberId={member.id} />
+
+      {/* P-4: comfort setting the caregiver manages for the elderly login. */}
+      <Card>
+        <CardContent className="py-5">
+          <p className="mb-3 text-base font-semibold">Comfort settings</p>
+          <ElderlyModeToggle
+            memberId={member.id}
+            memberFirstName={member.full_name.split(" ")[0]}
+            enabled={elderlyPref === true}
+            hasLogin={elderlyPref !== null}
+          />
+        </CardContent>
+      </Card>
+
       <CareTeamCard team={team} />
     </div>
   );
@@ -335,7 +365,7 @@ async function ElderlyHome({
   member,
 }: {
   supabase: SB;
-  member?: { id: string; full_name: string };
+  member?: { id: string; full_name: string; photo_path?: string | null };
 }) {
   if (!member) {
     return (
@@ -351,11 +381,14 @@ async function ElderlyHome({
   const team = await careTeam(supabase, member.id);
   return (
     <section className="mx-auto max-w-xl space-y-8">
-      <div className="space-y-1">
-        <h1 className="font-display text-3xl font-semibold">
-          {greetingIST()}, {member.full_name.split(" ")[0]}
-        </h1>
-        <p className="text-xl text-muted-foreground">Your plans, schedule and care team.</p>
+      <div className="flex items-center gap-4">
+        <MemberPhoto photoPath={member.photo_path} name={member.full_name} size="lg" />
+        <div className="space-y-1">
+          <h1 className="font-display text-3xl font-semibold">
+            {greetingIST()}, {member.full_name.split(" ")[0]}
+          </h1>
+          <p className="text-xl text-muted-foreground">Your plans, schedule and care team.</p>
+        </div>
       </div>
       <div className="space-y-4">
         <BigLink

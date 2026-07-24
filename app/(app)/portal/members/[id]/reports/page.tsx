@@ -7,6 +7,11 @@ import { createClient } from "@/lib/supabase/server";
 import { formatDateIST } from "@/lib/datetime";
 import { humanize } from "@/lib/reports/build/helpers";
 
+// Doctor & performance reports reach the family only when the care team turns on
+// sharing (P-1); when one appears here it is, by definition, shared — so it earns
+// an explicit "Shared by your care team" note.
+const SHARED_BY_TEAM = new Set(["doctor_initial", "doctor_review", "performance"]);
+
 // What each report type means to a family, in one line.
 const REPORT_HINT: Record<string, string> = {
   onboarding_summary: "Everything you told us at the start, in one document",
@@ -65,6 +70,11 @@ export default async function PortalReportsPage({ params }: { params: Promise<{ 
                   <p className="text-sm text-muted-foreground">
                     {REPORT_HINT[r.type] ?? "From the care team"} · {formatDateIST(r.created_at)}
                   </p>
+                  {SHARED_BY_TEAM.has(r.type) ? (
+                    <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
+                      Shared by your care team
+                    </p>
+                  ) : null}
                 </div>
                 <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
               </Link>

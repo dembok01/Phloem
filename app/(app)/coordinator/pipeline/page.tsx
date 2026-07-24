@@ -1,16 +1,13 @@
-import Link from "next/link";
-import { GripVertical } from "lucide-react";
-import { Monogram } from "@/components/monogram";
 import { PageHeader } from "@/components/page-header";
+import { PipelineBoard, type PipelineCard } from "@/components/coordinator/pipeline-board";
 import { createClient } from "@/lib/supabase/server";
-import { cn } from "@/lib/utils";
 import { hasHighFlag, parseRedFlags } from "@/lib/red-flags";
 import { PIPELINE_COLUMNS, type MemberStatus } from "@/lib/member-status";
 
 // §10 pipeline board: members grouped into member_status columns; cards show
-// name, red-flag dot, and the next action. Transitions are side-effect-heavy
-// §6 RPCs, so cards open the member page rather than dragging between columns
-// (DESIGN-PROPOSALS P-2).
+// name, red-flag dot, and the next action. Cards drag between columns (P-2) —
+// dropping a ready member on Active starts the program; other stage moves are
+// side-effect-heavy §6 transitions and hand off to the member page.
 export default async function CoordinatorPipelinePage() {
   const supabase = await createClient();
 
@@ -50,7 +47,7 @@ export default async function CoordinatorPipelinePage() {
       case "initial_consults":
         return `${submittedByMember.get(memberId) ?? 0}/4 reports in`;
       case "ready_to_start":
-        return "Ready — start the program";
+        return "Ready — drag to Active to start";
       case "active":
         return "Program running";
       case "renewal_due":
@@ -60,92 +57,30 @@ export default async function CoordinatorPipelinePage() {
     }
   }
 
+  const cards: PipelineCard[] = list.map((m) => {
+    const flags = parseRedFlags(m.red_flags);
+    return {
+      id: m.id,
+      full_name: m.full_name,
+      status: m.status as MemberStatus,
+      high: hasHighFlag(flags),
+      hasFlags: flags.length > 0,
+      nextAction: nextAction(m.status as MemberStatus, m.id),
+    };
+  });
+
   return (
     <section className="space-y-6">
       <PageHeader
         title="Pipeline"
-        description="Every member by stage — open a card to schedule, assign, or start."
+        description="Every member by stage — drag a card forward, or open one to schedule, assign, or start."
       />
 
-      <div className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-3 sm:-mx-6 sm:px-6">
-        {PIPELINE_COLUMNS.map((col) => {
-          const cards = list.filter((m) => col.statuses.includes(m.status as MemberStatus));
-          const hot = col.key === "renewal" && cards.length > 0;
-          return (
-            <div key={col.key} className="w-64 shrink-0 snap-start">
-              <div
-                className={cn(
-                  "flex h-full min-h-40 flex-col rounded-xl border bg-sidebar/60 p-2",
-                  hot && "border-warning/40",
-                )}
-              >
-                <div className="mb-2 flex items-center justify-between px-1.5 pt-1">
-                  <h2 className="eyebrow">{col.label}</h2>
-                  <span
-                    className={cn(
-                      "inline-flex min-w-6 items-center justify-center rounded-full px-1.5 font-data text-xs",
-                      cards.length > 0 ? "bg-secondary text-secondary-foreground" : "bg-muted text-muted-foreground",
-                    )}
-                  >
-                    {cards.length}
-                  </span>
-                </div>
-                <div className="flex-1 space-y-2">
-                  {cards.length === 0 ? (
-                    <p className="rounded-lg border border-dashed p-4 text-center text-xs text-muted-foreground">
-                      No one here right now
-                    </p>
-                  ) : (
-                    cards.map((m) => {
-                      const flags = parseRedFlags(m.red_flags);
-                      const high = hasHighFlag(flags);
-                      return (
-                        <Link
-                          key={m.id}
-                          href={`/coordinator/members/${m.id}`}
-                          className="group block cursor-grab rounded-lg border bg-card p-3 shadow-card transition-all hover:-translate-y-px hover:border-primary/40 hover:shadow-pop"
-                        >
-                          <div className="flex items-center gap-2.5">
-                            <Monogram name={m.full_name} size="sm" />
-                            <span className="min-w-0 flex-1">
-                              <span className="flex items-center gap-1.5">
-                                <span className="truncate font-medium">{m.full_name}</span>
-                                {high ? (
-                                  <span
-                                    className="size-2.5 shrink-0 rounded-full bg-danger ring-2 ring-danger/20"
-                                    title="High red flag on file"
-                                    aria-label="High red flag on file"
-                                  />
-                                ) : flags.length > 0 ? (
-                                  <span
-                                    className="size-2.5 shrink-0 rounded-full bg-warning ring-2 ring-warning/20"
-                                    title="Red flags on file"
-                                    aria-label="Red flags on file"
-                                  />
-                                ) : null}
-                              </span>
-                              <span className="block truncate text-xs text-muted-foreground">
-                                {nextAction(m.status as MemberStatus, m.id)}
-                              </span>
-                            </span>
-                            <GripVertical
-                              className="size-4 shrink-0 text-border transition-colors group-hover:text-muted-foreground"
-                              aria-hidden
-                            />
-                          </div>
-                        </Link>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+      <PipelineBoard columns={PIPELINE_COLUMNS} cards={cards} />
 
       <p className="font-data text-xs text-muted-foreground">
-        Tip: press <kbd className="rounded border bg-muted px-1">⌘K</kbd> to jump straight to a member.
+        Tip: drag a ready member onto <span className="font-medium">Active</span> to start their program, or
+        press <kbd className="rounded border bg-muted px-1">⌘K</kbd> to jump to a member.
       </p>
     </section>
   );

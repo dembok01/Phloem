@@ -431,6 +431,7 @@ export type Database = {
           member_user_id: string | null
           occupation: string | null
           onboarding_video_watched_at: string | null
+          photo_path: string | null
           red_flags: Json
           relationship_to_caregiver: string | null
           status: Database["public"]["Enums"]["member_status"]
@@ -448,6 +449,7 @@ export type Database = {
           member_user_id?: string | null
           occupation?: string | null
           onboarding_video_watched_at?: string | null
+          photo_path?: string | null
           red_flags?: Json
           relationship_to_caregiver?: string | null
           status?: Database["public"]["Enums"]["member_status"]
@@ -465,6 +467,7 @@ export type Database = {
           member_user_id?: string | null
           occupation?: string | null
           onboarding_video_watched_at?: string | null
+          photo_path?: string | null
           red_flags?: Json
           relationship_to_caregiver?: string | null
           status?: Database["public"]["Enums"]["member_status"]
@@ -583,6 +586,7 @@ export type Database = {
       profiles: {
         Row: {
           created_at: string
+          display_prefs: Json
           email: string
           full_name: string
           id: string
@@ -594,6 +598,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          display_prefs?: Json
           email: string
           full_name: string
           id: string
@@ -605,6 +610,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          display_prefs?: Json
           email?: string
           full_name?: string
           id?: string
@@ -790,7 +796,16 @@ export type Database = {
       }
       deactivate_member: { Args: { p_member: string }; Returns: undefined }
       get_care_team: { Args: { p_member: string }; Returns: Json }
+      get_member_elderly_mode: { Args: { p_member: string }; Returns: boolean }
       get_onboarding_scoped: { Args: { m: string }; Returns: Json }
+      get_report_view_receipts: {
+        Args: { p_member: string }
+        Returns: {
+          last_viewed_at: string
+          report_id: string
+          viewer_name: string
+        }[]
+      }
       is_assigned_to: { Args: { m: string }; Returns: boolean }
       is_caregiver_of: { Args: { m: string }; Returns: boolean }
       is_member_self: { Args: { m: string }; Returns: boolean }
@@ -820,8 +835,21 @@ export type Database = {
         }
         Returns: undefined
       }
+      set_display_prefs: { Args: { p_prefs: Json }; Returns: undefined }
+      set_member_elderly_mode: {
+        Args: { p_enabled: boolean; p_member: string }
+        Returns: undefined
+      }
+      set_member_photo: {
+        Args: { p_member: string; p_path: string }
+        Returns: undefined
+      }
       set_package_duration: {
         Args: { p_months: number; p_package: string }
+        Returns: undefined
+      }
+      set_report_sharing: {
+        Args: { p_report: string; p_shared: boolean }
         Returns: undefined
       }
       submit_clinical_form: {

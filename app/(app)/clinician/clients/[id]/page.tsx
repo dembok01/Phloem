@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CheckCircle2, FileCheck2, Lock, ShieldAlert } from "lucide-react";
+import { CheckCircle2, Eye, FileCheck2, Lock, ShieldAlert } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Who5Card } from "@/components/charts/who5-card";
 import { Monogram } from "@/components/monogram";
@@ -399,12 +399,21 @@ function ReadonlySection({ section }: { section: { heading: string; kind: string
 }
 
 async function ReportsPanel({ supabase, memberId }: { supabase: SB; memberId: string }) {
-  const { data: reports } = await supabase
-    .from("reports")
-    .select("id, type, created_at")
-    .eq("member_id", memberId)
-    .order("created_at", { ascending: false });
+  // P-5 read receipts: fetch family (caregiver/member) opens of the reports THIS
+  // clinician authored, so each row can say whether the plan was actually read.
+  const [{ data: reports }, { data: receipts }] = await Promise.all([
+    supabase
+      .from("reports")
+      .select("id, type, created_at")
+      .eq("member_id", memberId)
+      .order("created_at", { ascending: false }),
+    supabase.rpc("get_report_view_receipts", { p_member: memberId }),
+  ]);
   const list = reports ?? [];
+  const receiptByReport = new Map<string, { last_viewed_at: string; viewer_name: string }>();
+  for (const v of receipts ?? []) {
+    receiptByReport.set(v.report_id, { last_viewed_at: v.last_viewed_at, viewer_name: v.viewer_name });
+  }
   return (
     <Card>
       <CardHeader>
@@ -415,14 +424,23 @@ async function ReportsPanel({ supabase, memberId }: { supabase: SB; memberId: st
           <p className="text-sm text-muted-foreground">No reports visible to you yet.</p>
         ) : (
           <ul className="divide-y">
-            {list.map((r) => (
-              <li key={r.id}>
-                <Link href={`/reports/${r.id}`} className="flex items-center justify-between py-2 hover:underline">
-                  <span className="text-sm font-medium">{humanize(r.type)}</span>
-                  <span className="text-xs text-muted-foreground">{formatDateTimeIST(r.created_at)}</span>
-                </Link>
-              </li>
-            ))}
+            {list.map((r) => {
+              const receipt = receiptByReport.get(r.id);
+              return (
+                <li key={r.id} className="py-2">
+                  <Link href={`/reports/${r.id}`} className="flex items-center justify-between hover:underline">
+                    <span className="text-sm font-medium">{humanize(r.type)}</span>
+                    <span className="text-xs text-muted-foreground">{formatDateTimeIST(r.created_at)}</span>
+                  </Link>
+                  {receipt ? (
+                    <p className="mt-0.5 inline-flex items-center gap-1.5 text-xs text-success">
+                      <Eye className="size-3.5" aria-hidden />
+                      Opened by {receipt.viewer_name.split(" ")[0]} · {formatDateTimeIST(receipt.last_viewed_at)}
+                    </p>
+                  ) : null}
+                </li>
+              );
+            })}
           </ul>
         )}
       </CardContent>

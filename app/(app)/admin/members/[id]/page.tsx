@@ -2,13 +2,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Monogram } from "@/components/monogram";
+import { MemberPhoto } from "@/components/member-photo";
 import { PageHeader } from "@/components/page-header";
 import { ProgramCard, type ProgramCycle, type ProgramPackage } from "@/components/program-card";
 import { AdherenceCard } from "@/components/charts/adherence-card";
 import { Who5Card } from "@/components/charts/who5-card";
 import { MemberTimeline } from "@/components/member-timeline";
 import { RedFlagBanner } from "@/components/red-flag-banner";
+import { ReportShareToggle } from "@/components/admin/report-share-toggle";
 import { FlashToast } from "@/components/ui/toast";
 import { createClient } from "@/lib/supabase/server";
 import { formatDateTimeIST } from "@/lib/datetime";
@@ -36,6 +37,7 @@ const ERRORS: Record<string, string> = {
   not_active: "The program isn't active.",
   not_paused: "The program isn't paused.",
   not_allowed: "You don't have permission for that action.",
+  share_failed: "Couldn't change sharing. Please try again.",
   failed: "That action could not be completed. Please try again.",
 };
 
@@ -47,8 +49,14 @@ const OKS: Record<string, string> = {
   duration_saved: "Package duration saved",
   deactivated: "Member deactivated",
   reactivated: "Member reactivated — a fresh package is ready",
+  shared: "Report shared with the family",
+  unshared: "Sharing turned off",
   done: "Done",
 };
+
+// Doctor + performance reports are caregiver-visible only when explicitly shared
+// (§3 "🔸 if share_with_caregiver"); plans/summaries are always visible.
+const SHAREABLE_TYPES = new Set(["doctor_initial", "doctor_review", "performance"]);
 
 export default async function AdminMemberPage({
   params,
@@ -61,7 +69,7 @@ export default async function AdminMemberPage({
 
   const { data: member } = await supabase
     .from("members")
-    .select("id, full_name, status, red_flags, age, city, gender")
+    .select("id, full_name, status, red_flags, age, city, gender, photo_path")
     .eq("id", id)
     .maybeSingle();
   if (!member) notFound();
@@ -82,7 +90,7 @@ export default async function AdminMemberPage({
       .maybeSingle(),
     supabase
       .from("reports")
-      .select("id, type, created_at")
+      .select("id, type, created_at, share_with_caregiver")
       .eq("member_id", id)
       .order("created_at", { ascending: false }),
   ]);
@@ -116,7 +124,7 @@ export default async function AdminMemberPage({
         crumbs={[{ label: "Members", href: "/admin/members" }, { label: member.full_name }]}
         title={
           <span className="flex items-center gap-3">
-            <Monogram name={member.full_name} size="md" />
+            <MemberPhoto photoPath={member.photo_path} name={member.full_name} size="md" />
             {member.full_name}
           </span>
         }
@@ -167,7 +175,9 @@ export default async function AdminMemberPage({
         </CardContent>
       </Card>
 
-      {/* Reports (admin sees all — rep_admin) */}
+      {/* Reports (admin sees all — rep_admin). Doctor & performance reports carry
+          a "Shared with family" switch (P-1 / H-3); other types are always
+          caregiver-visible so they show no control. */}
       <Card>
         <CardHeader>
           <CardTitle>Reports</CardTitle>
@@ -178,11 +188,16 @@ export default async function AdminMemberPage({
           ) : (
             <ul className="divide-y">
               {(reports ?? []).map((r) => (
-                <li key={r.id}>
-                  <Link href={`/reports/${r.id}`} className="flex items-center justify-between py-2 hover:underline">
-                    <span className="text-sm font-medium">{humanize(r.type)}</span>
+                <li key={r.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-2">
+                  <Link href={`/reports/${r.id}`} className="group flex min-w-0 items-center gap-2 hover:underline">
+                    <span className="truncate text-sm font-medium">{humanize(r.type)}</span>
                     <span className="text-xs text-muted-foreground">{formatDateTimeIST(r.created_at)}</span>
                   </Link>
+                  {SHAREABLE_TYPES.has(r.type) ? (
+                    <ReportShareToggle reportId={r.id} memberId={member.id} shared={r.share_with_caregiver} />
+                  ) : (
+                    <span className="text-xs text-muted-foreground">Always shared</span>
+                  )}
                 </li>
               ))}
             </ul>

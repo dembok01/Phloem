@@ -30,7 +30,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <ToastProvider>
-      {role === "member" ? <ElderlyMode /> : null}
+      {profile.elderly ? <ElderlyMode /> : null}
       <div className="flex min-h-screen flex-col bg-background">
         <a
           href="#main"
