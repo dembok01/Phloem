@@ -5,6 +5,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import type { Database, Json } from "@/lib/supabase/database.types";
 import { buildClinicalReport } from "@/lib/reports/build/clinical";
+import { rpcErrorMessage, type RpcErrorCode } from "@/lib/rpc-errors";
 
 type CareRole = Database["public"]["Enums"]["care_role"];
 type ReportType = Database["public"]["Enums"]["report_type"];
@@ -28,7 +29,7 @@ function reportTypeFor(role: CareRole, isInitial: boolean): ReportType {
   }
 }
 
-const RPC_MESSAGES: Record<string, string> = {
+const RPC_MESSAGES: Partial<Record<RpcErrorCode, string>> = {
   awaiting_doctor_clearance:
     "The doctor has not cleared this member for exercise yet — the form stays locked until then.",
   meeting_not_done: "This meeting hasn't been marked done by the coordinator yet.",
@@ -52,16 +53,15 @@ export async function submitFeedback(input: {
   const { error } = await supabase.rpc("submit_feedback", { p_response: parsed.data.response_id });
   if (error) {
     return {
-      error: error.message.includes("not_allowed")
-        ? "You can only submit your own feedback for a member you're assigned to."
-        : "Could not submit your feedback. Please try again.",
+      error: rpcErrorMessage(error, "Could not submit your feedback. Please try again.", {
+        not_allowed: "You can only submit your own feedback for a member you're assigned to.",
+      }),
     };
   }
   return { ok: true };
 }
 function friendly(message: string): string {
-  for (const [key, text] of Object.entries(RPC_MESSAGES)) if (message.includes(key)) return text;
-  return "Could not submit the form. Please try again.";
+  return rpcErrorMessage({ message }, "Could not submit the form. Please try again.", RPC_MESSAGES);
 }
 
 /**

@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { Json } from "@/lib/supabase/database.types";
 import { computeRedFlags } from "@/lib/red-flags";
 import { buildOnboardingSummary } from "@/lib/reports/build/onboarding-summary";
+import { rpcErrorMessage, type RpcErrorCode } from "@/lib/rpc-errors";
 
 const uuid = z.string().uuid();
 
@@ -25,17 +26,18 @@ export async function markVideoWatched(memberId: string): Promise<void> {
   revalidatePath(`/portal/onboarding/${parsed.data}`);
 }
 
-const RPC_MESSAGES: Record<string, string> = {
+const RPC_MESSAGES: Partial<Record<RpcErrorCode, string>> = {
   video_not_watched: "Please watch the welcome video first.",
   invalid_response: "We couldn't find your saved answers. Please refresh and try again.",
   not_allowed: "You don't have permission to submit this onboarding.",
 };
 
 function friendly(message: string): string {
-  for (const [key, text] of Object.entries(RPC_MESSAGES)) {
-    if (message.includes(key)) return text;
-  }
-  return "Something went wrong submitting onboarding. Your answers are saved — please try again.";
+  return rpcErrorMessage(
+    { message },
+    "Something went wrong submitting onboarding. Your answers are saved — please try again.",
+    RPC_MESSAGES,
+  );
 }
 
 /**
