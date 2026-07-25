@@ -860,6 +860,10 @@ export type Database = {
       is_assigned_to: { Args: { m: string }; Returns: boolean }
       is_caregiver_of: { Args: { m: string }; Returns: boolean }
       is_member_self: { Args: { m: string }; Returns: boolean }
+      log_ai_generation: {
+        Args: { p_kind: string; p_member: string; p_meta?: Json }
+        Returns: undefined
+      }
       log_report_view: { Args: { p_report: string }; Returns: undefined }
       mark_meeting_done: { Args: { p_cons: string }; Returns: undefined }
       mark_video_watched: { Args: { p_member: string }; Returns: undefined }
