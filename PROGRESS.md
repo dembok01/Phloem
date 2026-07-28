@@ -313,3 +313,51 @@ Per §0.2: per phase — status, what was built, verification results, assumptio
 54. **P-5 is a deliberately narrow privacy decision.** Receipts surface only **family** (caregiver/member) views, only to admin or the report's **author** (`created_by`), and only the latest per report — so a clinician learns "the family opened the plan I wrote", never a colleague's activity or a full browsing history. `audit_log` RLS stays admin-only; the RPC is the sole read path.
 55. **P-2 performs exactly one transition on drop.** Only ready → Active (via `activate_program`, which still enforces eligibility + role) is a safe, input-free §6 transition; every other stage move is dialog-driven, so the board routes those to the member page rather than faking a `set_member_status`. Activation is not cleanly reversible, so it confirms with a toast instead of an undo.
 56. **P-6 reuses `fr_cg`, not a new policy.** Caregivers can already read their own member's feedback `form_responses`, so the adherence trend needed no migration — only the existing `AdherenceCard` placed on the portal. WHO-5 is excluded to honour §3 (wellbeing caregiver-❌).
+
+## Onboarding welcome video — optional (2026-07-28)
+
+**Why:** the welcome video hasn't been filmed yet, and the gate was rendering a placeholder
+YouTube URL — a broken embed in front of every new caregiver (and in demos).
+
+**Governs:** §6 `mark_video_watched` / `submit_onboarding` (which requires the stamp), §11
+onboarding flow.
+
+### Built
+- **`ONBOARDING_VIDEO_URL_CLIENT` is now the on/off switch** — no separate feature flag, so
+  the gate can never be "on" without a video to play. Empty (the new default) → no gate; the
+  caregiver lands on the wizard's own welcome step. Set → the gate renders as before.
+- **The stamp is applied either way.** With the gate skipped, `app/(app)/portal/onboarding/[memberId]/page.tsx`
+  calls `mark_video_watched` server-side, so `signed_up → onboarding` still happens and
+  `submit_onboarding`'s `video_not_watched` guard is still satisfied — no migration, no
+  weakening of the §6 invariant.
+- **`youtubeEmbed` extracted to `components/forms/video-embed.ts`** and widened to the link
+  shapes a share sheet produces (`watch?v=`, `youtu.be/`, `/shorts/`, `/embed/`), so whichever
+  URL is pasted at switch-on time plays. Non-YouTube URLs (e.g. an mp4 in Supabase Storage)
+  still fall through to the native `<video>` player. Unit-tested (`video-embed.test.ts`).
+- Placeholder URLs cleared from `.env.local.example`; README documents both switch positions.
+
+### Verification (2026-07-28)
+- **`tsc --noEmit`** clean; **eslint** clean; **`npm run test:unit` 32/32** (3 new URL-shape
+  tests); **`npm run build`** succeeds.
+- **End-to-end, both switch positions** (headless Chrome, caregiver `gopalan.family@phloem.local`,
+  member temporarily reset to `signed_up`/stamp NULL, then restored):
+  - **off (empty env) — 8/8**: no gate, no player, wizard welcome step is the first screen,
+    stamp applied server-side, status advanced `signed_up → onboarding`.
+  - **on (`/shorts/…` URL) — 12/12**: gate renders, iframe resolves to `youtube.com/embed/<id>`,
+    wizard stays locked, no auto-stamp while gated, and "I've watched this — continue" stamps
+    the member, advances the status and unlocks the questionnaire.
+- Gopalan restored to `assigned` + original stamp; the one draft `form_responses` row the test
+  created was deleted.
+
+### Assumptions (continued)
+57. **The video URL is the flag.** Two knobs (a boolean + a URL) would allow "on with no video",
+    which is the exact failure being fixed, so the gate keys off the URL alone. Flipping it is an
+    env change (`.env.local` + dev restart, or Vercel env + redeploy) — no DB-backed setting or
+    admin toggle, since this flips once when the video ships.
+58. **Skipping the gate still stamps `onboarding_video_watched_at`.** The alternative — relaxing
+    `submit_onboarding`'s check — would permanently weaken a spec-mandated invariant for a
+    temporary content gap. Consequence to accept: the audit log records `member.video_watched`
+    for members who were never shown a video (the row means "onboarding gate passed").
+59. **No intro card replaces the video.** The wizard's own welcome step already sets
+    expectations (autosave, resume, privacy), so an extra gate screen would be two near-identical
+    screens back to back. Members who already passed the gate are unaffected either way.

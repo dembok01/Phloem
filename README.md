@@ -42,9 +42,26 @@ SEED_ADMIN_PASSWORD=…                 # your chosen admin password
 CRON_SECRET=…                         # any long random string
 RESEND_API_KEY=                       # optional in dev (emails console-log without it)
 EMAIL_FROM=care@phloem.example
-ONBOARDING_VIDEO_URL_CLIENT=…         # any video URL for the onboarding gate
-ONBOARDING_VIDEO_URL_CARETEAM=…
+ONBOARDING_VIDEO_URL_CLIENT=          # empty = no video gate (see below)
+ONBOARDING_VIDEO_URL_CARETEAM=        # reserved; no care-team video surface yet
 ```
+
+### Turning the onboarding welcome video on and off
+
+`ONBOARDING_VIDEO_URL_CLIENT` is the switch — there is no separate feature flag, so the
+video can never be "on" without a video to play:
+
+- **Empty / unset (default)** — no video screen. Caregivers land straight on the
+  questionnaire's own welcome step. The `onboarding_video_watched_at` stamp is still
+  applied server-side, so the `signed_up → onboarding` transition and `submit_onboarding`
+  behave exactly as before.
+- **Set to a URL** — the video screen appears before the questionnaire unlocks, and
+  "I've watched this — continue" is what stamps the member. YouTube links
+  (`watch?v=`, `youtu.be/`, `/shorts/`, `/embed/`) are embedded; any other URL — e.g. an
+  mp4 in Supabase Storage — plays in a native `<video>` player.
+
+Flip it by editing `.env.local` (restart `npm run dev`) or the Vercel project's
+environment variables (redeploy). Members who already passed the gate are unaffected.
 
 ## 2. Apply the database migrations
 

@@ -7,24 +7,7 @@ import * as React from "react";
 import { Loader2, PlayCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { markVideoWatched } from "@/app/(app)/portal/onboarding/[memberId]/actions";
-
-/** YouTube watch/short URL → embed URL; anything else is played inline as a file. */
-function youtubeEmbed(url: string): string | null {
-  try {
-    const u = new URL(url);
-    if (u.hostname.includes("youtube.com")) {
-      const id = u.searchParams.get("v");
-      return id ? `https://www.youtube.com/embed/${id}` : null;
-    }
-    if (u.hostname === "youtu.be") {
-      const id = u.pathname.slice(1);
-      return id ? `https://www.youtube.com/embed/${id}` : null;
-    }
-  } catch {
-    return null;
-  }
-  return null;
-}
+import { youtubeEmbed } from "./video-embed";
 
 export function VideoGate({ memberId, videoUrl }: { memberId: string; videoUrl: string }) {
   const [pending, startTransition] = React.useTransition();

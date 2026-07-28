@@ -55,10 +55,16 @@ export default async function OnboardingPage({
   }
 
   // Video gate first (§6 mark_video_watched advances signed_up → onboarding).
+  // The gate is only shown when a video is actually configured: ONBOARDING_VIDEO_URL_CLIENT
+  // is the on/off switch — set it and the gate appears, leave it empty (the default, e.g.
+  // while the video is still being filmed) and the caregiver goes straight to the wizard,
+  // whose own welcome step already covers the "what to expect" ground the gate would have.
+  // Either way the stamp is applied, because submit_onboarding requires it and the member
+  // must still advance signed_up → onboarding.
   if (!member.onboarding_video_watched_at) {
-    const videoUrl =
-      process.env.ONBOARDING_VIDEO_URL_CLIENT ?? "https://www.youtube.com/watch?v=placeholder";
-    return <VideoGate memberId={member.id} videoUrl={videoUrl} />;
+    const videoUrl = process.env.ONBOARDING_VIDEO_URL_CLIENT?.trim();
+    if (videoUrl) return <VideoGate memberId={member.id} videoUrl={videoUrl} />;
+    await supabase.rpc("mark_video_watched", { p_member: member.id });
   }
 
   // Load the active onboarding template.
