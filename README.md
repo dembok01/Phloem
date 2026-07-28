@@ -82,10 +82,14 @@ supabase db push          # with the Supabase CLI linked to your project
 npm run seed
 ```
 
-Idempotent (safe to re-run). Creates the admin, all form templates, the private `reports`
-storage bucket, and — unless `NODE_ENV=production` — a full set of demo accounts and a
-seeded member (Meera Krishnan, onboarded, with a high red flag, nutrition & training plans,
-and an elderly login).
+Idempotent (safe to re-run). Creates the admin, all form templates, and the private `reports`
+storage bucket.
+
+> **Demo fixtures are opt-in.** The demo accounts and seeded member (Meera Krishnan, an
+> elderly login, the Gopalan family, …) only appear with `SEED_DEMO=1 npm run seed`, and
+> never when `NODE_ENV=production`. **Do not run that against a project holding real
+> clients** — every demo login shares one well-known password. A plain `npm run seed`
+> against production is safe: it touches only the admin, templates and bucket.
 
 ## 4. Run
 

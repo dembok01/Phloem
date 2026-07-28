@@ -178,8 +178,12 @@ async function main(): Promise<void> {
   console.log("2) form templates");
   await seedTemplates();
 
-  if (process.env.NODE_ENV === "production") {
-    console.log("3) dev fixtures skipped (NODE_ENV=production)");
+  // Demo fixtures now require an explicit opt-in. This project serves real clients
+  // (first one onboarded 2026-07-28), and NODE_ENV is not "production" when you run a
+  // script locally against it — so the old NODE_ENV-only guard would happily re-create
+  // Meera, the Gopalans and the shared-password demo logins that were just purged.
+  if (process.env.NODE_ENV === "production" || process.env.SEED_DEMO !== "1") {
+    console.log("3) demo fixtures skipped — set SEED_DEMO=1 to seed them (never against real data)");
   } else {
     console.log("3) dev fixtures");
     const fixtures = [

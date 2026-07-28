@@ -1,8 +1,13 @@
 # PHLOEM — Client Demo Playbook
 
-> Your private presenter's guide. Everything below is accurate to the current build and the
-> live seed data. Read it once end-to-end tonight, do one dry run, and keep it open on a
-> second screen tomorrow. Timings are a guide for a **~35–40 min demo + Q&A**.
+> Your private presenter's guide. Read it once end-to-end tonight, do one dry run, and keep it
+> open on a second screen tomorrow. Timings are a guide for a **~35–40 min demo + Q&A**.
+
+> ⚠️ **The demo data this playbook walks through no longer exists.** It was purged on
+> 2026-07-28 when the project began onboarding real clients — Meera, the Gopalans, and the
+> `caregiver@` / `elder@` / `gopalan.family@phloem.local` logins are all gone. To present this
+> again, run `SEED_DEMO=1 npm run seed` against a **separate, non-production Supabase project**
+> and point `.env.local` at it. Never re-seed demo fixtures into the project holding real clients.
 
 ---
 
@@ -98,7 +103,7 @@ from those and never break stride. Know where that folder is.
 
 **Optional but classy:** re-seed to a pristine state right before, so nothing looks half-used:
 ```bash
-npm run seed         # idempotent — safe to run; restores the demo members
+SEED_DEMO=1 npm run seed   # restores the demo members (demo fixtures are opt-in)
 ```
 
 ---
@@ -450,7 +455,7 @@ build together." Give them a door to walk through.
 
 ```bash
 cd /Users/manojthomas/PHLOEM/phloem-dashboard
-npm run seed     # optional: pristine demo data
+SEED_DEMO=1 npm run seed   # optional: pristine demo data (NEVER against the live project)
 npm run dev      # → http://localhost:3000, then pre-warm each section
 ```
 

@@ -395,3 +395,50 @@ Component, RPC, RLS and `display_prefs` are untouched — re-rendering the card 
 61. **The completion screen invites, it does not embed the uploader.** Repeating the invitation as
     a link (rather than a second `DocumentUploader` instance) keeps one upload surface to maintain
     and matches the existing portal Documents tile.
+
+## Production cutover — mock client data purged (2026-07-28)
+
+The hosted project (`nrhteqnaaijuwdgermsx`, the one `.env.local` and `.mcp.json` both point at)
+is now **live**: first real client `Dibesh Bulhar` created 2026-07-28, caregiver invite pending
+to `dibeshbulhar@gmail.com`. The demo/mock member rows had already been deleted by the owner;
+this pass removed what they left behind, plus the mock client logins.
+
+### Purged (owner-approved, irreversible)
+- **Orphaned storage — 5 files**, none reachable from any surviving row: `member-photos/<gopalan>/…jpg`,
+  `documents/<amal>/…png`, `documents/<gopalan>/…pdf`, and 2 `reports/<report-id>/….pdf`. All three
+  buckets now have zero objects.
+- **`audit_log` — 269 of 270 rows.** Kept `#283 member.created` (the live client's own trail).
+- **`notifications` — all 85 rows.** None referenced the live client.
+- **Mock client logins** — `caregiver@phloem.local` (Anita) and `elder@phloem.local` (Meera's
+  view-only login). The owner concurrently deleted `gopalan.family@phloem.local`,
+  `dembok01@gmail.com`, `amalmanoj.official@gmail.com` and `saleenacmohan@gmail.com` from the
+  dashboard while this ran, so the script skipped those as already gone.
+
+### Kept
+- **The live client, whole:** member row, `member_contacts` (1), `packages` (1, `not_started`),
+  the unused invite (expires 2026-08-04) and his one audit row.
+- **All six staff logins** — admin / coordinator / doctor / nutritionist / trainer /
+  psychologist@phloem.local, untouched at the owner's explicit choice (see the open risk below).
+
+### Code/doc changes
+- **`scripts/seed.ts`: demo fixtures are now opt-in** (`SEED_DEMO=1`). The old guard only skipped
+  them when `NODE_ENV === "production"` — which is never set when running a script locally against
+  the hosted project, so a routine `npm run seed` would have re-created Meera, the Gopalans and the
+  shared-password demo logins straight back into live data. A plain `npm run seed` still does the
+  production-safe part (admin, templates, `reports` bucket).
+- README documents the opt-in; DEMO-GUIDE.md carries a banner that its walkthrough data is gone and
+  must be re-seeded into a **separate** project.
+
+### Verification (2026-07-28)
+- Post-purge read-back: `members=1` (Dibesh, `invited`), `member_contacts=1`, `packages=1`,
+  `invites=1` (unused), `audit_log=1` (#283), `notifications=0`, `reports/consultations/
+  form_responses/assignments/member_documents/cycles=0`, `profiles=6` (staff only, all `active`),
+  and 0 objects across `member-photos`, `documents`, `reports`.
+- **`tsc --noEmit`** clean; **eslint** clean on `scripts/seed.ts`.
+
+### Open risk (owner declined to change, recorded deliberately)
+62. **The six staff logins still use the seed's shared demo password on live data.** Offered
+    suspension of the four clinician accounts (reversible; migration 0017 makes suspended users
+    fail closed) or a password rotation; the owner chose "change nothing for now". `admin@` and
+    `coordinator@` in particular hold full PHI access, and the `.local` addresses cannot receive
+    an email password reset — real staff accounts on real domains are the durable fix.
