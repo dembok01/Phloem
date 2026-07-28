@@ -8,7 +8,6 @@ import { GrowthRings, type RingCycle } from "@/components/growth-rings";
 import { AdherenceCard } from "@/components/charts/adherence-card";
 import { MemberPhoto } from "@/components/member-photo";
 import { MemberPhotoUpload } from "@/components/portal/member-photo-upload";
-import { ElderlyModeToggle } from "@/components/portal/elderly-mode-toggle";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionProfile } from "@/lib/auth";
@@ -176,7 +175,7 @@ async function CaregiverMember({
 }) {
   const needsOnboarding = member.status === "signed_up" || member.status === "onboarding";
 
-  const [{ data: pkg }, team, { data: elderlyPref }] = await Promise.all([
+  const [{ data: pkg }, team] = await Promise.all([
     supabase
       .from("packages")
       .select("id, status, paused_at")
@@ -185,7 +184,6 @@ async function CaregiverMember({
       .limit(1)
       .maybeSingle(),
     careTeam(supabase, member.id),
-    supabase.rpc("get_member_elderly_mode", { p_member: member.id }),
   ]);
   const { data: cycles } = pkg
     ? await supabase
@@ -323,18 +321,10 @@ async function CaregiverMember({
           caregiver may already read (fr_cg). Self-hides until a cycle is scored. */}
       <AdherenceCard memberId={member.id} />
 
-      {/* P-4: comfort setting the caregiver manages for the elderly login. */}
-      <Card>
-        <CardContent className="py-5">
-          <p className="mb-3 text-base font-semibold">Comfort settings</p>
-          <ElderlyModeToggle
-            memberId={member.id}
-            memberFirstName={member.full_name.split(" ")[0]}
-            enabled={elderlyPref === true}
-            hasLogin={elderlyPref !== null}
-          />
-        </CardContent>
-      </Card>
+      {/* P-4 "Comfort settings" (ElderlyModeToggle + get_member_elderly_mode) is
+          deliberately hidden from the caregiver portal for now — user's call. The
+          component, RPC and RLS are all still in place; re-render it here to bring
+          it back. Elderly (`member`) logins keep defaulting to elderly mode ON. */}
 
       <CareTeamCard team={team} />
     </div>

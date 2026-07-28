@@ -361,3 +361,37 @@ onboarding flow.
 59. **No intro card replaces the video.** The wizard's own welcome step already sets
     expectations (autosave, resume, privacy), so an extra gate screen would be two near-identical
     screens back to back. Members who already passed the gate are unaffected either way.
+
+## Portal tweaks — document prompt reachability + comfort settings hidden (2026-07-28)
+
+### Documents after onboarding — already built (migration `0014`), one gap closed
+The post-onboarding document prompt already existed: the wizard's completion screen renders
+`DocumentUploader` ("Have any recent reports?"), the portal home has a **Documents** tile, and
+`/portal/members/[id]/documents` is a full upload + list surface (uploads = caregiver only;
+reads = admin · caregiver · member-self · assigned doctor). **Gap:** that prompt only appears in
+the wizard's in-memory `done` state, so a caregiver returning to `/portal/onboarding/<id>` later
+got a dead-end "Onboarding complete → Back to portal". That screen now repeats the invitation
+(blood work / lab reports / scans) with an **Upload documents** link beside "Back to portal".
+
+### Comfort settings hidden (user's call)
+The P-4 **"Comfort settings"** card (`ElderlyModeToggle` + the `get_member_elderly_mode` call in
+the `Promise.all`) is removed from the caregiver portal, with a comment at the removal site.
+Component, RPC, RLS and `display_prefs` are untouched — re-rendering the card restores it.
+
+### Verification (2026-07-28)
+- **`tsc --noEmit`** clean; **eslint** clean; **`npm run build`** succeeds (17 routes).
+- **Browser checks as `caregiver@phloem.local` — 10/10**: portal has no "Comfort settings" and no
+  leftover elderly-mode copy while the rest of the page (Documents tile, plans, schedule, care
+  team) still renders; the completed-onboarding screen shows the document invitation and links to
+  `/portal/members/<id>/documents`; that page renders with the uploader mounted (file input +
+  category list).
+
+### Assumptions (continued)
+60. **Comfort settings is hidden by deletion, not a flag.** A feature flag for one card the user
+    intends to restore is more machinery than reverting a commit; the removal site carries a
+    comment so the next reader knows it was deliberate. Side effect to note: with no UI toggle,
+    elderly mode is whatever `display_prefs.elderly` already holds — `member` logins keep
+    defaulting to ON (`lib/auth.ts`), and nobody can change it from the app until the card returns.
+61. **The completion screen invites, it does not embed the uploader.** Repeating the invitation as
+    a link (rather than a second `DocumentUploader` instance) keeps one upload surface to maintain
+    and matches the existing portal Documents tile.

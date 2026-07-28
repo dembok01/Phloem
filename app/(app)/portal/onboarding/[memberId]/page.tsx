@@ -47,9 +47,23 @@ export default async function OnboardingPage({
           Thank you — {member.full_name}&apos;s onboarding is complete. Your care coordinator will
           review the answers and assign a care team.
         </p>
-        <Link href="/portal" className={cn(buttonVariants({ variant: "outline" }), "h-11 px-5")}>
-          Back to portal
-        </Link>
+        <p className="text-base text-muted-foreground">
+          Have recent blood work, lab reports or scans? Adding them helps the doctor prepare before
+          the first consultation.
+        </p>
+        {/* The wizard offers the uploader on its own completion screen; this repeats the
+            invitation for anyone who lands back here later, rather than dead-ending. */}
+        <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
+          <Link
+            href={`/portal/members/${member.id}/documents`}
+            className={cn(buttonVariants(), "h-11 px-5")}
+          >
+            Upload documents
+          </Link>
+          <Link href="/portal" className={cn(buttonVariants({ variant: "outline" }), "h-11 px-5")}>
+            Back to portal
+          </Link>
+        </div>
       </section>
     );
   }
