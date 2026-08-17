@@ -77,6 +77,14 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+  /* Easing. Tailwind's (and the browser's) built-in curves are too weak to read
+     as intentional, so these override the `ease-out` / `ease-in-out` utilities
+     app-wide — every existing usage gets the stronger curve at once. `ease-drawer`
+     is a new utility for sheets and drags. Durations have no Tailwind namespace
+     in v4; they stay plain custom properties in :root. */
+  --ease-out: var(--motion-ease-out);
+  --ease-in-out: var(--motion-ease-in-out);
+  --ease-drawer: var(--motion-ease-drawer);
 }
 
 :root {
@@ -123,6 +131,23 @@
   --radius: 0.875rem;
   --shadow-1: 0 1px 2px rgb(31 42 36 / 0.05), 0 1px 6px rgb(31 42 36 / 0.05);
   --shadow-2: 0 4px 12px rgb(31 42 36 / 0.08), 0 12px 32px rgb(31 42 36 / 0.1);
+  /* Motion scale (DESIGN-SYSTEM §4). Raw values live here, not in @theme, for two
+     reasons: inline styles and the React `style` prop need real custom properties
+     to read, and Tailwind v4 has no --duration-* namespace at all. The names are
+     deliberately NOT the Tailwind ones — mapping `--ease-out: var(--ease-out)` in
+     @theme would be circular, which is precisely the bug that once rendered this
+     whole app in Times via --font-sans. See the @theme block for the mapping.
+     Durations are consumed as `duration-(--motion-pop)` or in inline styles.
+     Everything here is neutralised by the reduced-motion / .elderly rules below,
+     which use !important longhands and therefore also beat inline shorthands. */
+  --motion-ease-out: cubic-bezier(0.23, 1, 0.32, 1); /* entrances, exits */
+  --motion-ease-in-out: cubic-bezier(0.77, 0, 0.175, 1); /* on-screen movement */
+  --motion-ease-drawer: cubic-bezier(0.32, 0.72, 0, 1); /* sheets, drags */
+  --motion-press: 160ms; /* press feedback */
+  --motion-pop: 200ms; /* toasts, popovers, chips */
+  --motion-card: 220ms; /* wizard cards, route swaps */
+  --motion-sheet: 320ms; /* drawers */
+  --motion-signature: 700ms; /* GrowthRings arc — the one orchestrated moment */
   --sidebar: #eef3ee;
   --sidebar-foreground: #1f2a24;
   --sidebar-primary: #1e6b4e;
