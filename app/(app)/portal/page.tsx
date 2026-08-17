@@ -224,6 +224,7 @@ async function CaregiverMember({
                   dayOfActive={day}
                   paused={paused}
                   size={112}
+                  once
                 />
                 <MemberPhoto
                   photoPath={member.photo_path}
@@ -263,7 +264,7 @@ async function CaregiverMember({
         </CardContent>
       </Card>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="stagger-in grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <PortalLink
           href={`/portal/members/${member.id}/plans`}
           icon={<ClipboardList className="size-5" />}
@@ -294,10 +295,25 @@ async function CaregiverMember({
         <CardContent className="py-5">
           <p className="mb-3 text-base font-semibold">Next consultations</p>
           {(nextConsults ?? []).length === 0 ? (
-            <p className="text-muted-foreground">
-              Nothing scheduled right now. Your coordinator arranges each consultation and it will
-              appear here — you&apos;ll also get a notification.
-            </p>
+            /* "Nothing scheduled" is true but was unexplained (UIUX-REVIEW §5).
+               Cycle reviews are booked near the end of a cycle, so when one is
+               running we say when to expect the next call rather than leaving the
+               family to wonder whether something has been forgotten. */
+            <div className="space-y-2 text-muted-foreground">
+              <p>
+                Nothing scheduled right now. Your coordinator arranges each consultation and it will
+                appear here — you&apos;ll also get a notification.
+              </p>
+              {active ? (
+                <p>
+                  This cycle&apos;s reviews are usually booked in its final week, around{" "}
+                  <span className="font-medium text-foreground">
+                    {formatDateIST(active.end_date)}
+                  </span>
+                  .
+                </p>
+              ) : null}
+            </div>
           ) : (
             <ul className="space-y-2">
               {(nextConsults ?? []).map((c, i) => (
@@ -353,7 +369,12 @@ async function ElderlyHome({
   member,
 }: {
   supabase: SB;
-  member?: { id: string; full_name: string; photo_path?: string | null };
+  member?: {
+    id: string;
+    full_name: string;
+    status: MemberStatus;
+    photo_path: string | null;
+  };
 }) {
   if (!member) {
     return (
@@ -366,16 +387,66 @@ async function ElderlyHome({
       </section>
     );
   }
-  const team = await careTeam(supabase, member.id);
+
+  // The member's own login had no sense of where they were in the program — the
+  // one person it is about could not see it. Same data the caregiver home reads.
+  const [{ data: pkg }, team] = await Promise.all([
+    supabase
+      .from("packages")
+      .select("id, status")
+      .eq("member_id", member.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    careTeam(supabase, member.id),
+  ]);
+  const { data: cycles } = pkg
+    ? await supabase
+        .from("cycles")
+        .select("number, start_date, end_date, status")
+        .eq("package_id", pkg.id)
+        .order("number")
+    : { data: [] as { number: number; start_date: string; end_date: string; status: string }[] };
+
+  const cycleList = cycles ?? [];
+  const active = cycleList.find((c) => c.status === "active");
+  const paused = pkg?.status === "paused";
+  const day = active ? Math.min(Math.max(istDaysSince(active.start_date) + 1, 1), 30) : undefined;
+  const story = storyLine(member.status, {
+    cycle: active?.number,
+    total: cycleList.length,
+    day,
+    paused,
+  });
+
   return (
     <section className="mx-auto max-w-xl space-y-8">
       <div className="flex items-center gap-4">
-        <MemberPhoto photoPath={member.photo_path} name={member.full_name} size="lg" />
-        <div className="space-y-1">
+        {cycleList.length > 0 ? (
+          <div className="relative shrink-0">
+            {/* Motion is forced off in elderly mode, so this renders its final
+                state — the rings are read here as information, not animation. */}
+            <GrowthRings
+              cycles={cycleList as RingCycle[]}
+              dayOfActive={day}
+              paused={paused}
+              size={104}
+            />
+            <MemberPhoto
+              photoPath={member.photo_path}
+              name={member.full_name}
+              size="md"
+              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+            />
+          </div>
+        ) : (
+          <MemberPhoto photoPath={member.photo_path} name={member.full_name} size="lg" />
+        )}
+        <div className="min-w-0 space-y-1">
           <h1 className="font-display text-3xl font-semibold">
             {greetingIST()}, {member.full_name.split(" ")[0]}
           </h1>
-          <p className="text-xl text-muted-foreground">Your plans, schedule and care team.</p>
+          <p className="text-xl text-muted-foreground">{story}</p>
         </div>
       </div>
       <div className="space-y-4">
@@ -388,6 +459,18 @@ async function ElderlyHome({
           href={`/portal/members/${member.id}/schedule`}
           icon={<CalendarDays className="size-7" />}
           label="My Schedule"
+        />
+        {/* RLS `rep_member` and `doc_select`/`is_member_self` both admit the
+            member's own login, so these were reachable data with no route to it. */}
+        <BigLink
+          href={`/portal/members/${member.id}/reports`}
+          icon={<FileText className="size-7" />}
+          label="My Reports"
+        />
+        <BigLink
+          href={`/portal/members/${member.id}/documents`}
+          icon={<FolderOpen className="size-7" />}
+          label="My Documents"
         />
         <details className="rounded-2xl border bg-card shadow-card">
           <summary className="flex min-h-14 cursor-pointer list-none items-center gap-4 rounded-2xl p-6 font-display text-2xl font-semibold hover:bg-muted">
@@ -430,7 +513,7 @@ function PortalLink({
   return (
     <Link
       href={href}
-      className="group flex items-center gap-3 rounded-xl border bg-card p-4 shadow-card transition-colors hover:border-primary/40 hover:bg-secondary/40"
+      className="pressable group flex items-center gap-3 rounded-xl border bg-card p-4 shadow-card hover:border-primary/40 hover:bg-secondary/40"
     >
       <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-secondary text-primary">
         {icon}
@@ -447,7 +530,7 @@ function BigLink({ href, icon, label }: { href: string; icon: React.ReactNode; l
   return (
     <Link
       href={href}
-      className="flex min-h-14 items-center gap-4 rounded-2xl border bg-card p-6 font-display text-2xl font-semibold shadow-card hover:bg-muted"
+      className="pressable flex min-h-14 items-center gap-4 rounded-2xl border bg-card p-6 font-display text-2xl font-semibold shadow-card hover:bg-muted active:bg-muted"
     >
       <span className="inline-flex size-12 shrink-0 items-center justify-center rounded-full bg-secondary text-primary">
         {icon}

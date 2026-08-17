@@ -60,7 +60,7 @@ export default async function PortalReportsPage({ params }: { params: Promise<{ 
             <li key={r.id}>
               <Link
                 href={`/reports/${r.id}`}
-                className="flex items-center gap-3 rounded-xl border bg-card p-4 shadow-card transition-colors hover:border-primary/40 hover:bg-secondary/40"
+                className="pressable flex items-center gap-3 rounded-xl border bg-card p-4 shadow-card hover:border-primary/40 hover:bg-secondary/40"
               >
                 <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-secondary text-primary">
                   <FileText className="size-4" />

@@ -10,6 +10,9 @@ import { cn } from "@/lib/utils";
 
 export type RingCycle = { number: number; status: string };
 
+/** Shared across signature usages, so the arc draws once per session app-wide. */
+const SIGNATURE_SEEN_KEY = "phloem:rings:drawn";
+
 export function GrowthRings({
   cycles,
   dayOfActive,
@@ -18,6 +21,7 @@ export function GrowthRings({
   size = 96,
   className,
   title,
+  once = false,
 }: {
   cycles: RingCycle[];
   /** 1-based day within the active cycle; clamped to [0, daysInCycle]. */
@@ -28,12 +32,45 @@ export function GrowthRings({
   className?: string;
   /** Accessible description; defaults to a cycle/day summary. */
   title?: string;
+  /**
+   * Signature usages (the portal hero) pass `once`: the arc is a moment the first
+   * time it is seen and latency on the fortieth, so after one draw per browser
+   * session it renders its final state instantly. Progress usages
+   * (`OnboardingProgress`) must leave this off — they animate on every value
+   * change, which is the whole point of the mark there.
+   */
+  once?: boolean;
 }) {
   const [drawn, setDrawn] = React.useState(false);
+  // Whether the transition is attached at all. Kept separate from `drawn` so a
+  // `once` ring that has already been seen can snap to its final offset with no
+  // transition to animate.
+  const [animated, setAnimated] = React.useState(false);
+
   React.useEffect(() => {
+    if (once) {
+      let seen = false;
+      // sessionStorage throws in some privacy modes — a failed read just means
+      // the arc draws again, which is the harmless direction to fail in.
+      try {
+        seen = window.sessionStorage.getItem(SIGNATURE_SEEN_KEY) === "1";
+      } catch {
+        seen = false;
+      }
+      if (seen) {
+        setDrawn(true);
+        return;
+      }
+      try {
+        window.sessionStorage.setItem(SIGNATURE_SEEN_KEY, "1");
+      } catch {
+        /* no-op */
+      }
+    }
+    setAnimated(true);
     const raf = requestAnimationFrame(() => setDrawn(true));
     return () => cancelAnimationFrame(raf);
-  }, []);
+  }, [once]);
 
   const n = Math.max(cycles.length, 1);
   const stroke = Math.max(2.5, Math.min(6, size / (n * 4.5)));
@@ -104,7 +141,14 @@ export function GrowthRings({
                 strokeDasharray={circumference}
                 strokeDashoffset={drawn ? circumference * (1 - fraction) : circumference}
                 transform={`rotate(-90 ${c} ${c})`}
-                style={{ transition: "stroke-dashoffset 600ms ease-out" }}
+                style={
+                  animated
+                    ? {
+                        transition:
+                          "stroke-dashoffset var(--motion-signature) var(--motion-ease-out)",
+                      }
+                    : undefined
+                }
               />
             </g>
           );
