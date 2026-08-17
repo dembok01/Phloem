@@ -17,8 +17,11 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { motion } from "motion/react";
 import { Check, CheckCircle2, Loader2, AlertTriangle, HeartHandshake } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { GrowthRings } from "@/components/growth-rings";
+import { useCalmMotion } from "@/components/use-calm-motion";
 import { cn } from "@/lib/utils";
 import { computeRedFlags, hasHighFlag } from "@/lib/red-flags";
 import { DynamicForm } from "./DynamicForm";
@@ -59,6 +62,11 @@ export function OnboardingWizard({
   const [errors, setErrors] = React.useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = React.useState(false);
   const [submitError, setSubmitError] = React.useState<string | null>(null);
+  // Which way the caregiver is travelling, so the card enters from the side they
+  // came from. The old fixed `slide-in-from-right` animated Back as though it
+  // were Forward, quietly breaking the wizard's spatial model.
+  const [direction, setDirection] = React.useState<1 | -1>(1);
+  const calm = useCalmMotion();
   const saveState = useAutosaveDraft(responseId, values);
 
   // Resume the card the caregiver last reached; first-ever visit gets the welcome.
@@ -92,6 +100,7 @@ export function OnboardingWizard({
   }
 
   function goTo(idx: number) {
+    setDirection(idx >= cardIndex ? 1 : -1);
     setCardIndex(idx);
     window.localStorage.setItem(storageKey, String(idx));
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -167,10 +176,25 @@ export function OnboardingWizard({
   // invitation, then the door to the portal.
   if (done) {
     return (
-      <div className="mx-auto max-w-lg animate-in fade-in space-y-5 duration-200">
+      /* The delight budget, spent in the one place it is earned: a family reaches
+         this screen exactly once. The ring sweeps closed — the same mark that will
+         carry their cycles in the portal, so the handoff from "filling in forms"
+         to "you now have a care team" is made in the product's own vocabulary —
+         and the three blocks arrive behind it on a 40ms stagger. */
+      <div className="stagger-in mx-auto max-w-lg space-y-5">
         <div className="flex flex-col items-center gap-4 rounded-2xl border bg-card p-8 text-center shadow-card sm:p-10">
-          <span className="inline-flex size-14 items-center justify-center rounded-full bg-success-tint text-success">
-            <CheckCircle2 className="size-7" aria-hidden />
+          <span className="relative inline-flex">
+            <GrowthRings
+              cycles={[{ number: 1, status: "active" }]}
+              dayOfActive={1}
+              daysInCycle={1}
+              size={72}
+              title="Onboarding complete"
+            />
+            <CheckCircle2
+              className="absolute left-1/2 top-1/2 size-7 -translate-x-1/2 -translate-y-1/2 text-success"
+              aria-hidden
+            />
           </span>
           <div className="space-y-1">
             <p className="font-display text-2xl font-semibold">Thank you</p>
@@ -268,9 +292,18 @@ export function OnboardingWizard({
         </div>
       ) : null}
 
-      <div
+      {/* Enter-only, deliberately. AnimatePresence with mode="wait" would hold the
+          new card back until the old one left, doubling the felt latency on a
+          control the caregiver taps dozens of times. The card is replaced in
+          place, so there is no gap where they see nothing — nothing teleports.
+          Full transform string, not Motion's x/y shorthand: the shorthands are
+          not hardware-accelerated and drop frames while the page is busy. */}
+      <motion.div
         key={cardIndex}
-        className="animate-in fade-in slide-in-from-right-4 rounded-xl bg-card p-5 shadow-card ring-1 ring-foreground/10 duration-200 ease-out sm:p-6"
+        initial={calm ? false : { opacity: 0, transform: `translateX(${direction * 16}px)` }}
+        animate={{ opacity: 1, transform: "translateX(0px)" }}
+        transition={calm ? { duration: 0 } : { type: "spring", duration: 0.4, bounce: 0.15 }}
+        className="rounded-xl bg-card p-5 shadow-card ring-1 ring-foreground/10 sm:p-6"
       >
         {current.kind === "interlude" ? (
           <InterludeCard title={current.title ?? ""} lead={current.lead ?? ""} />
@@ -301,7 +334,7 @@ export function OnboardingWizard({
             </div>
           </>
         )}
-      </div>
+      </motion.div>
 
       {errors.size > 0 ? (
         <p role="alert" className="text-sm text-danger">

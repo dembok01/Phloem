@@ -321,6 +321,22 @@
   .stagger-in > *:nth-child(4) {
     animation-delay: 120ms;
   }
+
+  /* Crossfade for a small element whose whole content swaps between states (the
+     autosave indicator: "Saves automatically" → "Saving…" → "Saved"). The blur is
+     the point: without it the eye reads two distinct objects overlapping rather
+     than one element changing its mind. Kept under 3px — heavy blur is expensive,
+     especially in Safari. Applied with a changing React key so each state swap
+     replays it; the state cadence here is seconds apart, not rapid. */
+  @keyframes fade-swap {
+    from {
+      opacity: 0;
+      filter: blur(2px);
+    }
+  }
+  .fade-swap {
+    animation: fade-swap var(--motion-pop) var(--motion-ease-out) backwards;
+  }
 }
 
 /* Motion discipline: honor reduced-motion everywhere; elderly mode forces it. */

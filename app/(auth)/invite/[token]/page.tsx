@@ -47,16 +47,43 @@ export default async function InvitePage({
   const admin = createAdminClient();
   const { data: invite } = await admin
     .from("invites")
-    .select("email, role, used_at, expires_at, member_id")
+    .select("email, role, used_at, expires_at, member_id, invited_by")
     .eq("token", token)
     .maybeSingle();
 
   const state = invite ? inviteState(invite) : null;
   const usable = invite && state === "pending";
 
+  // Who this invitation is actually about. Only fetched for a live invite, and
+  // only the member's FIRST name is surfaced: the token is unguessable and
+  // single-use, but a leaked link should not reveal a full identity alongside
+  // the fact that the person is in a chronic-care programme.
+  let memberFirstName: string | null = null;
+  let inviterName: string | null = null;
+  if (invite && state === "pending") {
+    if (invite.member_id) {
+      const { data } = await admin
+        .from("members")
+        .select("full_name")
+        .eq("id", invite.member_id)
+        .maybeSingle();
+      memberFirstName = data?.full_name?.trim().split(/\s+/)[0] ?? null;
+    }
+    if (invite.invited_by) {
+      const { data } = await admin
+        .from("profiles")
+        .select("full_name")
+        .eq("id", invite.invited_by)
+        .maybeSingle();
+      inviterName = data?.full_name ?? null;
+    }
+  }
+
+  const errorId = error && ERRORS[error] ? "invite-error" : undefined;
+
   return (
-    <main className="flex min-h-screen items-center justify-center bg-muted/40 p-4 text-base">
-      <Card className="w-full max-w-md">
+    <main className="flex min-h-screen items-center justify-center bg-background p-4 text-base">
+      <Card className="w-full max-w-md shadow-pop">
         <CardHeader className="items-center text-center">
           <Image
             src="/phloem-logo.png"
@@ -66,13 +93,23 @@ export default async function InvitePage({
             priority
             className="mx-auto h-14 w-auto"
           />
+          <h1 className="font-display text-2xl font-semibold tracking-tight">
+            {usable ? "You're invited to PHLOEM" : "Invitation"}
+          </h1>
+          {/* This is the moment a family joins a care programme, not a form to
+              fill. Name who invited them and who they will be caring for. */}
           <p className="text-muted-foreground">
-            {usable ? "Set your password to activate your account." : "Invitation"}
+            {!usable
+              ? "About this invitation"
+              : memberFirstName
+                ? `${inviterName ?? "Your care coordinator"} has set up care for ${memberFirstName}. Create your account to follow their plans, reports and schedule.`
+                : `${inviterName ?? "PHLOEM"} has invited you to join a care team. Set a password to activate your account.`}
           </p>
         </CardHeader>
         <CardContent>
           {error && ERRORS[error] ? (
             <p
+              id={errorId}
               role="alert"
               className="mb-4 rounded-md border border-danger/30 bg-danger-tint p-3 text-foreground"
             >
@@ -118,6 +155,8 @@ export default async function InvitePage({
                   autoComplete="name"
                   required
                   maxLength={120}
+                  aria-describedby={errorId}
+                  aria-invalid={errorId ? true : undefined}
                   className="h-11 text-base"
                 />
               </div>
@@ -146,13 +185,24 @@ export default async function InvitePage({
                   required
                   minLength={8}
                   maxLength={72}
+                  aria-describedby={`password-hint${errorId ? ` ${errorId}` : ""}`}
+                  aria-invalid={errorId ? true : undefined}
                   className="h-11 text-base"
                 />
-                <p className="text-sm text-muted-foreground">At least 8 characters.</p>
+                <p id="password-hint" className="text-sm text-muted-foreground">
+                  At least 8 characters.
+                </p>
               </div>
               <SubmitButton className="h-11 w-full text-base" pendingText="Creating account…">
                 Create account
               </SubmitButton>
+              {/* Say what comes after the button, so the commitment is known
+                  before it is made rather than discovered on the next screen. */}
+              <p className="text-center text-sm text-muted-foreground">
+                {memberFirstName
+                  ? `Next: a few short questions about ${memberFirstName}'s health and daily life, so the care team can prepare. Most families finish in about ten minutes.`
+                  : "Next: your dashboard, with the members assigned to you."}
+              </p>
             </form>
           )}
         </CardContent>

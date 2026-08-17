@@ -83,10 +83,15 @@ export function OnboardingProgress({
                 ch.reachable ? "cursor-pointer" : "cursor-default",
               )}
             >
+              {/* scaleX, not width: width animates on the layout path every step.
+                  Rounding lives on the clipping parent so the scale cannot squash
+                  the cap radius. */}
               <span className="block h-1.5 overflow-hidden rounded-full bg-muted">
                 <span
-                  className="block h-full rounded-full bg-primary transition-[width] duration-300 ease-out"
-                  style={{ width: `${Math.max(ch.progress * 100, ch.current ? 8 : 0)}%` }}
+                  className="block h-full w-full origin-left bg-primary transition-transform duration-300 ease-out"
+                  style={{
+                    transform: `scaleX(${Math.max(ch.progress, ch.current ? 0.08 : 0)})`,
+                  }}
                 />
               </span>
             </button>
