@@ -418,7 +418,7 @@ function ContactBlock({
             href={wa}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-sm text-emerald-700 hover:bg-muted dark:text-emerald-400"
+            className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-sm text-success hover:bg-muted"
           >
             <MessageCircle className="size-3.5" /> WhatsApp
           </a>

@@ -74,7 +74,7 @@ export default async function InvitePage({
           {error && ERRORS[error] ? (
             <p
               role="alert"
-              className="mb-4 rounded-md border border-amber-300 bg-amber-50 p-3 text-amber-900"
+              className="mb-4 rounded-md border border-danger/30 bg-danger-tint p-3 text-foreground"
             >
               {ERRORS[error]}
             </p>
@@ -82,12 +82,14 @@ export default async function InvitePage({
 
           {!usable ? (
             <div className="space-y-4 text-center">
-              <p className="rounded-md border border-amber-300 bg-amber-50 p-3 text-amber-900">
+              {/* Not the visitor's mistake — a state of the link, each paired with a
+                  next action. Informational (Water), not danger. */}
+              <p className="rounded-md border border-info/30 bg-info-tint p-3 text-foreground">
                 {state === "used"
-                  ? "This invite has already been used."
+                  ? "This invite has already been used. If that was you, sign in instead."
                   : state === "expired"
                     ? "This invite link has expired. Please ask your coordinator for a new one."
-                    : "This invite link is not valid."}
+                    : "This invite link is not valid. Please ask your coordinator to resend it."}
               </p>
               <Link href="/login" className={cn(buttonVariants({ variant: "outline" }), "h-11 w-full text-base")}>
                 Go to sign in

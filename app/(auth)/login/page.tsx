@@ -37,7 +37,7 @@ export default async function LoginPage({
           {message ? (
             <p
               role="alert"
-              className="mb-4 rounded-md border border-amber-300 bg-amber-50 p-3 text-amber-900"
+              className="mb-4 rounded-md border border-danger/30 bg-danger-tint p-3 text-foreground"
             >
               {message}
             </p>

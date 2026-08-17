@@ -74,8 +74,8 @@ export function FeedbackForm({
 
   if (done) {
     return (
-      <div className="flex items-start gap-3 rounded-lg border border-emerald-500/40 bg-emerald-500/10 p-4 text-emerald-800 dark:text-emerald-300">
-        <Check className="mt-0.5 size-5 shrink-0" />
+      <div className="flex items-start gap-3 rounded-lg border border-success/30 bg-success-tint p-4 text-foreground">
+        <Check className="mt-0.5 size-5 shrink-0 text-success" />
         <div className="text-sm">
           <p className="font-medium">Feedback submitted</p>
           <p>The performance report compiles once both this month&apos;s feedback forms are in.</p>
@@ -132,7 +132,7 @@ function SaveIndicator({ state }: { state: SaveState }) {
   }
   if (state === "saved") {
     return (
-      <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+      <span className="inline-flex items-center gap-1 text-success">
         <Check className="size-3.5" /> Saved
       </span>
     );
