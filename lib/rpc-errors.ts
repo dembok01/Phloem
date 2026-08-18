@@ -24,6 +24,12 @@ export const RPC_ERROR_CODES = [
   "cannot_change_own_status",
   "not_shareable",
   "no_member_login",
+  // 0024 cases + 0026 progress summary
+  "title_required",
+  "bad_severity",
+  "bad_status",
+  "summary_required",
+  "bad_content",
 ] as const;
 
 export type RpcErrorCode = (typeof RPC_ERROR_CODES)[number];
@@ -58,6 +64,11 @@ export const RPC_ERROR_COPY: Record<RpcErrorCode, string> = {
   not_shareable:
     "Only doctor and performance reports can be shared — plans are always visible to the family.",
   no_member_login: "This member doesn't have their own login yet.",
+  title_required: "Give the case a title before saving it.",
+  bad_severity: "Severity must be low, medium or high.",
+  bad_status: "Status must be open, monitoring or resolved.",
+  summary_required: "Write a note before saving it.",
+  bad_content: "The report content was malformed and could not be saved.",
 };
 
 export function rpcErrorMessage(

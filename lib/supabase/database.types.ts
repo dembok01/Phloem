@@ -376,6 +376,190 @@ export type Database = {
           },
         ]
       }
+      measure_catalog: {
+        Row: {
+          domain: string
+          family_safe: boolean
+          higher_is_better: boolean | null
+          label: string
+          measure_key: string
+          sort: number
+          unit: string | null
+        }
+        Insert: {
+          domain: string
+          family_safe?: boolean
+          higher_is_better?: boolean | null
+          label: string
+          measure_key: string
+          sort?: number
+          unit?: string | null
+        }
+        Update: {
+          domain?: string
+          family_safe?: boolean
+          higher_is_better?: boolean | null
+          label?: string
+          measure_key?: string
+          sort?: number
+          unit?: string | null
+        }
+        Relationships: []
+      }
+      measure_sources: {
+        Row: {
+          field_id: string
+          measure_key: string
+          parse: string
+          template_key: string
+        }
+        Insert: {
+          field_id: string
+          measure_key: string
+          parse?: string
+          template_key: string
+        }
+        Update: {
+          field_id?: string
+          measure_key?: string
+          parse?: string
+          template_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "measure_sources_measure_key_fkey"
+            columns: ["measure_key"]
+            isOneToOne: false
+            referencedRelation: "measure_catalog"
+            referencedColumns: ["measure_key"]
+          },
+        ]
+      }
+      member_case_events: {
+        Row: {
+          actor_id: string | null
+          at: string
+          case_id: string
+          id: string
+          kind: string
+          ref_id: string | null
+          ref_type: string | null
+          summary: string
+        }
+        Insert: {
+          actor_id?: string | null
+          at?: string
+          case_id: string
+          id?: string
+          kind: string
+          ref_id?: string | null
+          ref_type?: string | null
+          summary: string
+        }
+        Update: {
+          actor_id?: string | null
+          at?: string
+          case_id?: string
+          id?: string
+          kind?: string
+          ref_id?: string | null
+          ref_type?: string | null
+          summary?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_case_events_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_case_events_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "member_cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      member_cases: {
+        Row: {
+          created_at: string
+          detail: string | null
+          id: string
+          member_id: string
+          opened_at: string
+          opened_by: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string
+          share_with_caregiver: boolean
+          source_report: string | null
+          status: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          detail?: string | null
+          id?: string
+          member_id: string
+          opened_at?: string
+          opened_by?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          share_with_caregiver?: boolean
+          source_report?: string | null
+          status?: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          detail?: string | null
+          id?: string
+          member_id?: string
+          opened_at?: string
+          opened_by?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          share_with_caregiver?: boolean
+          source_report?: string | null
+          status?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_cases_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_cases_opened_by_fkey"
+            columns: ["opened_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_cases_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_cases_source_report_fkey"
+            columns: ["source_report"]
+            isOneToOne: false
+            referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       member_contacts: {
         Row: {
           address: string | null
@@ -799,6 +983,74 @@ export type Database = {
         Args: { p_cycle: number; p_extra?: Json; p_title: string }
         Returns: Json
       }
+      _append_review_to_cases: {
+        Args: {
+          p_actor: string
+          p_answers: Json
+          p_cycle_no: number
+          p_member: string
+          p_report: string
+        }
+        Returns: number
+      }
+      _measure_domains: { Args: { m: string }; Returns: string[] }
+      _measure_value: {
+        Args: { a: Json; p_field: string; p_parse: string }
+        Returns: number
+      }
+      _seed_cases_from_problem_list: {
+        Args: {
+          p_actor: string
+          p_answers: Json
+          p_member: string
+          p_report: string
+        }
+        Returns: number
+      }
+      add_case_note: {
+        Args: { p_case: string; p_summary: string }
+        Returns: string
+      }
+      get_measure_series: {
+        Args: { m: string; p_domain?: string }
+        Returns: {
+          at: string
+          cycle_number: number
+          domain: string
+          higher_is_better: boolean
+          label: string
+          measure_key: string
+          source: string
+          unit: string
+          value: number
+        }[]
+      }
+      open_case: {
+        Args: {
+          p_detail?: string
+          p_member: string
+          p_severity?: string
+          p_title: string
+        }
+        Returns: string
+      }
+      record_progress_summary: {
+        Args: {
+          p_content: Json
+          p_cycle: string
+          p_force?: boolean
+          p_member: string
+        }
+        Returns: string
+      }
+      set_case_sharing: {
+        Args: { p_case: string; p_shared: boolean }
+        Returns: undefined
+      }
+      set_case_status: {
+        Args: { p_case: string; p_note?: string; p_status: string }
+        Returns: undefined
+      }
       accept_invite: {
         Args: {
           p_full_name: string
@@ -952,6 +1204,7 @@ export type Database = {
         | "training_review"
         | "wellbeing"
         | "performance"
+        | "progress_summary"
       submit_status: "pending" | "submitted"
       user_role:
         | "admin"
@@ -1128,6 +1381,7 @@ export const Constants = {
         "training_review",
         "wellbeing",
         "performance",
+        "progress_summary",
       ],
       submit_status: ["pending", "submitted"],
       user_role: [

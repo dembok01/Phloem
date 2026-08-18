@@ -59,6 +59,44 @@ export const REPORT_CSS = `
 .report-doc .report-callout--danger  { background:#F9ECE8; border-color:#DFA08F; border-left-color:#A63A24; color:#7C2B1B; }
 .report-doc .report-callout--info    { background:#E9F1FA; border-color:#A8C4E4; border-left-color:#2F6DB5; color:#24527E; }
 .report-doc .report-plain { border-radius:10px; padding:14px 16px; background:#EAF3EC; border:1px solid #BFD8C6; border-left:4px solid #3E7C57; color:#22402F; }
+.report-doc .report-muted { color:#5A6B60; }
+
+/* measure_trend (W1.7) — small multiples: label + value, a mark, a worded delta.
+   Rows avoid page breaks so a measure never splits across a PDF page. */
+.report-doc ul.report-measures { list-style:none; margin:0 0 14px; padding:0;
+  display:grid; grid-template-columns:1fr 1fr; gap:10px 16px; }
+.report-doc .report-measure { break-inside:avoid; page-break-inside:avoid;
+  border:1px solid #DCE5DD; border-radius:10px; padding:10px 12px; background:#FCFDFC; }
+.report-doc .report-measure-head { display:flex; align-items:baseline; gap:8px; }
+.report-doc .report-measure-label { font-size:12px; font-weight:600; color:#5A6B60;
+  letter-spacing:.02em; }
+.report-doc .report-measure-value { margin-left:auto; font-family:var(--font-brand-data, "IBM Plex Mono"), ui-monospace, monospace;
+  font-size:16px; font-weight:600; color:#1F2A24; font-variant-numeric:tabular-nums; }
+.report-doc .report-measure-plot { margin:6px 0 4px; min-height:26px; }
+.report-doc .report-measure-single { font-size:11px; color:#5A6B60; }
+.report-doc .report-measure-delta { font-size:11.5px; font-weight:600; }
+.report-doc table.report-measures-table { font-size:12px; }
+
+/* timeline (W1.5/W1.6) */
+.report-doc .report-timeline-group { margin:0 0 14px; break-inside:avoid; page-break-inside:avoid; }
+.report-doc .report-timeline-month { font-family:var(--font-brand-data, "IBM Plex Mono"), ui-monospace, monospace; font-size:11px;
+  font-weight:500; letter-spacing:.08em; text-transform:uppercase; color:#5A6B60;
+  margin:0 0 6px; padding-bottom:4px; border-bottom:1px solid #DCE5DD; }
+.report-doc ol.report-timeline-list { list-style:none; margin:0; padding:0; }
+.report-doc .report-timeline-item { display:flex; gap:10px; padding:5px 0;
+  break-inside:avoid; page-break-inside:avoid; }
+.report-doc .report-timeline-kind { flex:0 0 84px; font-family:var(--font-brand-data, "IBM Plex Mono"), ui-monospace, monospace;
+  font-size:10px; font-weight:500; letter-spacing:.06em; text-transform:uppercase;
+  color:#5A6B60; padding-top:2px; }
+.report-doc .report-timeline-body { display:block; }
+.report-doc .report-timeline-title { display:inline; font-size:14px; color:#1F2A24; }
+.report-doc .report-timeline-date { font-family:var(--font-brand-data, "IBM Plex Mono"), ui-monospace, monospace; font-size:11px;
+  color:#5A6B60; margin-left:8px; }
+.report-doc .report-timeline-detail { display:block; font-size:12px; color:#5A6B60; margin-top:1px; }
+
+/* comparison (W1.7) */
+.report-doc .report-compare-label { text-align:left; font-weight:600; color:#5A6B60;
+  background:#F5F8F5; }
 `;
 
 // PDF-only chrome: the branded header band + page setup. Combined with REPORT_CSS.
@@ -69,6 +107,6 @@ body { margin:0; }
 .pdf-header { display:flex; align-items:center; gap:12px; padding-bottom:12px;
   margin-bottom:18px; border-bottom:2px solid #1E6B4E; }
 .pdf-header img { height:34px; width:auto; }
-.pdf-header .pdf-brand { font-family:ui-monospace, monospace; font-size:11px; letter-spacing:.08em;
+.pdf-header .pdf-brand { font-family:var(--font-brand-data, "IBM Plex Mono"), ui-monospace, monospace; font-size:11px; letter-spacing:.08em;
   text-transform:uppercase; color:#5A6B60; margin-left:auto; }
 `;

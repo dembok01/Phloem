@@ -9,6 +9,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { dispatchNotificationEmails } from "@/lib/notify";
+import { backfillProgressSummaries } from "@/lib/reports/progress";
 import { logEvent, logError } from "@/lib/observe";
 
 export const runtime = "nodejs";
@@ -48,13 +49,21 @@ async function handle(req: Request): Promise<NextResponse> {
     logError("cron.daily.rpc_failed", error, { simulated: today ?? null });
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+  // W1.6 — the family's monthly report. Runs AFTER run_daily_jobs so cycles closed
+  // in this same run are picked up, and reads the DB rather than the RPC's return
+  // value, so anything missed on an earlier day is caught up too.
+  const progress = await backfillProgressSummaries(admin);
+
   // §12 — flush any notification rows (from the jobs above or elsewhere) as email.
+  // Runs last so the progress-summary notifications go out in the same pass.
   const email = await dispatchNotificationEmails(admin);
   const summary = (data ?? {}) as Record<string, unknown>;
   // One structured line per run — the observable trace of the time-driven layer.
   logEvent("cron.daily", {
     simulated: today ?? null,
     ...summary,
+    progress_summaries: progress.generated,
+    progress_failures: progress.failed,
     emails_sent: email.sent,
     duration_ms: Date.now() - startedAt,
   });
@@ -63,6 +72,7 @@ async function handle(req: Request): Promise<NextResponse> {
     simulated: today ?? null,
     summary: data,
     failures: summary.failures ?? 0,
+    progress_summaries: progress.generated,
     emails_sent: email.sent,
   });
 }
