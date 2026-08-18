@@ -123,10 +123,17 @@
   --role-caregiver: #1e6b4e;
   --role-member: #1e6b4e;
   /* Chart series (validated for chroma floor + CVD separation on white). */
+  /* Chart series (dataviz). Four CATEGORICAL slots, validated with
+     `validate_palette.js --pairs all` in both modes — all-pairs, not merely
+     adjacent, because the previous plum sat ΔE 0.8 from the blue under
+     deuteranopia while passing an adjacent-only check. --chart-5 is NOT a fifth
+     series: it is the neutral "Other"/overflow slot and must never be used as a
+     peer of 1–4 (it is deliberately below the chroma floor). A 5th real series
+     folds into Other, small multiples, or a second chart. */
   --chart-1: #17855c;
   --chart-2: #2f6db5;
-  --chart-3: #96610f;
-  --chart-4: #6d4a78;
+  --chart-3: #a35f00;
+  --chart-4: #8f2d5e;
   --chart-5: #5a6b60;
   --radius: 0.875rem;
   --shadow-1: 0 1px 2px rgb(31 42 36 / 0.05), 0 1px 6px rgb(31 42 36 / 0.05);
@@ -193,10 +200,12 @@
   --role-admin: #9ca3af;
   --role-caregiver: #6fbf9a;
   --role-member: #6fbf9a;
-  --chart-1: #6fbf9a;
-  --chart-2: #7aa8dd;
-  --chart-3: #d9a94e;
-  --chart-4: #b490c0;
+  /* Dark series sit in band L 0.48–0.67 — the previous set was 0.70–0.76, i.e.
+     too light for a dark ground, and failed the lightness check outright. */
+  --chart-1: #22a878;
+  --chart-2: #5090dd;
+  --chart-3: #bd7d0d;
+  --chart-4: #b5487f;
   --chart-5: #9fb0a6;
   --shadow-1: 0 1px 2px rgb(0 0 0 / 0.3), 0 1px 6px rgb(0 0 0 / 0.25);
   --shadow-2: 0 4px 12px rgb(0 0 0 / 0.4), 0 12px 32px rgb(0 0 0 / 0.35);

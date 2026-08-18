@@ -557,3 +557,64 @@ have silently ended elderly mode's motion-free guarantee while the CSS still loo
     succeeded only because the six `@phloem.local` logins still share the seed password on
     live data. When that is finally rotated, `design-audit.ts` will need real credentials
     supplied out of band.
+
+---
+
+## Workspace Elevation E1–E5 (2026-08-18)
+
+Branch `workspace-elevation/e0-foundation`. Presentation-only: no migration, RLS
+policy or §6 RPC touched, so §16 was not re-run and `test:unit` held at 32/32.
+Plan 01 scoped itself to client surfaces and left admin/doctor/coordinator
+untouched — which is why the previous release looked like nothing had changed.
+
+**Admin (E1).** The overview was four numbers, three text deltas and no chart, on
+a page titled *Program health at a glance*. Now: a clickable stage funnel (the
+chart is also the filter), sparklines behind each stat tile from 12 weeks of
+bucketed data, and a real throughput chart. Weekly buckets are computed in JS from
+minimal `created_at`/`completed_at` reads — a `date_trunc` aggregate would have
+needed an RPC, and volumes here are in the hundreds.
+
+**Doctor (E2).** One flat list became four queues — needs your form, awaiting your
+clearance decision, upcoming consultations, everyone else — each member appearing
+once, ordered by urgency. The clearance queue mirrors `lib/clearance.ts` (red flag
+present, no doctor report yet carrying a non-empty `content.clearance`); the DB
+gate remains the enforcement boundary. Only the doctor pays for that extra read.
+
+**Client (E3).** `MemberTimeline` now renders on the caregiver home — the family's
+actual question is "where are we?". Reused rather than rebuilt: it already reads
+only consultations, reports and cycles, all of which `cons_caregiver` / `rep_cg` /
+the package join already grant a caregiver.
+
+**Coordinator (E4).** Every Today row's only affordance was *Open*. Schedulable
+rows now carry an inline Schedule action that opens a sheet and posts to the same
+`scheduleConsultation` server action the member page uses. The row was restructured
+so the button is a sibling of the link — a button inside an anchor is invalid and
+swallows the click.
+
+**Shared (E5).** `components/ui/sheet.tsx` on Base UI's Drawer (already installed —
+focus trap, portal, scroll lock for free). ⌘K mounted on admin, not just
+coordinator. Chart palette re-stepped and toast exit/swipe shipped in E0.
+
+### Verification (2026-08-18)
+| Check | Result |
+|---|---|
+| `next build` · `tsc` · `eslint` | **PASS** |
+| `npm run test:unit` | **PASS** — 32/32 |
+| Impeccable detector | **PASS** — `[]` on every changed file |
+| Admin overview, live | **PASS** — screenshotted: funnel, sparklines and throughput all render with real data |
+| Coordinator Today, live | **PASS** — 7 inline Schedule buttons render |
+| Sheet, live | **PASS** — opens, focus trapped inside, datetime + mode fields present, Escape closes, close button closes |
+
+### Two things cut on purpose
+- **The sheet's drag-to-dismiss handle.** Base UI centres the popup regardless of
+  the viewport wrapper, so a "drag me down" grab handle promised a gesture that
+  never fired. Removed rather than shipped as a lie; Escape/close/backdrop all
+  verified working.
+- **A sparkline on the Renewals tile.** No honest 12-week series exists for a
+  forward-looking count, and the first draft borrowed the unrelated member trend.
+
+### Still blocked on demo data
+The doctor queue could not be seen: `doctor@phloem.local` has zero assignments, so
+the four new groups have nothing to render. Branch creation via MCP is unavailable
+in this tool build (`confirm_cost` is not exposed), so the `SEED_DEMO=1` project
+remains the outstanding prerequisite for verifying doctor and client surfaces.

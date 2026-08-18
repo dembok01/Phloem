@@ -26,7 +26,8 @@ export function TrendLine({
 }: {
   data: TrendPoint[];
   series: TrendSeries[];
-  domain: [number, number];
+  /** Omit for an auto domain (counts); fix it for bounded scales like 1–5. */
+  domain?: [number, number];
   unit?: string;
   height?: number;
 }) {
@@ -43,7 +44,7 @@ export function TrendLine({
               tickLine={false}
             />
             <YAxis
-              domain={domain}
+              domain={domain ?? ["auto", "auto"]}
               tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
               axisLine={false}
               tickLine={false}

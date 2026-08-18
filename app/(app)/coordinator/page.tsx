@@ -15,6 +15,7 @@ import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 import { formatDateTimeIST, isTodayIST } from "@/lib/datetime";
 import type { CareRole } from "@/lib/member-status";
+import { ScheduleSheet } from "@/components/coordinator/schedule-sheet";
 
 // §10 Today queue — every row is one clear action on one member (C3).
 const ROLE_NAME: Record<CareRole, string> = {
@@ -26,7 +27,9 @@ const ROLE_NAME: Record<CareRole, string> = {
 
 type Bucket = "overdue" | "today" | "week";
 type Kind = "assign" | "start" | "renewal" | "schedule" | "meet" | "markdone" | "report";
-type Task = { bucket: Bucket; kind: Kind; action: string; detail?: string; member: string; href: string };
+type Task = { bucket: Bucket; kind: Kind; action: string; detail?: string; member: string; href: string;
+  /** Set only for `schedule` rows, so the queue can act in place. */
+  scheduleFor?: { memberId: string; consultationId: string; role: string } };
 
 const KIND_ICON: Record<Kind, React.ReactNode> = {
   assign: <UserPlus className="size-4" aria-hidden />,
@@ -51,9 +54,12 @@ export default async function CoordinatorTodayPage() {
 
   const nameById = new Map((members ?? []).map((m) => [m.id, m.full_name]));
   const tasks: Task[] = [];
-  const push = (bucket: Bucket, kind: Kind, action: string, memberId: string, detail?: string) => {
+  const push = (
+    bucket: Bucket, kind: Kind, action: string, memberId: string, detail?: string,
+    scheduleFor?: Task["scheduleFor"],
+  ) => {
     const member = nameById.get(memberId);
-    if (member) tasks.push({ bucket, kind, action, detail, member, href: `/coordinator/members/${memberId}` });
+    if (member) tasks.push({ bucket, kind, action, detail, member, href: `/coordinator/members/${memberId}`, scheduleFor });
   };
 
   for (const m of members ?? []) {
@@ -66,7 +72,9 @@ export default async function CoordinatorTodayPage() {
   for (const c of consults ?? []) {
     const role = ROLE_NAME[c.type];
     if (c.meeting_status === "to_schedule") {
-      push("today", "schedule", `Schedule the ${role} consultation`, c.member_id);
+      push("today", "schedule", `Schedule the ${role} consultation`, c.member_id, undefined, {
+        memberId: c.member_id, consultationId: c.id, role,
+      });
     } else if (c.meeting_status === "scheduled") {
       const t = c.scheduled_at ? new Date(c.scheduled_at).getTime() : NaN;
       if (isTodayIST(c.scheduled_at)) {
@@ -110,14 +118,16 @@ export default async function CoordinatorTodayPage() {
               </h2>
               <ul className="space-y-2">
                 {items.map((t, i) => (
-                  <li key={i}>
-                    <Link
-                      href={t.href}
-                      className={cn(
-                        "group flex items-center gap-3 rounded-xl border bg-card px-4 py-3 shadow-card transition-colors hover:border-primary/40 hover:bg-secondary/40",
-                        overdue && "border-danger/40 bg-danger-tint/40 hover:border-danger/60 hover:bg-danger-tint",
-                      )}
-                    >
+                  <li
+                    key={i}
+                    className={cn(
+                      "flex items-center gap-3 rounded-xl border bg-card px-4 py-3 shadow-card",
+                      overdue && "border-danger/40 bg-danger-tint/40",
+                    )}
+                  >
+                    {/* The action button is a SIBLING of the link, not nested in it —
+                        a button inside an anchor is invalid and swallows the click. */}
+                    <Link href={t.href} className="pressable flex min-w-0 flex-1 items-center gap-3 rounded-lg">
                       <span
                         className={cn(
                           "inline-flex size-9 shrink-0 items-center justify-center rounded-full",
@@ -133,10 +143,22 @@ export default async function CoordinatorTodayPage() {
                           {t.detail ? ` — ${t.detail}` : ""}
                         </span>
                       </span>
-                      <span className="shrink-0 rounded-full border px-3 py-1 text-xs font-medium text-muted-foreground transition-colors group-hover:border-primary/40 group-hover:text-secondary-foreground">
-                        Open
-                      </span>
                     </Link>
+                    {t.scheduleFor ? (
+                      <ScheduleSheet
+                        memberId={t.scheduleFor.memberId}
+                        memberName={t.member}
+                        consultationId={t.scheduleFor.consultationId}
+                        role={t.scheduleFor.role}
+                      />
+                    ) : (
+                      <Link
+                        href={t.href}
+                        className="pressable shrink-0 rounded-full border px-3 py-1 text-xs font-medium text-muted-foreground hover:border-primary/40 hover:text-secondary-foreground"
+                      >
+                        Open
+                      </Link>
+                    )}
                   </li>
                 ))}
               </ul>

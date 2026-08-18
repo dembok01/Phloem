@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronRight, FileWarning, UsersRound } from "lucide-react";
+import { ChevronRight, FileWarning, ShieldAlert, UsersRound } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Monogram } from "@/components/monogram";
@@ -8,19 +8,45 @@ import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 import { formatDateTimeIST } from "@/lib/datetime";
 import { hasHighFlag, parseRedFlags } from "@/lib/red-flags";
+import { resolveClearance } from "@/lib/clearance";
+import { getSessionProfile } from "@/lib/auth";
 
 // §10 clinician list — assigned members only (mem_clinician RLS), pending work
 // first (C4), with cycle context, next own-type consult, and red-flag dot.
 export default async function ClinicianClientsPage() {
   const supabase = await createClient();
 
-  const [{ data: members }, { data: consults }, { data: activeCycles }] = await Promise.all([
+  const profile = await getSessionProfile();
+  const isDoctor = profile?.role === "doctor";
+
+  const [{ data: members }, { data: consults }, { data: activeCycles }, { data: docReports }] =
+    await Promise.all([
     supabase.from("members").select("id, full_name, age, status, red_flags").order("full_name"),
     // cons_clinician already scopes these to the viewer's own type + assigned members.
     supabase.from("consultations").select("member_id, meeting_status, report_status, scheduled_at"),
     // cyc_read: assigned clinicians may read cycles through the package join.
     supabase.from("cycles").select("status, number, start_date, packages!inner(member_id)").eq("status", "active"),
+    // Only the doctor decides clearance, so only the doctor pays for this read.
+    isDoctor
+      ? supabase
+          .from("reports")
+          .select("member_id, content, created_at")
+          .in("type", ["doctor_initial", "doctor_review"])
+          .order("created_at", { ascending: false })
+      : Promise.resolve({ data: [] as { member_id: string; content: unknown; created_at: string }[] }),
   ]);
+
+  // A member needs a clearance decision when they carry a red flag and no doctor
+  // report has yet recorded a non-empty `content.clearance`. Mirrors the §6 gate
+  // in lib/clearance.ts; the DB remains the enforcement boundary.
+  const reportsByMember = new Map<string, { content: unknown }[]>();
+  for (const r of docReports ?? []) {
+    const list = reportsByMember.get(r.member_id) ?? [];
+    list.push({ content: r.content });
+    reportsByMember.set(r.member_id, list);
+  }
+  const needsClearance = (id: string, flagged: boolean) =>
+    isDoctor && flagged && resolveClearance(reportsByMember.get(id) ?? []) === null;
 
   const pending = new Map<string, boolean>();
   const nextConsult = new Map<string, string>();
@@ -50,71 +76,106 @@ export default async function ClinicianClientsPage() {
     return na < nb ? -1 : na > nb ? 1 : a.full_name.localeCompare(b.full_name);
   });
 
+  const rows = list.map((m) => {
+    const flags = parseRedFlags(m.red_flags);
+    return {
+      m,
+      flags,
+      high: hasHighFlag(flags),
+      due: !!pending.get(m.id),
+      next: nextConsult.get(m.id),
+      clearance: needsClearance(m.id, flags.length > 0),
+    };
+  });
+
+  // Four queues instead of one flat list: what is blocking, what is decided by
+  // you alone, what is coming, and everyone else. Order = urgency, and each
+  // member appears exactly once.
+  const formsDue = rows.filter((r) => r.due);
+  const clearances = rows.filter((r) => !r.due && r.clearance);
+  const upcoming = rows.filter((r) => !r.due && !r.clearance && r.next);
+  const rest = rows.filter((r) => !r.due && !r.clearance && !r.next);
+
+  const groups = [
+    { key: "due", label: "Needs your form", tone: "warning" as const, rows: formsDue },
+    { key: "clear", label: "Awaiting your clearance decision", tone: "danger" as const, rows: clearances },
+    { key: "next", label: "Upcoming consultations", tone: "muted" as const, rows: upcoming },
+    { key: "rest", label: "Everyone else", tone: "muted" as const, rows: rest },
+  ].filter((g) => g.rows.length > 0);
+
   return (
     <section className="mx-auto max-w-3xl space-y-6">
       <PageHeader
         title="My members"
-        description="Members assigned to you — anything needing your form comes first."
+        description="Your queue — what is blocking comes first, then what only you can decide."
       />
 
-      {list.length === 0 ? (
+      {rows.length === 0 ? (
         <EmptyState
           icon={UsersRound}
           title="No members yet"
           description="The coordinator assigns members to you; they'll appear here with their consultation status."
         />
       ) : (
-        <ul className="space-y-2">
-          {list.map((m) => {
-            const flags = parseRedFlags(m.red_flags);
-            const high = hasHighFlag(flags);
-            const next = nextConsult.get(m.id);
-            const due = pending.get(m.id);
-            return (
-              <li key={m.id}>
-                <Link
-                  href={`/clinician/clients/${m.id}${due ? "?tab=form" : ""}`}
-                  className={cn(
-                    "flex items-center gap-3 rounded-xl border bg-card p-4 shadow-card transition-colors hover:border-primary/40 hover:bg-secondary/40",
-                    due && "border-warning/50",
-                  )}
-                >
-                  <Monogram name={m.full_name} size="sm" />
-                  <div className="min-w-0 flex-1">
-                    <p className="flex items-center gap-1.5 font-medium">
-                      {m.full_name}
-                      {m.age ? <span className="font-normal text-muted-foreground"> · {m.age} yrs</span> : null}
-                      {high ? (
-                        <span
-                          className="size-2.5 shrink-0 rounded-full bg-danger ring-2 ring-danger/20"
-                          title="High red flag on file"
-                          aria-label="High red flag on file"
-                        />
-                      ) : flags.length > 0 ? (
-                        <span
-                          className="size-2.5 shrink-0 rounded-full bg-warning ring-2 ring-warning/20"
-                          title="Red flags on file"
-                          aria-label="Red flags on file"
-                        />
-                      ) : null}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {[cycleByMember.get(m.id), next ? `Next consult ${formatDateTimeIST(next)}` : "No upcoming consult"]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </p>
-                  </div>
-                  {due ? (
-                    <Badge variant="warning">
-                      <FileWarning className="size-3.5" aria-hidden /> Form due
-                    </Badge>
-                  ) : null}
-                  <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+        groups.map((g) => (
+          <div key={g.key} className="space-y-2">
+            <h2 className="eyebrow flex items-center gap-2">
+              {g.key === "clear" ? <ShieldAlert className="size-3.5 text-danger" aria-hidden /> : null}
+              {g.label}
+              <span className="font-data text-foreground tabular-nums">{g.rows.length}</span>
+            </h2>
+            <ul className="space-y-2">
+              {g.rows.map(({ m, flags, high, due, next, clearance }) => (
+                <li key={m.id}>
+                  <Link
+                    href={`/clinician/clients/${m.id}${due ? "?tab=form" : clearance ? "?tab=clearance" : ""}`}
+                    className={cn(
+                      "pressable flex items-center gap-3 rounded-xl border bg-card p-4 shadow-card hover:border-primary/40 hover:bg-secondary/40",
+                      due && "border-warning/50",
+                      clearance && "border-danger/40",
+                    )}
+                  >
+                    <Monogram name={m.full_name} size="sm" />
+                    <div className="min-w-0 flex-1">
+                      <p className="flex items-center gap-1.5 font-medium">
+                        {m.full_name}
+                        {m.age ? <span className="font-normal text-muted-foreground"> · {m.age} yrs</span> : null}
+                        {high ? (
+                          <span
+                            className="size-2.5 shrink-0 rounded-full bg-danger ring-2 ring-danger/20"
+                            title="High red flag on file"
+                            aria-label="High red flag on file"
+                          />
+                        ) : flags.length > 0 ? (
+                          <span
+                            className="size-2.5 shrink-0 rounded-full bg-warning ring-2 ring-warning/20"
+                            title="Red flags on file"
+                            aria-label="Red flags on file"
+                          />
+                        ) : null}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {[cycleByMember.get(m.id), next ? `Next consult ${formatDateTimeIST(next)}` : "No upcoming consult"]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </p>
+                    </div>
+                    {due ? (
+                      <Badge variant="warning">
+                        <FileWarning className="size-3.5" aria-hidden /> Form due
+                      </Badge>
+                    ) : clearance ? (
+                      <Badge variant="danger">
+                        <ShieldAlert className="size-3.5" aria-hidden /> Decide
+                      </Badge>
+                    ) : null}
+                    <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))
       )}
     </section>
   );
