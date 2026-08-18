@@ -81,17 +81,32 @@ async function upsertProfile(p: {
 async function seedTemplates(): Promise<void> {
   const dir = path.join(process.cwd(), "supabase", "templates");
   const files = readdirSync(dir).filter((f) => f.endsWith(".json")).sort();
-  for (const file of files) {
-    const schema = JSON.parse(readFileSync(path.join(dir, file), "utf8")) as {
+
+  const parsed = files.map((file) => ({
+    file,
+    schema: JSON.parse(readFileSync(path.join(dir, file), "utf8")) as {
       key: string;
       version: number;
-    };
+    },
+  }));
+
+  // Exactly one version per key may be `active`: the §6 RPCs resolve a template
+  // with `where key = ... and active`, so two active versions of one key would
+  // make which form a clinician gets non-deterministic. Newest version wins;
+  // older versions stay in the table so historical form_responses keep resolving.
+  const newest = new Map<string, number>();
+  for (const { schema } of parsed) {
+    newest.set(schema.key, Math.max(newest.get(schema.key) ?? 0, schema.version));
+  }
+
+  for (const { file, schema } of parsed) {
+    const active = newest.get(schema.key) === schema.version;
     const { error } = await db.from("form_templates").upsert(
-      { key: schema.key, version: schema.version, schema, active: true },
+      { key: schema.key, version: schema.version, schema, active },
       { onConflict: "key,version" },
     );
     if (error) throw new Error(`template ${file}: ${error.message}`);
-    console.log(`  template ${schema.key} v${schema.version} ✓`);
+    console.log(`  template ${schema.key} v${schema.version} ${active ? "✓ active" : "· superseded"}`);
   }
 }
 
