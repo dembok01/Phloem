@@ -175,10 +175,12 @@ export function ClinicalForm({
               className="hidden items-center gap-2 sm:inline-flex"
               aria-label={`${progress}% of required fields complete`}
             >
-              <span className="h-1.5 w-24 overflow-hidden rounded-full bg-muted">
+              <span className="block h-1.5 w-24 overflow-hidden rounded-full bg-muted">
+                {/* scaleX rather than width (and `transition-all`, which animated
+                    every animatable property it could find). */}
                 <span
-                  className="block h-full rounded-full bg-primary transition-all duration-300"
-                  style={{ width: `${progress}%` }}
+                  className="block h-full w-full origin-left bg-primary transition-transform duration-300 ease-out"
+                  style={{ transform: `scaleX(${progress / 100})` }}
                 />
               </span>
               <span className="font-data text-xs text-muted-foreground">{progress}%</span>

@@ -77,6 +77,14 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+  /* Easing. Tailwind's (and the browser's) built-in curves are too weak to read
+     as intentional, so these override the `ease-out` / `ease-in-out` utilities
+     app-wide — every existing usage gets the stronger curve at once. `ease-drawer`
+     is a new utility for sheets and drags. Durations have no Tailwind namespace
+     in v4; they stay plain custom properties in :root. */
+  --ease-out: var(--motion-ease-out);
+  --ease-in-out: var(--motion-ease-in-out);
+  --ease-drawer: var(--motion-ease-drawer);
 }
 
 :root {
@@ -123,6 +131,23 @@
   --radius: 0.875rem;
   --shadow-1: 0 1px 2px rgb(31 42 36 / 0.05), 0 1px 6px rgb(31 42 36 / 0.05);
   --shadow-2: 0 4px 12px rgb(31 42 36 / 0.08), 0 12px 32px rgb(31 42 36 / 0.1);
+  /* Motion scale (DESIGN-SYSTEM §4). Raw values live here, not in @theme, for two
+     reasons: inline styles and the React `style` prop need real custom properties
+     to read, and Tailwind v4 has no --duration-* namespace at all. The names are
+     deliberately NOT the Tailwind ones — mapping `--ease-out: var(--ease-out)` in
+     @theme would be circular, which is precisely the bug that once rendered this
+     whole app in Times via --font-sans. See the @theme block for the mapping.
+     Durations are consumed as `duration-(--motion-pop)` or in inline styles.
+     Everything here is neutralised by the reduced-motion / .elderly rules below,
+     which use !important longhands and therefore also beat inline shorthands. */
+  --motion-ease-out: cubic-bezier(0.23, 1, 0.32, 1); /* entrances, exits */
+  --motion-ease-in-out: cubic-bezier(0.77, 0, 0.175, 1); /* on-screen movement */
+  --motion-ease-drawer: cubic-bezier(0.32, 0.72, 0, 1); /* sheets, drags */
+  --motion-press: 160ms; /* press feedback */
+  --motion-pop: 200ms; /* toasts, popovers, chips */
+  --motion-card: 220ms; /* wizard cards, route swaps */
+  --motion-sheet: 320ms; /* drawers */
+  --motion-signature: 700ms; /* GrowthRings arc — the one orchestrated moment */
   --sidebar: #eef3ee;
   --sidebar-foreground: #1f2a24;
   --sidebar-primary: #1e6b4e;
@@ -228,6 +253,90 @@
     text-transform: uppercase;
     color: var(--muted-foreground);
   }
+
+  /* Press feedback for the family's primary controls. The portal navigates by
+     <Link>, which gets none of Button's active state, so on touch a tap reads as
+     unresponsive. Transform-only, so it composites and never triggers layout.
+     Deliberately NOT applied to staff surfaces: Button keeps its own
+     `active:translate-y-px`, and the two conventions stay internally consistent
+     for their own audience (Portal Elevation W3).
+
+     It owns the colour transition too, rather than sitting alongside
+     `transition-colors`: Tailwind's utilities layer is emitted after components,
+     so a `transition-colors` utility on the same element would reset
+     transition-property and silently kill the transform transition. One class,
+     one shorthand, no cascade race — elements using it drop `transition-colors`. */
+  .pressable {
+    transition:
+      transform var(--motion-press) var(--motion-ease-out),
+      background-color var(--motion-press) var(--motion-ease-out),
+      border-color var(--motion-press) var(--motion-ease-out),
+      color var(--motion-press) var(--motion-ease-out);
+  }
+  .pressable:active {
+    transform: scale(0.98);
+  }
+  /* A 2% scale is a position change, which is exactly what reduced motion asks
+     us to drop — and it is imperceptible to the low-vision reader anyway. The
+     colour affordances each control already declares carry the feedback here. */
+  @media (prefers-reduced-motion: reduce) {
+    .pressable:active {
+      transform: none;
+    }
+  }
+  .elderly .pressable:active {
+    transform: none;
+  }
+
+  /* Group entrance for the portal's tile row. CSS-only, no JS, no hydration cost,
+     and it cannot block interaction. Occasional-tier surface only; never use this
+     on anything seen many times a day.
+
+     An animation, not a transition, for two reasons. The tiles also carry
+     `.pressable`, and two rules of equal specificity both setting `transition`
+     would race — the stagger would win and press feedback would inherit the wrong
+     duration. Animations occupy a different property entirely, so the two
+     compose. Predetermined page-load motion also belongs off the main thread,
+     which is exactly when the portal is busy fetching.
+
+     fill-mode `backwards` (not `both`/`forwards`) is load-bearing: it hides the
+     tile during its delay, then stops applying once finished. A forwards fill
+     would keep asserting `transform` and permanently outrank `:active`, silently
+     killing the press feedback it was meant to coexist with. */
+  @keyframes stagger-rise {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+  }
+  .stagger-in > * {
+    animation: stagger-rise var(--motion-card) var(--motion-ease-out) backwards;
+  }
+  .stagger-in > *:nth-child(2) {
+    animation-delay: 40ms;
+  }
+  .stagger-in > *:nth-child(3) {
+    animation-delay: 80ms;
+  }
+  .stagger-in > *:nth-child(4) {
+    animation-delay: 120ms;
+  }
+
+  /* Crossfade for a small element whose whole content swaps between states (the
+     autosave indicator: "Saves automatically" → "Saving…" → "Saved"). The blur is
+     the point: without it the eye reads two distinct objects overlapping rather
+     than one element changing its mind. Kept under 3px — heavy blur is expensive,
+     especially in Safari. Applied with a changing React key so each state swap
+     replays it; the state cadence here is seconds apart, not rapid. */
+  @keyframes fade-swap {
+    from {
+      opacity: 0;
+      filter: blur(2px);
+    }
+  }
+  .fade-swap {
+    animation: fade-swap var(--motion-pop) var(--motion-ease-out) backwards;
+  }
 }
 
 /* Motion discipline: honor reduced-motion everywhere; elderly mode forces it. */
@@ -237,7 +346,9 @@
   *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+    animation-delay: 0s !important;
     transition-duration: 0.01ms !important;
+    transition-delay: 0s !important;
     scroll-behavior: auto !important;
   }
 }
@@ -246,6 +357,8 @@
 .elderly *::after {
   animation-duration: 0.01ms !important;
   animation-iteration-count: 1 !important;
+  animation-delay: 0s !important;
   transition-duration: 0.01ms !important;
+  transition-delay: 0s !important;
   scroll-behavior: auto !important;
 }

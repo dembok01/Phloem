@@ -7,6 +7,20 @@
  * --flow additionally drives the one-time interactive flows (invite accept →
  * video gate → onboarding wizard first steps). Run it once for the "before"
  * pass; afterwards the invite is burned and the flow shots are skipped.
+ *
+ * ⚠ OUTPUT CONTAINS PHI (since the 2026-07-28 production cutover).
+ * The hosted project holds live client data, so these screenshots capture real
+ * members' names, statuses and clinical report counts. `.gitignore` keeps new
+ * output directories out of the index for exactly this reason — do not force-add
+ * them, and do not paste them into issues or PRs.
+ *
+ * ⚠ THE CLIENT-SIDE SESSIONS CANNOT RUN AGAINST LIVE DATA.
+ * `caregiver@phloem.local`, `elder@phloem.local` and `gopalan.family@phloem.local`
+ * were purged in that cutover, and demo fixtures are opt-in (`SEED_DEMO=1`) so a
+ * plain re-seed will not bring them back. The caregiver/elderly/flow sessions will
+ * therefore fail loudly here. Point this at a SEPARATE project seeded with
+ * `SEED_DEMO=1` to audit the client surfaces — never re-seed demo members into
+ * live data to make a screenshot run pass.
  */
 import puppeteer, { type Browser, type Page } from "puppeteer-core";
 import { config as dotenv } from "dotenv";
@@ -134,9 +148,13 @@ const SESSIONS: Session[] = [
       { slug: "plans", url: `/portal/members/${MEERA}/plans` },
       { slug: "reports", url: `/portal/members/${MEERA}/reports` },
       { slug: "schedule", url: `/portal/members/${MEERA}/schedule` },
+      { slug: "documents", url: `/portal/members/${MEERA}/documents` },
       { slug: "notifications", url: "/notifications" },
       { slug: "report-nutrition", url: `/reports/${REPORT_NUTRITION}` },
       { slug: "report-summary", url: `/reports/${REPORT_SUMMARY}` },
+      // 404 and error copy are client-facing surfaces too; they had none until
+      // the elevation pass, so they belong in the audit from now on.
+      { slug: "not-found", url: "/portal/no-such-page" },
     ],
   },
   {
@@ -146,6 +164,9 @@ const SESSIONS: Session[] = [
       { slug: "home", url: "/portal" },
       { slug: "plans", url: `/portal/members/${MEERA}/plans` },
       { slug: "schedule", url: `/portal/members/${MEERA}/schedule` },
+      // Reachable data the member's own login previously had no route to.
+      { slug: "reports", url: `/portal/members/${MEERA}/reports` },
+      { slug: "documents", url: `/portal/members/${MEERA}/documents` },
     ],
   },
 ];
@@ -178,6 +199,17 @@ async function login(page: Page, email: string) {
     page.waitForNavigation({ waitUntil: "networkidle2", timeout: 20000 }),
     page.click('button[type="submit"]'),
   ]);
+  // Fail loudly. A failed sign-in leaves the browser sitting on /login, and
+  // without this the runner cheerfully screenshots the sign-in page once per
+  // slug and reports every one of them as ✓ — which is exactly what happened
+  // when the seeded caregiver/elderly fixtures were purged. A verification
+  // harness that cannot fail is not verifying anything.
+  if (new URL(page.url()).pathname.startsWith("/login")) {
+    throw new Error(
+      `sign-in failed for ${email} — still on /login. The account may not exist ` +
+        `(seeded demo fixtures are opt-in since e82c783) or the password differs.`,
+    );
+  }
 }
 
 async function inviteFlow(browser: Browser) {

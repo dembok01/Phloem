@@ -41,7 +41,7 @@ export default async function OnboardingPage({
   if (DONE_STATUSES.has(member.status)) {
     return (
       <section className="mx-auto max-w-2xl space-y-4 text-center">
-        <CheckCircle2 className="mx-auto size-12 text-emerald-600 dark:text-emerald-400" />
+        <CheckCircle2 className="mx-auto size-12 text-success" />
         <h1 className="text-2xl font-semibold">Onboarding complete</h1>
         <p className="text-base text-muted-foreground">
           Thank you — {member.full_name}&apos;s onboarding is complete. Your care coordinator will

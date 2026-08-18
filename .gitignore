@@ -40,3 +40,15 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 !.env.local.example
+
+# design-audit output — PHI GUARD.
+# The `before/` and `after/` sets committed on 2026-07-14 are safe: they predate the
+# 2026-07-28 production cutover and show only the purged demo fixtures (Meera, Rajan,
+# the Gopalans). Git keeps tracking those, since ignore rules do not apply to files
+# already in the index.
+# Every audit run SINCE that cutover screenshots real members — names, statuses and
+# clinical report counts — because the hosted project now holds live client data. Those
+# images must never reach the remote. Run the audit freely; the output stays local.
+/design-audit/*
+!/design-audit/before/
+!/design-audit/after/

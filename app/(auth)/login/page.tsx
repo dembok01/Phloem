@@ -19,9 +19,14 @@ export default async function LoginPage({
   const params = await searchParams;
   const message = MESSAGES[params.error ?? params.notice ?? ""] ?? null;
 
+  // One id, referenced by both fields: neither error the server returns is
+  // field-specific, so pointing a screen reader at the real message beats
+  // inventing a per-field one that would be a guess.
+  const errorId = message ? "signin-error" : undefined;
+
   return (
-    <main className="flex min-h-screen items-center justify-center bg-muted/40 p-4 text-base">
-      <Card className="w-full max-w-md">
+    <main className="flex min-h-screen items-center justify-center bg-background p-4 text-base">
+      <Card className="w-full max-w-md shadow-pop">
         <CardHeader className="items-center text-center">
           <Image
             src="/phloem-logo.png"
@@ -31,13 +36,15 @@ export default async function LoginPage({
             priority
             className="mx-auto h-14 w-auto"
           />
-          <p className="text-muted-foreground">Personalised chronic care, one login away.</p>
+          <h1 className="font-display text-2xl font-semibold tracking-tight">Sign in</h1>
+          <p className="text-muted-foreground">Your family&apos;s care, in one place.</p>
         </CardHeader>
         <CardContent>
           {message ? (
             <p
+              id={errorId}
               role="alert"
-              className="mb-4 rounded-md border border-amber-300 bg-amber-50 p-3 text-amber-900"
+              className="mb-4 rounded-md border border-danger/30 bg-danger-tint p-3 text-foreground"
             >
               {message}
             </p>
@@ -53,6 +60,8 @@ export default async function LoginPage({
                 type="email"
                 autoComplete="email"
                 required
+                aria-describedby={errorId}
+                aria-invalid={message ? true : undefined}
                 className="h-11 text-base"
               />
             </div>
@@ -66,6 +75,8 @@ export default async function LoginPage({
                 type="password"
                 autoComplete="current-password"
                 required
+                aria-describedby={errorId}
+                aria-invalid={message ? true : undefined}
                 className="h-11 text-base"
               />
             </div>

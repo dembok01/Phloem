@@ -442,3 +442,118 @@ this pass removed what they left behind, plus the mock client logins.
     fail closed) or a password rotation; the owner chose "change nothing for now". `admin@` and
     `coordinator@` in particular hold full PHI access, and the `.local` addresses cannot receive
     an email password reset — real staff accounts on real domains are the durable fix.
+
+---
+
+## Portal Elevation — client UI/UX upgrade (2026-08-17)
+
+Branch `portal-elevation/phase-1` (name predates the scope growing to five phases).
+**Presentation-only throughout:** no migration, no RLS policy and no §6 RPC was touched,
+so the §16 suite was deliberately **not** re-run. Recorded here as a decision, not an
+omission. `npm run test:unit` stayed 32/32 across every phase, which is the standing
+proof that the onboarding work never reached the red-flag engine.
+
+Scope was set by a gate applied to each candidate: how often a reader sees the surface,
+what purpose the change serves, whether it fits the speed budget, and whether motion
+helps or hinders. The load-bearing conclusion is that **the family and the staff are on
+opposite ends of that scale** — a caregiver opens the portal a handful of times a month
+and onboards exactly once, while the coordinator lives in the pipeline all day. Motion
+was therefore scoped generously to `/portal`, onboarding and the auth doors, and
+deliberately **not** extended to coordinator, clinician or admin surfaces.
+
+### Phase 1 — hardening
+Six error/not-found boundaries where the app previously had **zero**, so a Supabase
+hiccup no longer shows a family the raw Next.js error screen. `global-error.tsx` is
+dependency-free by design (Next replaces the root layout there, so `next/font` and
+`globals.css` do not apply). `portal/not-found.tsx` is worded to neither confirm nor deny
+that a member exists, since it fires when RLS returns no row. All 10 hardcoded
+`amber-*`/`emerald-*` sites moved onto semantic tokens — which silently fixed dark mode
+on login and invite — with severity corrected to meaning: sign-in failures are danger
+(Clay), invite-link states are informational (Water). Deleted the dead
+`components/portal/progress-bar.tsx`.
+
+### Phase 2 — motion system
+Three curves and five durations in `:root` as `--motion-*`, mapped onto Tailwind's
+`ease-*` utilities through `@theme inline`. Source names are deliberately distinct from
+the Tailwind ones: `--ease-out: var(--ease-out)` would be circular, which is the exact
+bug that once rendered this app in Times via `--font-sans`. Added `motion@13.1.0`.
+Documented in DESIGN-SYSTEM.md §3 including that warning.
+
+### Phase 3 — portal core
+Four per-route skeletons (the single `portal/loading.tsx` served the whole subtree, so
+tapping *Plans* showed a member story card that then swapped for a document — a skeleton
+lying about what was coming). `.pressable` press feedback on the family's primary
+controls, which navigate by `<Link>` and had no active state at all. The member's own
+login gained GrowthRings, the status line, and routes to Reports and Documents — data
+`rep_member` and `doc_select`/`is_member_self` already admitted them to, with no route to
+it. **0014 grants document insert/delete to the caregiver only, so the documents page is
+now role-aware** — a member was being shown an uploader that would always have failed.
+
+### Phase 4 — onboarding + first impression
+Directional card transitions (the stack animated Back as though it were Forward), the
+completion moment, a blur-bridged autosave crossfade, and progress rails moved off the
+layout path. Login and invite finally got a heading — neither page had one. The invite
+names who invited you and who you will be caring for, using the member's **first name
+only**: the token is unguessable and single-use, but a leaked link should not pair a full
+identity with the fact of being in a chronic-care programme.
+
+`useCalmMotion()` is the non-obvious piece. Motion drives animations from JS (WAAPI/rAF),
+which the `!important` CSS guards cannot reach — without it, introducing a spring would
+have silently ended elderly mode's motion-free guarantee while the CSS still looked correct.
+
+### Phase 5 — verification (2026-08-17)
+
+| Check | Result |
+|---|---|
+| `next build` | **PASS** — 26 routes, clean production build |
+| `tsc --noEmit` · `eslint .` | **PASS** — exit 0, no `any`, no warnings |
+| `npm run test:unit` | **PASS** — 32/32 (red-flag parity unchanged) |
+| Impeccable design detector | **PASS** — `[]` on every changed file, every phase |
+| Contrast, newly introduced pairs | **PASS** — 9 pairs × light+dark all ≥4.5:1 (icons ≥3:1); elderly muted ink 8.80:1 (AAA). Script parses `globals.css` so it cannot drift |
+| §16 RLS suite | **Not run — deliberate.** No schema, RLS or RPC change in the whole branch |
+| Cascade behaviour, in real Chrome | **PASS** — inside `.elderly` an inline `transition` shorthand collapses 0.7s → 1e-05s, confirming `!important` longhands beat inline styles; after its 120ms-delayed stagger a tile rests at `transform:none` and presses to `scale(0.98)` at 0.16s, confirming stagger and press compose |
+| Keyboard, public doors | **PASS** — `/login` and the invite page both show a real focus ring |
+| Screenshots, staff surfaces | 72 shots captured, no regressions from the shared `ease-out` change |
+| Screenshots, **client** surfaces | **BLOCKED — see below** |
+
+### What phase 5 could not verify, and why
+
+1. **Client-surface screenshots and the authenticated keyboard walk are blocked by the
+   2026-07-28 cutover.** `caregiver@phloem.local`, `elder@phloem.local` and
+   `gopalan.family@phloem.local` were purged, and demo fixtures are opt-in (`SEED_DEMO=1`).
+   The only remaining caregiver accounts belong to **real people**, so logging in as them
+   or manufacturing their credentials was not an option, and re-seeding demo members into
+   live data would undo a deliberate production decision. The durable fix is a separate
+   project seeded with `SEED_DEMO=1`. **Also note no member currently has any cycles**, so
+   the GrowthRings hero, the adherence card and the new "what happens next" line have no
+   data to render even for a real login.
+2. **Feel is unverified.** The spring's bounce, the blur crossfade and whether the
+   completion moment lands cannot be judged from code. Owner is reviewing these on a
+   Vercel preview deployment.
+3. **Touch press feedback** needs real hardware; a desktop browser cannot confirm it.
+
+### Two findings from running the verification itself
+
+- **The audit harness could not fail.** `scripts/design-audit.ts` screenshotted whatever
+  was on screen after `login()` and printed `✓` regardless. With the client fixtures gone
+  it produced **104 screenshots of the sign-in page** and reported every one as a success;
+  the first `kbd-client.ts` run likewise emitted false `PASS`es against the sign-in form's
+  own inputs. Both now assert the post-login URL and fail loudly with an actionable
+  message. Re-run afterwards: 72 valid staff shots, **zero** fabricated client shots, and
+  three sessions named as failed. A verification harness that cannot fail verifies nothing.
+- **Audit output is now PHI.** Those staff screenshots contain real members' names,
+  statuses and report counts. The `before/`+`after/` sets committed 2026-07-14 are safe
+  (demo-era, pre-cutover) and stay tracked; `.gitignore` now keeps every *new* audit
+  directory out of the index, and `design-audit.ts` carries the warning at the top.
+  **The 72 shots from this pass were deliberately not committed.**
+
+### Assumptions (continued)
+63. **Visit frequency is inferred, not measured.** "A handful of visits a month" comes from
+    the product model (30-day cycles, coordinator-driven scheduling, notification-led
+    re-entry); there is no instrumentation in the repo. If caregivers turn out to open the
+    portal daily, the tile stagger (`.stagger-in` in `app/(app)/portal/page.tsx`) is the
+    one item that should be cut — everything else holds at either frequency.
+64. **Open risk 62 is now load-bearing for tooling.** The staff screenshot sessions
+    succeeded only because the six `@phloem.local` logins still share the seed password on
+    live data. When that is finally rotated, `design-audit.ts` will need real credentials
+    supplied out of band.

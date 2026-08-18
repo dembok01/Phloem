@@ -59,7 +59,7 @@ export default async function InvitesPage({
       />
 
       {notice ? (
-        <p role="status" className="rounded-md border border-emerald-300 bg-emerald-50 p-3 text-emerald-900">
+        <p role="status" className="rounded-md border border-success/30 bg-success-tint p-3 text-foreground">
           {notice}
         </p>
       ) : null}

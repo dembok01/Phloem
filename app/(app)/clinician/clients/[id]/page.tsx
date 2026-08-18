@@ -669,7 +669,7 @@ async function FeedbackPanel({
   if (draft.submitted_at) {
     return (
       <Card>
-        <CardContent className="flex items-center gap-2 py-8 text-sm text-emerald-700 dark:text-emerald-400">
+        <CardContent className="flex items-center gap-2 py-8 text-sm text-success">
           <CheckCircle2 className="size-5" />
           Your feedback is submitted. The performance report compiles once both are in.
         </CardContent>

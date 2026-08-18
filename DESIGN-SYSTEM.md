@@ -65,6 +65,23 @@ Eyebrows: 12px Plex Mono, uppercase, +0.08em tracking, Moss.
   visible edges matter to old eyes.
 - **Focus:** 2px Phloem ring offset 2px, always visible (fixes G-5). In elderly
   mode, 3px.
+- **Motion scale:** three curves and five durations, all in `:root` as
+  `--motion-*`. Curves are stronger than the browser/Tailwind built-ins, which
+  are too weak to read as intentional: `--motion-ease-out`
+  `cubic-bezier(.23,1,.32,1)` (entrances and exits — the default),
+  `--motion-ease-in-out` `cubic-bezier(.77,0,.175,1)` (movement on screen),
+  `--motion-ease-drawer` `cubic-bezier(.32,.72,0,1)` (sheets, drags). Durations:
+  press 160ms · pop 200ms · card 220ms · sheet 320ms · **signature 700ms**.
+  Everything stays under 300ms except the growth-ring arc, which is the one
+  orchestrated moment §4 grants. `--motion-ease-out` / `--motion-ease-in-out`
+  are mapped onto Tailwind's `ease-out` / `ease-in-out` utilities through
+  `@theme inline`, so the whole app inherits the stronger curves; **never map a
+  Tailwind name to itself** (`--ease-out: var(--ease-out)`) — that circularity
+  is what once rendered the entire app in Times via `--font-sans`. Durations have
+  no Tailwind namespace in v4 and are used as `duration-(--motion-pop)` or read
+  directly by inline styles. The global reduced-motion and `.elderly` rules zero
+  all of it with `!important` longhands, which beat inline shorthands too
+  (verified in-browser), so no component needs its own reduced-motion handling.
 
 ## 4 · The signature — growth rings
 
