@@ -291,3 +291,57 @@ so any pair diffs directly (e.g. `before/caregiver--home.png` ↔
 | Keyboard-only: coordinator + clinician | **PASS** — driven at runtime with puppeteer (`scripts/kbd-test.ts`): `focus-visible-on-tab` PASS (Tab lands a `2px solid` ring), `cmdk-opens` PASS, `cmdk-enter-navigates` PASS (⌘K → type → Enter routes to the member), `clinician-form-rail-focusable` PASS (Tab reaches an `#sec-…` section-rail link). Backed by the global `:focus-visible { outline: 2px solid var(--ring); offset 2px }` (3px in elderly mode), the `CommandPalette` arrow+Enter keydown handlers, and native `<a href="#sec-…">` rail anchors. |
 | Contrast | All 23 token pairs computed ≥4.5:1 (AA); elderly muted 8.8:1 (AAA); chart series pass the dataviz validator (lightness band, chroma floor, CVD ΔE 31.5+, contrast) |
 | Layout shift | Skeletons mirror final layout shapes (header/tiles/rows/story-card); fonts load via next/font with size-adjusted fallbacks; ring/monogram containers are fixed-size |
+
+---
+
+## 8 · Portal Elevation — client surfaces (2026-08-17)
+
+A second pass, scoped to what a family touches. The starting point was not a broken
+interface: the Impeccable mechanical detector returned **zero findings** against the
+July system, contrast passed AA, focus was always visible. So this pass targeted the
+tier above defaults — state that teleports, surfaces never given the same care as the
+core, and the production edges that only appear on a bad day.
+
+### The ten findings, and where they landed
+
+| # | Finding | Fixed in |
+|---|---|---|
+| F1 | No error/not-found boundaries anywhere in the app | Phase 1 |
+| F2 | Every portal sub-route rendered the portal-home skeleton | Phase 3 |
+| F3 | Toasts entered with motion and exited by teleporting | Phase 2 tokens; exit deferred, see below |
+| F4 | Onboarding card always slid in from the right, including on Back | Phase 4 |
+| F5 | Ten hardcoded `amber-*`/`emerald-*` sites bypassing tokens | Phase 1 |
+| F6 | Two competing press conventions; the family's controls had neither | Phase 3 |
+| F7 | Elderly home was a dead end for the member's own reports/documents | Phase 3 |
+| F8 | Progress rails animated `width` / `transition-all` | Phase 4 |
+| F9 | Signature mark redrew on every visit with a weak curve | Phase 3 |
+| F10 | Dead `progress-bar.tsx` still shipping | Phase 1 |
+
+**F3 is only partly closed.** The motion tokens and the stronger `ease-out` landed, but
+the toast still exits by unmounting — the symmetric exit and swipe-to-dismiss were
+scoped into the phase that also carried the highest-value work, and were not reached.
+`components/ui/toast.tsx:36` remains an instant array filter. This is the one planned
+item that did not ship.
+
+### Deliberately not animated
+
+Recorded so the next pass does not relitigate it: the adherence chart keeps
+`isAnimationActive={false}` (data a family is reading should not move for style); the
+command palette stays instant (keyboard-initiated, 100+/day); staff nav tabs and the
+pipeline board keep their near-zero budget; and elderly mode remains motion-free by
+design, which is why `useCalmMotion()` exists to cover the JS-driven animations the CSS
+guards cannot reach.
+
+Also **not** done, against the plan: GrowthRings on the sign-in and invite screens.
+DESIGN-SYSTEM §4 states the mark encodes package state and "is not decoration" — at
+those two screens there is no package, so rendering it would make it exactly that. The
+doors take their identity from ground, elevation and typography instead.
+
+### Screenshot pairs
+
+`design-audit/before/` ↔ `design-audit/after/` remain the July pair and are unaffected.
+**No new pair exists for this pass**: since the 2026-07-28 cutover the audit runs against
+live client data, so its output is PHI and is now gitignored, and the client sessions
+cannot run at all because their fixtures were purged. Reproducing client-surface shots
+requires a separate project seeded with `SEED_DEMO=1`. See PROGRESS.md for the full
+account, including the harness defect that made 104 sign-in screenshots look like passes.
