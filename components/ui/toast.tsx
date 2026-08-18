@@ -3,9 +3,22 @@
 // App-wide toast layer (audit G-9): every action outcome gets a confirmation
 // that repeats the verb of the button that caused it. Success auto-dismisses;
 // errors stay until dismissed. aria-live so screen readers hear outcomes.
+//
+// Motion contract (Portal Elevation F3):
+//   · Enters from the bottom edge and LEAVES THROUGH THE SAME EDGE. Asymmetric
+//     paths are what make a dismissal feel arbitrary — and they are what make
+//     swipe-to-dismiss legible, because the swipe follows the exit path.
+//   · translateY is a percentage, so it moves by the toast's own height whatever
+//     the message length.
+//   · Swipe down to dismiss, with velocity: a quick flick counts even if it did
+//     not travel far, which is how the gesture feels on a phone.
+//   · The timer pauses on hover and while the tab is hidden — nobody should lose
+//     a message they were reading, or return to a tab and find it already gone.
 import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { AnimatePresence, motion, type PanInfo } from "motion/react";
 import { CheckCircle2, Info, XCircle, X } from "lucide-react";
+import { useCalmMotion } from "@/components/use-calm-motion";
 import { cn } from "@/lib/utils";
 
 type ToastKind = "success" | "error" | "info";
@@ -27,22 +40,91 @@ const ICONS: Record<ToastKind, React.ReactNode> = {
   info: <Info className="size-5 text-info" aria-hidden />,
 };
 
+const AUTO_DISMISS_MS = 5000;
+/** px/s. Motion reports velocity per second; the ~0.11 px/ms rule of thumb ×1000. */
+const FLICK_VELOCITY = 110;
+/** Past this fraction of its own height, a slow drag still dismisses. */
+const DRAG_DISTANCE = 56;
+
+function ToastItem({
+  toast,
+  onDismiss,
+  calm,
+}: {
+  toast: Toast;
+  onDismiss: (id: number) => void;
+  calm: boolean;
+}) {
+  const { id, kind, message } = toast;
+  const [paused, setPaused] = React.useState(false);
+
+  // Errors never auto-dismiss. Everything else runs a timer that stops while the
+  // pointer is over the toast or the tab is in the background.
+  React.useEffect(() => {
+    if (kind === "error" || paused) return;
+    const timer = window.setTimeout(() => onDismiss(id), AUTO_DISMISS_MS);
+    return () => window.clearTimeout(timer);
+  }, [id, kind, paused, onDismiss]);
+
+  React.useEffect(() => {
+    const onVisibility = () => setPaused(document.hidden);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, []);
+
+  function onDragEnd(_: unknown, info: PanInfo) {
+    if (info.offset.y > DRAG_DISTANCE || info.velocity.y > FLICK_VELOCITY) onDismiss(id);
+  }
+
+  return (
+    <motion.div
+      layout={calm ? false : "position"}
+      // Enter and exit share one path: in from below, out the same way.
+      initial={calm ? false : { opacity: 0, transform: "translateY(100%)" }}
+      animate={{ opacity: 1, transform: "translateY(0%)" }}
+      exit={calm ? { opacity: 0 } : { opacity: 0, transform: "translateY(100%)" }}
+      transition={calm ? { duration: 0 } : { type: "spring", duration: 0.4, bounce: 0.1 }}
+      drag={calm ? false : "y"}
+      dragConstraints={{ top: 0, bottom: 0 }}
+      dragElastic={{ top: 0.02, bottom: 0.9 }}
+      onDragEnd={onDragEnd}
+      onPointerEnter={() => setPaused(true)}
+      onPointerLeave={() => setPaused(false)}
+      data-slot="toast"
+      role={kind === "error" ? "alert" : "status"}
+      className={cn(
+        "pointer-events-auto flex w-full max-w-sm touch-pan-x items-start gap-2.5 rounded-xl border bg-popover px-4 py-3 text-popover-foreground shadow-pop",
+        !calm && "cursor-grab active:cursor-grabbing",
+        kind === "error" && "border-danger/30",
+      )}
+    >
+      {ICONS[kind]}
+      <p className="min-w-0 flex-1 pt-px text-sm leading-snug">{message}</p>
+      <button
+        type="button"
+        aria-label="Dismiss"
+        onClick={() => onDismiss(id)}
+        className="-m-1 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+      >
+        <X className="size-4" aria-hidden />
+      </button>
+    </motion.div>
+  );
+}
+
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = React.useState<Toast[]>([]);
   const nextId = React.useRef(1);
+  const calm = useCalmMotion();
 
   const dismiss = React.useCallback((id: number) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  const toast = React.useCallback(
-    (kind: ToastKind, message: string) => {
-      const id = nextId.current++;
-      setToasts((prev) => [...prev.slice(-3), { id, kind, message }]);
-      if (kind !== "error") setTimeout(() => dismiss(id), 5000);
-    },
-    [dismiss],
-  );
+  const toast = React.useCallback((kind: ToastKind, message: string) => {
+    const id = nextId.current++;
+    setToasts((prev) => [...prev.slice(-3), { id, kind, message }]);
+  }, []);
 
   return (
     <ToastContext.Provider value={React.useMemo(() => ({ toast }), [toast])}>
@@ -52,28 +134,11 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         aria-label="Notifications"
         className="pointer-events-none fixed inset-x-4 bottom-4 z-50 flex flex-col items-center gap-2 sm:inset-x-auto sm:right-6 sm:bottom-6 sm:items-end"
       >
-        {toasts.map((t) => (
-          <div
-            key={t.id}
-            role={t.kind === "error" ? "alert" : "status"}
-            className={cn(
-              "pointer-events-auto flex w-full max-w-sm items-start gap-2.5 rounded-xl border bg-popover px-4 py-3 text-popover-foreground shadow-pop",
-              "animate-in fade-in slide-in-from-bottom-2 duration-200 ease-out",
-              t.kind === "error" && "border-danger/30",
-            )}
-          >
-            {ICONS[t.kind]}
-            <p className="min-w-0 flex-1 pt-px text-sm leading-snug">{t.message}</p>
-            <button
-              type="button"
-              aria-label="Dismiss"
-              onClick={() => dismiss(t.id)}
-              className="-m-1 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-            >
-              <X className="size-4" aria-hidden />
-            </button>
-          </div>
-        ))}
+        <AnimatePresence initial={false}>
+          {toasts.map((t) => (
+            <ToastItem key={t.id} toast={t} onDismiss={dismiss} calm={calm} />
+          ))}
+        </AnimatePresence>
       </div>
     </ToastContext.Provider>
   );
