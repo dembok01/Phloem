@@ -14,6 +14,7 @@ import { getSessionProfile } from "@/lib/auth";
 import type { Database } from "@/lib/supabase/database.types";
 import { formatDateIST, formatDateTimeIST, istDaysSince } from "@/lib/datetime";
 import { CareTeamCard, type CareTeamMember } from "@/components/portal/care-team-card";
+import { MemberTimeline } from "@/components/member-timeline";
 
 type MemberStatus = Database["public"]["Enums"]["member_status"];
 type SB = Awaited<ReturnType<typeof createClient>>;
@@ -341,6 +342,11 @@ async function CaregiverMember({
           deliberately hidden from the caregiver portal for now — user's call. The
           component, RPC and RLS are all still in place; re-render it here to bring
           it back. Elderly (`member`) logins keep defaulting to elderly mode ON. */}
+
+      {/* The family's actual question is "where are we?". Same component the
+          admin sees; RLS already scopes consultations, reports and cycles to
+          this caregiver's own member. */}
+      <MemberTimeline memberId={member.id} />
 
       <CareTeamCard team={team} />
     </div>

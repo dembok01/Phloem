@@ -1,4 +1,5 @@
 import { NavTabs, type NavItem } from "@/components/nav-tabs";
+import { CommandPalette } from "@/components/command-palette";
 
 const ADMIN_TABS: NavItem[] = [
   { href: "/admin", label: "Overview", exact: true },
@@ -13,6 +14,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <div className="space-y-6">
       <NavTabs items={ADMIN_TABS} />
       {children}
+      {/* ⌘K everywhere, not just for coordinators. */}
+      <CommandPalette />
     </div>
   );
 }
