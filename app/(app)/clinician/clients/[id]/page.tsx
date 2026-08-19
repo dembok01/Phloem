@@ -24,6 +24,8 @@ import { CasePanel } from "@/components/cases/case-panel";
 import { MemberTimeline } from "@/components/member-timeline";
 import { CompileProgressButton } from "@/components/reports/compile-progress-button";
 import { ThreadPanel } from "@/components/threads/thread-panel";
+import { IssueChips } from "@/components/issue-chips";
+import { computeIssues, type Issue } from "@/lib/issues";
 import type { FormValues } from "@/components/forms/types";
 import { parseFormTemplate } from "@/components/forms/schema";
 
@@ -244,7 +246,7 @@ async function OverviewPanel({
   // What needs this clinician right now — makes Overview a launchpad, not a label.
   const { data: ownConsults } = await supabase
     .from("consultations")
-    .select("meeting_status, report_status, scheduled_at")
+    .select("meeting_status, report_status, scheduled_at, completed_at")
     .eq("member_id", memberId)
     .eq("type", role);
   const formDue = (ownConsults ?? []).some((c) => c.meeting_status === "done" && c.report_status === "pending");
@@ -252,9 +254,54 @@ async function OverviewPanel({
     .filter((c) => c.meeting_status === "scheduled" && c.scheduled_at)
     .sort((a, b) => (a.scheduled_at! < b.scheduled_at! ? -1 : 1))[0];
 
+  // W5 — the same computed issues the doctor's list row showed, so the two
+  // surfaces never disagree about what is outstanding. Only the doctor sees this:
+  // the other roles' work is already expressed by the form-due banner below.
+  let issues: Issue[] = [];
+  if (role === "doctor") {
+    const [{ data: clearanceReports }, { data: declining }, { data: unread }, { data: engagement }] =
+      await Promise.all([
+        supabase
+          .from("reports")
+          .select("content")
+          .eq("member_id", memberId)
+          .in("type", ["doctor_initial", "doctor_review"])
+          .order("created_at", { ascending: false }),
+        supabase.rpc("my_declining_measures"),
+        supabase.rpc("my_unread_threads"),
+        supabase.rpc("get_engagement", { p_member: memberId }),
+      ]);
+
+    const overdue = (ownConsults ?? [])
+      .filter((c) => c.meeting_status === "done" && c.report_status === "pending" && c.completed_at)
+      .map((c) => (Date.now() - new Date(c.completed_at!).getTime()) / 3_600_000);
+
+    issues = computeIssues({
+      flags,
+      clearance: resolveClearance((clearanceReports ?? []) as { content: unknown }[]),
+      adverseEvent: false,
+      reportOverdueHours: overdue.length > 0 ? Math.max(...overdue) : null,
+      decliningMeasures: ((declining ?? []) as { member_id: string; label: string }[])
+        .filter((d) => d.member_id === memberId)
+        .map((d) => d.label),
+      engagement:
+        ((engagement ?? []) as { state: string }[])[0]?.state ?? "engaged",
+      daysUntilProgrammeEnds: null,
+      unreadMessages: ((unread ?? []) as { member_id: string; unread: number }[])
+        .filter((t) => t.member_id === memberId)
+        .reduce((n, t) => n + Number(t.unread), 0),
+    });
+  }
+
   return (
     <div className="space-y-4">
       {role !== "psychologist" ? <RedFlagBanner flags={flags} /> : null}
+      {issues.length > 0 ? (
+        <div className="rounded-xl border bg-card p-4 shadow-card">
+          <p className="eyebrow mb-2">Needs your attention</p>
+          <IssueChips issues={issues} showDetail />
+        </div>
+      ) : null}
       {formDue ? (
         <Link
           href={`/clinician/clients/${memberId}?tab=form`}
@@ -644,6 +691,22 @@ async function FormPanel({
   }
   const schema = parseFormTemplate(template.schema);
 
+  // W5 — the previous consultation's answers, shown BESIDE each field as reference
+  // ("Last time: 128/82"). Never prefilled: copy-forward is a known charting
+  // hazard, where last month's reading silently becomes this month's record. This
+  // gives a doctor the speed of seeing the trend without that risk.
+  const { data: lastSubmitted } = await supabase
+    .from("form_responses")
+    .select("answers, submitted_at")
+    .eq("member_id", memberId)
+    .eq("respondent_id", userId)
+    .not("submitted_at", "is", null)
+    .order("submitted_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const hints = previousValueHints(schema, lastSubmitted?.answers as Record<string, unknown> | null);
+
   // Ensure a draft (fr_own_clinical: respondent_id = self).
   const { data: existing } = await supabase
     .from("form_responses")
@@ -695,6 +758,7 @@ async function FormPanel({
       consultationId={submittable.id}
       responseId={responseId}
       initialAnswers={initialAnswers}
+      hints={hints}
       locked={locked}
       lockedReason={lockedReason}
     />
@@ -766,4 +830,28 @@ async function FeedbackPanel({
       initialAnswers={(draft.answers as unknown as FormValues | null) ?? {}}
     />
   );
+}
+
+
+/** Reference values from the last submission, for the fields that can carry one.
+ *  Free text and long-form answers are skipped: a paragraph of last month's
+ *  assessment beside the box invites copying it, which is the exact thing the
+ *  reference-instead-of-prefill decision is avoiding. */
+function previousValueHints(
+  schema: ReturnType<typeof parseFormTemplate>,
+  answers: Record<string, unknown> | null,
+): Record<string, { previous: string }> {
+  if (!answers) return {};
+  const out: Record<string, { previous: string }> = {};
+  for (const section of schema.sections) {
+    for (const field of section.fields) {
+      if (field.type === "textarea" || field.type === "repeat_group" || field.type === "info") continue;
+      const raw = answers[field.id];
+      if (raw === null || raw === undefined || raw === "") continue;
+      const text = humanize(raw);
+      if (text === "—") continue;
+      out[field.id] = { previous: text };
+    }
+  }
+  return out;
 }

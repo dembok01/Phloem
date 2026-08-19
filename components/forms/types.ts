@@ -65,6 +65,11 @@ export type RepeatRow = Record<string, unknown>;
  * DynamicForm out-of-band so the template schema stays untouched.
  */
 export type FieldHint = {
+  /** W5 — the value recorded for this field at the LAST consultation, shown beside
+   *  the input as reference. Never prefilled into the field: copy-forward is a
+   *  known charting hazard (last month's reading silently becomes this month's
+   *  record). Showing it gives the speed without the risk. */
+  previous?: string;
   unit?: string;
   stepper?: boolean;
   min?: number;

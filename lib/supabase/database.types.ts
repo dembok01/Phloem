@@ -1330,6 +1330,16 @@ export type Database = {
         Returns: undefined
       }
       can_access_thread: { Args: { p_thread: string }; Returns: boolean }
+      my_declining_measures: {
+        Args: never
+        Returns: {
+          label: string
+          latest: number
+          measure_key: string
+          member_id: string
+          previous: number
+        }[]
+      }
       mark_thread_read: { Args: { p_thread: string }; Returns: undefined }
       my_unread_threads: {
         Args: never
