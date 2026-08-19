@@ -8,6 +8,7 @@ import { ProgramCard, type ProgramCycle, type ProgramPackage } from "@/component
 import { AdherenceCard } from "@/components/charts/adherence-card";
 import { Who5Card } from "@/components/charts/who5-card";
 import { MemberTimeline } from "@/components/member-timeline";
+import { ThreadPanel } from "@/components/threads/thread-panel";
 import { RedFlagBanner } from "@/components/red-flag-banner";
 import { ReportShareToggle } from "@/components/admin/report-share-toggle";
 import { DocumentList, type DocumentRow } from "@/components/documents/document-list";
@@ -210,6 +211,12 @@ export default async function AdminMemberPage({
 
       {/* C6: the member's whole story in one stream. */}
       <MemberTimeline memberId={member.id} />
+      <ThreadPanel
+        memberId={member.id}
+        memberFirstName={member.full_name.split(" ")[0]}
+        compose="care_team"
+        description="Every conversation about this member, including the psychologist's confidential channel."
+      />
     </section>
   );
 }

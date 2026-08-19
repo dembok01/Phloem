@@ -23,6 +23,7 @@ import { MeasureTrends } from "@/components/charts/measure-trends";
 import { CasePanel } from "@/components/cases/case-panel";
 import { MemberTimeline } from "@/components/member-timeline";
 import { CompileProgressButton } from "@/components/reports/compile-progress-button";
+import { ThreadPanel } from "@/components/threads/thread-panel";
 import type { FormValues } from "@/components/forms/types";
 import { parseFormTemplate } from "@/components/forms/schema";
 
@@ -35,6 +36,7 @@ const TABS: Record<CareRole, [string, string][]> = {
     ["trends", "Trends"],
     ["cases", "Health matters"],
     ["timeline", "Timeline"],
+    ["messages", "Messages"],
     ["form", "Consult form"],
     ["reports", "Reports"],
   ],
@@ -44,6 +46,7 @@ const TABS: Record<CareRole, [string, string][]> = {
     ["directives", "Doctor's directives"],
     ["trends", "Trends"],
     ["cases", "Health matters"],
+    ["messages", "Messages"],
     ["form", "Consult form"],
     ["feedback", "Monthly feedback"],
     ["reports", "Reports"],
@@ -54,6 +57,7 @@ const TABS: Record<CareRole, [string, string][]> = {
     ["clearance", "Doctor's clearance"],
     ["trends", "Trends"],
     ["cases", "Health matters"],
+    ["messages", "Messages"],
     ["form", "Consult form"],
     ["feedback", "Monthly feedback"],
     ["reports", "Reports"],
@@ -61,6 +65,7 @@ const TABS: Record<CareRole, [string, string][]> = {
   psychologist: [
     ["context", "Context"],
     ["trends", "Wellbeing trend"],
+    ["messages", "Messages"],
     ["form", "Check-in"],
     ["reports", "Wellbeing reports"],
   ],
@@ -188,6 +193,18 @@ export default async function ClinicianClientPage({
             filter={tl}
             basePath={`/clinician/clients/${id}?tab=timeline`}
             limit={60}
+          />
+        ) : null}
+        {activeTab === "messages" ? (
+          <ThreadPanel
+            memberId={id}
+            memberFirstName={member.full_name.split(" ")[0]}
+            compose={role === "psychologist" ? "none" : "care_team"}
+            description={
+              role === "psychologist"
+                ? "Your confidential channel with the admin. Care-team and family conversations are not visible here."
+                : "Questions from the family, and internal notes with the rest of the care team."
+            }
           />
         ) : null}
         {activeTab === "feedback" ? (

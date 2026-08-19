@@ -818,6 +818,139 @@ export type Database = {
           },
         ]
       }
+      thread_messages: {
+        Row: {
+          author_id: string | null
+          body: string
+          created_at: string
+          id: string
+          thread_id: string
+        }
+        Insert: {
+          author_id?: string | null
+          body: string
+          created_at?: string
+          id?: string
+          thread_id: string
+        }
+        Update: {
+          author_id?: string | null
+          body?: string
+          created_at?: string
+          id?: string
+          thread_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "thread_messages_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "thread_messages_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      thread_reads: {
+        Row: {
+          last_read_at: string
+          thread_id: string
+          user_id: string
+        }
+        Insert: {
+          last_read_at?: string
+          thread_id: string
+          user_id: string
+        }
+        Update: {
+          last_read_at?: string
+          thread_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "thread_reads_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "threads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "thread_reads_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      threads: {
+        Row: {
+          audience: Database["public"]["Enums"]["care_role"][] | null
+          case_id: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          kind: string
+          last_message_at: string
+          member_id: string
+          status: string
+          subject: string
+        }
+        Insert: {
+          audience?: Database["public"]["Enums"]["care_role"][] | null
+          case_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          kind: string
+          last_message_at?: string
+          member_id: string
+          status?: string
+          subject: string
+        }
+        Update: {
+          audience?: Database["public"]["Enums"]["care_role"][] | null
+          case_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          kind?: string
+          last_message_at?: string
+          member_id?: string
+          status?: string
+          subject?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "threads_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "member_cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "threads_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "threads_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -1050,6 +1183,34 @@ export type Database = {
       set_case_status: {
         Args: { p_case: string; p_note?: string; p_status: string }
         Returns: undefined
+      }
+      can_access_thread: { Args: { p_thread: string }; Returns: boolean }
+      mark_thread_read: { Args: { p_thread: string }; Returns: undefined }
+      my_unread_threads: {
+        Args: never
+        Returns: {
+          kind: string
+          last_message_at: string
+          member_id: string
+          subject: string
+          thread_id: string
+          unread: number
+        }[]
+      }
+      post_message: { Args: { p_body: string; p_thread: string }; Returns: string }
+      resolve_thread: {
+        Args: { p_resolved?: boolean; p_thread: string }
+        Returns: undefined
+      }
+      start_thread: {
+        Args: {
+          p_audience?: Database["public"]["Enums"]["care_role"][]
+          p_case?: string
+          p_kind: string
+          p_member: string
+          p_subject: string
+        }
+        Returns: string
       }
       accept_invite: {
         Args: {

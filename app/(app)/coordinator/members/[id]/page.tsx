@@ -14,6 +14,7 @@ import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 import { parseRedFlags } from "@/lib/red-flags";
 import { telHref, waMeLink } from "@/lib/wa";
+import { ThreadPanel } from "@/components/threads/thread-panel";
 import {
   CARE_ROLES,
   MEMBER_STATUS_LABEL,
@@ -369,6 +370,16 @@ export default async function CoordinatorMemberPage({
         psychSubmitted={psychSubmitted}
         redirectTo={redirectTo}
         isAdmin={false}
+      />
+
+      {/* The coordinator is the hinge between the family and the clinicians, so
+          they see both the family threads and the internal ones — and can start
+          an internal note. */}
+      <ThreadPanel
+        memberId={member.id}
+        memberFirstName={member.full_name.split(" ")[0]}
+        compose="care_team"
+        description="Questions from the family and internal notes with the care team."
       />
     </section>
   );
