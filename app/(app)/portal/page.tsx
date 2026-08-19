@@ -242,8 +242,8 @@ async function CaregiverMember({
   return (
     <div className="space-y-6">
       {/* The care story card — identity, plain-language status, growth rings. */}
-      <Card>
-        <CardContent className="py-6">
+      <Card variant="hero" className="hero-glow">
+        <CardContent className="py-7">
           <div className="flex flex-col items-start gap-6 sm:flex-row sm:items-center">
             {cycleList.length > 0 ? (
               <div className="relative">
@@ -306,31 +306,31 @@ async function CaregiverMember({
       <div className="stagger-in grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <PortalLink
           href={`/portal/members/${member.id}/plans`}
-          icon={<ClipboardList className="size-5" />}
+          icon={<ClipboardList className="size-5 text-role-nutritionist" />}
           label="Plans"
           hint="Nutrition & training guidance"
         />
         <PortalLink
           href={`/portal/members/${member.id}/reports`}
-          icon={<FileText className="size-5" />}
+          icon={<FileText className="size-5 text-role-doctor" />}
           label="Reports"
           hint="Everything shared with you"
         />
         <PortalLink
           href={`/portal/members/${member.id}/documents`}
-          icon={<FolderOpen className="size-5" />}
+          icon={<FolderOpen className="size-5 text-role-trainer" />}
           label="Documents"
           hint="Upload blood work & reports"
         />
         <PortalLink
           href={`/portal/members/${member.id}/schedule`}
-          icon={<CalendarDays className="size-5" />}
+          icon={<CalendarDays className="size-5 text-role-coordinator" />}
           label="Schedule"
           hint="Upcoming consultations"
         />
         <PortalLink
           href={`/portal/members/${member.id}/messages`}
-          icon={<MessageSquare className="size-5" />}
+          icon={<MessageSquare className="size-5 text-role-psychologist" />}
           label="Messages"
           hint="Ask the care team"
         />

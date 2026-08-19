@@ -28,6 +28,8 @@ type Kind = "consult" | "report" | "cycle" | "case" | "document";
 type Item = {
   at: string;
   kind: Kind;
+  /** care role, when the entry has one — colours the dot (V3/M4) */
+  role?: string;
   title: string;
   detail?: string;
   href?: string;
@@ -39,6 +41,15 @@ const KIND_META: Record<Kind, { label: string; icon: typeof FileText; tint: stri
   cycle: { label: "Programme", icon: Sprout, tint: "bg-warning-tint text-warning" },
   case: { label: "Health matters", icon: Stethoscope, tint: "bg-danger-tint text-danger" },
   document: { label: "Documents", icon: FolderOpen, tint: "bg-muted text-muted-foreground" },
+};
+
+/** V3/M4 — a consultation dot takes its care role's hue, so a long timeline reads
+ *  as bands of who was involved rather than one undifferentiated grey column. */
+const ROLE_TINT: Record<string, string> = {
+  doctor: "bg-role-doctor/12 text-role-doctor",
+  nutritionist: "bg-role-nutritionist/12 text-role-nutritionist",
+  trainer: "bg-role-trainer/12 text-role-trainer",
+  psychologist: "bg-role-psychologist/12 text-role-psychologist",
 };
 
 const monthFmt = new Intl.DateTimeFormat("en-IN", {
@@ -89,6 +100,7 @@ export async function MemberTimeline({
   for (const c of consults ?? []) {
     const when = c.completed_at ?? c.scheduled_at;
     if (!when) continue;
+    const roleTone = c.type as string;
     // §3: the psychologist's session is acknowledged, never characterised.
     const title =
       c.type === "psychologist"
@@ -105,6 +117,7 @@ export async function MemberTimeline({
     items.push({
       at: when,
       kind: "consult",
+      role: roleTone,
       title,
       detail: `${c.cycle_id ? "Monthly round" : "First round"} · ${formatDateTimeIST(when)}`,
     });
@@ -204,8 +217,12 @@ export async function MemberTimeline({
       <CardContent className="space-y-5">
         {groups.map((g) => (
           <div key={g.month}>
-            <p className="eyebrow mb-2 border-b pb-1.5">{g.month}</p>
-            <ol className="relative space-y-4 before:absolute before:inset-y-1 before:left-[13px] before:w-px before:bg-border">
+            {/* Sticky, so you always know which month you are reading in a year
+                of care. The spine fades at both ends rather than stopping dead. */}
+            <p className="eyebrow sticky top-0 z-10 mb-2 -mx-1 bg-card/85 px-1 py-1.5 backdrop-blur-sm">
+              {g.month}
+            </p>
+            <ol className="relative space-y-4 before:absolute before:inset-y-1 before:left-[13px] before:w-px before:bg-gradient-to-b before:from-transparent before:via-border before:to-transparent">
               {g.items.map((item, i) => {
                 const meta = KIND_META[item.kind];
                 const Icon = meta.icon;
@@ -222,7 +239,7 @@ export async function MemberTimeline({
                     <span
                       className={cn(
                         "relative z-10 mt-0.5 inline-flex size-6 shrink-0 items-center justify-center rounded-full ring-4 ring-card",
-                        meta.tint,
+                        item.role ? ROLE_TINT[item.role] ?? meta.tint : meta.tint,
                       )}
                     >
                       <Icon className="size-3" aria-hidden />

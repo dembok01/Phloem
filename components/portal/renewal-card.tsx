@@ -79,8 +79,11 @@ export function RenewalCard({
   }
 
   return (
-    <Card className="border-warning/40">
-      <CardContent className="space-y-4 py-5">
+    <Card
+      variant="hero"
+      className="border-warning/30 bg-gradient-to-br from-warning-tint/70 via-card to-card"
+    >
+      <CardContent className="space-y-4 py-6">
         <div className="flex items-start gap-3">
           <span className="mt-0.5 inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-warning-tint text-warning">
             <CalendarHeart className="size-5" aria-hidden />

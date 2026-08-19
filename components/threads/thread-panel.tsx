@@ -13,7 +13,7 @@ import { Lock, MessageSquare, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Monogram } from "@/components/monogram";
+import { Monogram, toneForRole } from "@/components/monogram";
 import { MessageComposer } from "@/components/threads/message-composer";
 import { NewThread } from "@/components/threads/new-thread";
 import { ThreadResolveButton } from "@/components/threads/thread-resolve";
@@ -191,9 +191,13 @@ export async function ThreadPanel({
                   const author = Array.isArray(m.profiles) ? m.profiles[0] : m.profiles;
                   const mine = m.author_id === profile?.user.id;
                   return (
-                    <li key={m.id} className="flex gap-2.5">
-                      <Monogram name={author?.full_name ?? "?"} size="sm" />
-                      <div className="min-w-0 flex-1">
+                    <li key={m.id} className={cn("flex gap-2.5", mine && "flex-row-reverse")}>
+                      <Monogram
+                        name={author?.full_name ?? "?"}
+                        size="sm"
+                        tone={toneForRole(author?.role)}
+                      />
+                      <div className={cn("min-w-0 flex-1", mine && "flex flex-col items-end")}>
                         <p className="flex flex-wrap items-baseline gap-x-2">
                           <span className="text-sm font-medium">
                             {mine ? "You" : (author?.full_name ?? "Someone")}
@@ -202,7 +206,19 @@ export async function ThreadPanel({
                             {formatDateTimeIST(m.created_at)}
                           </span>
                         </p>
-                        <p className="text-sm whitespace-pre-wrap">{m.body}</p>
+                        {/* V3 — a message reads as a message. Own messages sit on the
+                            brand tint and align right, which is the convention every
+                            reader already has from every other messaging app. */}
+                        <p
+                          className={cn(
+                            "mt-0.5 inline-block max-w-[46ch] rounded-2xl px-3.5 py-2 text-sm whitespace-pre-wrap",
+                            mine
+                              ? "rounded-tr-sm bg-secondary text-secondary-foreground"
+                              : "rounded-tl-sm bg-muted/60",
+                          )}
+                        >
+                          {m.body}
+                        </p>
                       </div>
                     </li>
                   );

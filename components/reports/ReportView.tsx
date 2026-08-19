@@ -46,12 +46,29 @@ export function ReportView({
 }) {
   return (
     <article className="report-doc">
-      <p className="report-eyebrow">PHLOEM · Clinical report</p>
-      <h1 className="report-title">{content.title}</h1>
-      <p className="report-meta">
-        Generated {formatDateTime(content.generated_at)}
-        {content.cycle != null ? ` · Cycle ${content.cycle}` : ""}
-      </p>
+      {/* V4 — a cover block. A clinical document that will be printed, filed and
+          re-read months later should say what it is before it says anything else:
+          who, what kind, which cycle, when. This used to be a small grey line. */}
+      <header className="report-cover">
+        <p className="report-eyebrow">PHLOEM · Clinical report</p>
+        <h1 className="report-title">{content.title}</h1>
+        <dl className="report-covermeta">
+          <div>
+            <dt>Generated</dt>
+            <dd>{formatDateTime(content.generated_at)}</dd>
+          </div>
+          {content.cycle != null ? (
+            <div>
+              <dt>Cycle</dt>
+              <dd>{content.cycle}</dd>
+            </div>
+          ) : null}
+          <div>
+            <dt>Sections</dt>
+            <dd>{content.sections.length}</dd>
+          </div>
+        </dl>
+      </header>
       {content.sections.map((section, i) => (
         <section
           key={i}

@@ -37,11 +37,11 @@ const DOMAIN_ORDER = ["clinical", "training", "nutrition", "psych"];
 // needs-attention, Moss for "reported, not judged". Each pairs with an arrow and
 // words, so the reading never depends on colour (DESIGN-SYSTEM §5).
 const TONE = {
-  improved: { text: "text-success", stroke: "var(--success)", Icon: ArrowUpRight },
-  declined: { text: "text-warning", stroke: "var(--warning)", Icon: ArrowDownRight },
-  unchanged: { text: "text-muted-foreground", stroke: "var(--chart-5)", Icon: Minus },
-  neutral: { text: "text-muted-foreground", stroke: "var(--chart-2)", Icon: ArrowRight },
-  baseline: { text: "text-muted-foreground", stroke: "var(--chart-5)", Icon: Minus },
+  improved: { text: "text-success", stroke: "var(--success)", track: "bg-success/35", dot: "bg-success", Icon: ArrowUpRight },
+  declined: { text: "text-warning", stroke: "var(--warning)", track: "bg-warning/35", dot: "bg-warning", Icon: ArrowDownRight },
+  unchanged: { text: "text-muted-foreground", stroke: "var(--chart-5)", track: "bg-muted-foreground/25", dot: "bg-muted-foreground", Icon: Minus },
+  neutral: { text: "text-muted-foreground", stroke: "var(--chart-2)", track: "bg-info/30", dot: "bg-info", Icon: ArrowRight },
+  baseline: { text: "text-muted-foreground", stroke: "var(--chart-5)", track: "bg-muted-foreground/25", dot: "bg-muted-foreground", Icon: Minus },
 } as const;
 
 export async function MeasureTrends({
@@ -120,34 +120,83 @@ function MeasureRow({ series: s }: { series: MeasureSeries }) {
   const last = s.points[s.points.length - 1];
   const delta = describeDelta(s);
 
+  // V3 — the baseline→latest track. A sparkline says "it wobbled"; this says
+  // "it started here and it is now there", which is the question a clinician
+  // actually has. Position is clamped so a single reading still renders.
+  const lo = Math.min(...values);
+  const hi = Math.max(...values);
+  const span = hi - lo || 1;
+  const pct = (v: number) => ((v - lo) / span) * 100;
+
   return (
-    <li className="rounded-xl border bg-card p-3 shadow-card">
+    <li
+      className={cn(
+        "rounded-xl border p-3.5 shadow-card transition-colors",
+        s.direction === "improved" && "border-success/25 bg-success-tint/40",
+        s.direction === "declined" && "border-warning/30 bg-warning-tint/40",
+        (s.direction === "neutral" || s.direction === "unchanged" || s.direction === "baseline") &&
+          "border-border bg-card",
+      )}
+    >
       <div className="flex items-baseline gap-2">
-        <span className="text-sm font-medium text-muted-foreground">{s.label}</span>
-        <span className="ml-auto font-data text-lg font-semibold tabular-nums">
+        <span className="eyebrow">{s.label}</span>
+        <span className="ml-auto font-data text-2xl font-semibold tabular-nums text-foreground">
           {formatValue(s.latest, s.unit)}
         </span>
       </div>
 
-      <div className="mt-2 flex items-end justify-between gap-3">
-        {values.length > 1 ? (
-          <Sparkline
-            values={values}
-            width={112}
-            height={28}
-            domain="data"
-            stroke={tone.stroke}
-            label={`${s.label} over time: ${values.join(", ")}`}
-          />
-        ) : (
-          <span className="text-xs text-muted-foreground">Baseline reading</span>
-        )}
-        <span className="font-data text-[11px] text-muted-foreground">
-          {last ? formatDateIST(last.at) : ""}
-        </span>
-      </div>
+      {values.length > 1 ? (
+        <>
+          {/* the journey, as a track */}
+          <div className="relative mt-3 h-1.5 rounded-full bg-foreground/[0.07]">
+            <span
+              className={cn("absolute inset-y-0 rounded-full", tone.track)}
+              style={{
+                left: `${Math.min(pct(s.baseline), pct(s.latest))}%`,
+                width: `${Math.abs(pct(s.latest) - pct(s.baseline))}%`,
+              }}
+            />
+            <span
+              className="absolute top-1/2 size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-muted-foreground/60 ring-2 ring-card"
+              style={{ left: `${pct(s.baseline)}%` }}
+              title={`At intake: ${formatValue(s.baseline, s.unit)}`}
+            />
+            <span
+              className={cn(
+                "absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 ring-card",
+                tone.dot,
+              )}
+              style={{ left: `${pct(s.latest)}%` }}
+              title={`Latest: ${formatValue(s.latest, s.unit)}`}
+            />
+          </div>
+          <div className="mt-1 flex justify-between font-data text-[10.5px] text-muted-foreground">
+            <span>{formatValue(s.baseline, s.unit)} at intake</span>
+            <span>{last ? formatDateIST(last.at) : ""}</span>
+          </div>
 
-      <p className={cn("mt-1.5 flex items-center gap-1 text-xs font-medium", tone.text)}>
+          <div className="mt-2.5 flex items-end justify-between gap-3">
+            <Sparkline
+              values={values}
+              width={132}
+              height={30}
+              domain="data"
+              area
+              stroke={tone.stroke}
+              label={`${s.label} over time: ${values.join(", ")}`}
+            />
+            <span className="font-data text-[11px] tabular-nums text-muted-foreground">
+              {values.length} readings
+            </span>
+          </div>
+        </>
+      ) : (
+        <p className="mt-2 text-xs text-muted-foreground">
+          Baseline reading · {last ? formatDateIST(last.at) : ""}
+        </p>
+      )}
+
+      <p className={cn("mt-2 flex items-center gap-1 text-xs font-medium", tone.text)}>
         <Icon className="size-3.5 shrink-0" aria-hidden />
         {delta ??
           (s.direction === "baseline"

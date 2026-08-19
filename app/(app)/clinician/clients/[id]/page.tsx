@@ -5,7 +5,7 @@ import { CheckCircle2, Eye, FileCheck2, Lock, ShieldAlert } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CardSkeleton } from "@/components/ui/skeleton";
 import { Who5Card } from "@/components/charts/who5-card";
-import { Monogram } from "@/components/monogram";
+import { Monogram, toneForRole } from "@/components/monogram";
 import { PageHeader } from "@/components/page-header";
 import { RedFlagBanner } from "@/components/red-flag-banner";
 import { cn } from "@/lib/utils";
@@ -110,26 +110,48 @@ export default async function ClinicianClientPage({
     <section className="mx-auto max-w-3xl space-y-6">
       <PageHeader
         crumbs={[{ label: "My members", href: "/clinician/clients" }, { label: member.full_name }]}
-        title={
-          <span className="flex items-center gap-3">
-            <Monogram name={member.full_name} size="md" />
-            <span className="flex items-center gap-2">
-              {member.full_name}
-              {hasHighFlag(flags) ? (
-                <span
-                  className="inline-flex items-center gap-1 rounded-full bg-danger-tint px-2.5 py-1 text-xs font-semibold text-danger"
-                  title="High red flag on file"
-                >
-                  <ShieldAlert className="size-3.5" aria-hidden /> Flagged
-                </span>
-              ) : null}
-            </span>
-          </span>
-        }
-        description={[member.age ? `${member.age} yrs` : null, member.gender, member.city]
-          .filter(Boolean)
-          .join(" · ")}
+        title={member.full_name}
+        className="sr-only"
       />
+
+      {/* V3/M3 — the identity band. A clinician arriving here needs to know WHO,
+          how old, where in the programme, and whether anything is flagged, before
+          they read a single tab. That used to be a 24px title and a grey line. */}
+      <Card variant="hero" className="hero-glow">
+        <CardContent className="flex flex-wrap items-center gap-x-6 gap-y-4">
+          <Monogram name={member.full_name} size="xl" tone={toneForRole(role)} ring />
+          <div className="min-w-0 flex-1">
+            <p className="eyebrow">
+              <Link href="/clinician/clients" className="hover:text-foreground hover:underline">
+                My members
+              </Link>
+            </p>
+            <h1 className="font-display text-3xl font-semibold tracking-tight text-balance">
+              {member.full_name}
+            </h1>
+            <p className="text-[15px] text-muted-foreground">
+              {[member.age ? `${member.age} yrs` : null, member.gender, member.city]
+                .filter(Boolean)
+                .join(" · ")}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {hasHighFlag(flags) ? (
+              <span
+                className="inline-flex items-center gap-1.5 rounded-full bg-danger-tint px-3 py-1.5 text-sm font-semibold text-danger"
+                title="High red flag on file"
+              >
+                <ShieldAlert className="size-4" aria-hidden /> Flagged
+              </span>
+            ) : flags.length > 0 ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-warning-tint px-3 py-1.5 text-sm font-medium text-warning">
+                <ShieldAlert className="size-4" aria-hidden /> {flags.length} red flag
+                {flags.length === 1 ? "" : "s"}
+              </span>
+            ) : null}
+          </div>
+        </CardContent>
+      </Card>
 
       <nav
         className="-mx-4 overflow-x-auto px-4 sm:-mx-6 sm:px-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"

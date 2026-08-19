@@ -159,9 +159,14 @@ function CaseRow({
   return (
     <article
       className={cn(
-        "rounded-xl border bg-card p-4 shadow-card",
-        resolved && "opacity-80",
-        row.severity === "high" && !resolved && "border-danger/40",
+        // V3 — a severity rail on the case itself, so the shape of the list tells
+        // you where the serious problems are before you read a word.
+        "relative overflow-hidden rounded-xl border bg-card p-4 pl-5 shadow-card",
+        "before:absolute before:inset-y-0 before:left-0 before:w-1 before:content-['']",
+        resolved && "opacity-75 before:bg-border",
+        !resolved && row.severity === "high" && "border-danger/30 before:bg-danger",
+        !resolved && row.severity === "medium" && "before:bg-warning",
+        !resolved && row.severity === "low" && "before:bg-border",
       )}
     >
       <header className="flex flex-wrap items-baseline gap-2">
@@ -180,11 +185,11 @@ function CaseRow({
       {row.detail ? <p className="mt-1 text-sm text-muted-foreground">{row.detail}</p> : null}
 
       {events.length > 0 ? (
-        <ol className="mt-3 space-y-2 border-l pl-3">
+        <ol className="relative mt-3 space-y-2.5 pl-4 before:absolute before:inset-y-1 before:left-[3px] before:w-px before:bg-gradient-to-b before:from-transparent before:via-border before:to-transparent">
           {events.map((e) => (
             <li key={e.id} className="relative">
               <span
-                className="absolute -left-[17px] top-1.5 size-2 rounded-full bg-border ring-2 ring-card"
+                className="absolute -left-4 top-1.5 size-[7px] rounded-full bg-muted-foreground/40 ring-[3px] ring-card"
                 aria-hidden
               />
               <p className="text-sm">{e.summary}</p>

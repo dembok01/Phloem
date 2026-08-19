@@ -1,6 +1,7 @@
 # PHLOEM — Visual Elevation Plan
 
-**Date:** 2026-08-20 · **Mode:** Operate (staff) + Persuade-adjacent (family portal)
+**Date:** 2026-08-20 · **Status:** V1–V4 implemented (2026-08-20); V5 not started
+**Mode:** Operate (staff) + Persuade-adjacent (family portal)
 **Decision taken:** *elevate craft, keep the world.* Loam/Paper/Phloem, Bricolage /
 Atkinson / Plex, and the growth-ring signature all stay. Nothing here replaces
 `DESIGN-SYSTEM.md`; this plan is about finally **applying** it.
@@ -374,3 +375,52 @@ change is to someone opening the app.
   in this plan requires a migration.
 - **The biggest single lever is `Card` variants + the `inset` list tier.** If only one
   thing gets built, build that: it changes every list in the product at once.
+
+
+---
+
+## 8 · Implementation record — V1 to V4 (2026-08-20)
+
+**Shipped.** `npm run build` ✓ · `tsc --noEmit` ✓ · `eslint` 0 problems ·
+`test:unit` 62/62.
+
+### V1 · Foundations
+`components/ui/list.tsx` (new — `List` / `ListRow` / `ListSection`), `Card`
+variants, role-hued `Monogram` + `toneForRole`, `PageHeader` (display scale +
+eyebrow/stats slots), `EmptyState` ring watermark, `Sparkline` area mode, and in
+`globals.css`: canvas gradient, `.hero-glow`, `.stat-figure`, stagger extended to
+eight children.
+
+### V2 · Workhorses
+Coordinator Today (hero, grouping by member, inset rows), Admin overview (hero band,
+ghosted-area stat strip, designed renewal empty state), Doctor dashboard
+(next-consultation hero, inset queues with severity rails and inline issue chips).
+
+### V3 · Member depth
+Measure cards rebuilt with a baseline→latest track and direction-tinted grounds;
+timeline gained sticky month headers, a gradient spine and role-hued dots; case rows
+gained a severity rail and a real event spine; thread messages became conversation
+bubbles with role-hued avatars and own-message alignment; clinician member page
+gained an identity band hero.
+
+### V4 · Family and documents
+Report cover block + print page numbers, portal hero on the `hero` tier with glow,
+role-hued portal tiles, renewal card on a warm gradient, and the login screen set
+inside the growth-ring mark.
+
+### Defects found by looking at the renders, and fixed
+1. Grouped queue rows printed eyebrow and title identically.
+2. The Schedule buttons were invisible — a row's PRIMARY action had been hidden
+   behind hover. Reverted: the hierarchy fix, not concealment, solves D3.
+3. Aggregate rings rendered as a meaningless bullseye with nothing active; they now
+   appear only when they encode something true.
+4. A stat tile read "none yet" beside a visibly rising trend line; zeros are now
+   muted rather than em-dashed, and the caption only appears when the series is
+   genuinely empty.
+
+### Still open
+- **V5 (dark staff shells)** — flagged, awaiting a decision.
+- **Portal verification** — the portal changes are code-complete but still
+  unverified in a browser for the reason in §3.8.
+- **Doctor dashboard populated state** — `doctor@phloem.local` has no assignments,
+  so only its empty state has been seen.

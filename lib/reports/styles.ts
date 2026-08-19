@@ -21,6 +21,16 @@ export const REPORT_CSS = `
   font-size:27px; font-weight:650; letter-spacing:-0.01em; line-height:1.15; margin:0 0 6px; color:#1F2A24; }
 .report-doc .report-meta { font-family: var(--font-brand-data, "IBM Plex Mono"), ui-monospace, monospace;
   font-size:12px; color:#5A6B60; margin:0 0 26px; padding-bottom:14px; border-bottom:1px solid #DCE5DD; }
+
+/* Cover block (V4). The document names itself before it starts talking. */
+.report-doc .report-cover { margin:0 0 30px; padding:0 0 16px; border-bottom:2px solid #1E6B4E; }
+.report-doc .report-cover .report-title { margin-bottom:14px; }
+.report-doc dl.report-covermeta { display:flex; flex-wrap:wrap; gap:22px 34px; margin:0; }
+.report-doc dl.report-covermeta > div { display:flex; flex-direction:column; gap:2px; }
+.report-doc dl.report-covermeta dt { font-family:var(--font-brand-data, "IBM Plex Mono"), ui-monospace, monospace;
+  font-size:9.5px; font-weight:600; letter-spacing:.11em; text-transform:uppercase; color:#5A6B60; }
+.report-doc dl.report-covermeta dd { margin:0; font-family:var(--font-brand-data, "IBM Plex Mono"), ui-monospace, monospace;
+  font-size:12.5px; color:#1F2A24; font-variant-numeric:tabular-nums; }
 .report-doc .report-section { margin:0 0 24px; break-inside:avoid; }
 .report-doc .report-section > h2 { font-family: var(--font-brand-data, "IBM Plex Mono"), ui-monospace, monospace;
   font-size:12px; font-weight:600; color:#5A6B60;
@@ -101,7 +111,18 @@ export const REPORT_CSS = `
 
 // PDF-only chrome: the branded header band + page setup. Combined with REPORT_CSS.
 export const PDF_CSS = `
-@page { size:A4; margin:14mm 14mm 16mm; }
+/* A clinical document that gets printed and filed needs to survive being
+   separated from its first page. */
+@page {
+  size:A4;
+  margin:16mm 14mm 18mm;
+  @bottom-right {
+    content: "Page " counter(page) " of " counter(pages);
+    font-family: ui-monospace, monospace;
+    font-size: 9pt;
+    color: #5A6B60;
+  }
+}
 * { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
 body { margin:0; }
 .pdf-header { display:flex; align-items:center; gap:12px; padding-bottom:12px;
