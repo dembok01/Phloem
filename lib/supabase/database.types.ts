@@ -39,6 +39,88 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_events: {
+        Row: {
+          actor_id: string | null
+          at: string
+          day_key: string
+          id: string
+          kind: string
+          member_id: string
+          meta: Json
+        }
+        Insert: {
+          actor_id?: string | null
+          at?: string
+          day_key?: string
+          id?: string
+          kind: string
+          member_id: string
+          meta?: Json
+        }
+        Update: {
+          actor_id?: string | null
+          at?: string
+          day_key?: string
+          id?: string
+          kind?: string
+          member_id?: string
+          meta?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_events_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      checkin_links: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          expires_at: string
+          id: string
+          last_used_at: string | null
+          member_id: string
+          revoked_at: string | null
+          token: string
+          uses: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string
+          id?: string
+          last_used_at?: string | null
+          member_id: string
+          revoked_at?: string | null
+          token?: string
+          uses?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string
+          id?: string
+          last_used_at?: string | null
+          member_id?: string
+          revoked_at?: string | null
+          token?: string
+          uses?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checkin_links_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       assignments: {
         Row: {
           active: boolean
@@ -1212,6 +1294,44 @@ export type Database = {
         }
         Returns: string
       }
+      create_checkin_link: {
+        Args: { p_days?: number; p_member: string }
+        Returns: string
+      }
+      get_checkin_link: { Args: { p_token: string }; Returns: Json }
+      get_engagement: {
+        Args: { p_member: string }
+        Returns: {
+          days_quiet: number
+          last_activity_at: string
+          member_id: string
+          missed_consults: number
+          reason: string
+          state: string
+        }[]
+      }
+      list_engagement: {
+        Args: never
+        Returns: {
+          days_quiet: number
+          full_name: string
+          last_activity_at: string
+          member_id: string
+          missed_consults: number
+          reason: string
+          state: string
+          status: Database["public"]["Enums"]["member_status"]
+        }[]
+      }
+      record_activity: {
+        Args: { p_kind: string; p_member: string; p_meta?: Json }
+        Returns: undefined
+      }
+      revoke_checkin_link: { Args: { p_token: string }; Returns: undefined }
+      submit_checkin: {
+        Args: { p_answers: Json; p_token: string }
+        Returns: Json
+      }
       accept_invite: {
         Args: {
           p_full_name: string
@@ -1259,6 +1379,7 @@ export type Database = {
         Returns: string
       }
       deactivate_member: { Args: { p_member: string }; Returns: undefined }
+      flag_quiet_families: { Args: { p_today?: string }; Returns: Json }
       get_care_team: { Args: { p_member: string }; Returns: Json }
       get_member_elderly_mode: { Args: { p_member: string }; Returns: boolean }
       get_onboarding_scoped: { Args: { m: string }; Returns: Json }

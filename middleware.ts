@@ -31,8 +31,16 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
+  // `/c/<token>` is the W3 family check-in link: deliberately reachable with no
+  // session, because the families most worth reaching are the ones who will not log
+  // in. It is safe to leave open because the page itself holds no data — it calls
+  // two `anon`-executable security-definer RPCs that validate the token and return
+  // a first name and nothing else (migration 0029).
   const isPublic =
-    pathname === "/login" || pathname.startsWith("/invite") || pathname.startsWith("/api/cron");
+    pathname === "/login" ||
+    pathname.startsWith("/invite") ||
+    pathname.startsWith("/c/") ||
+    pathname.startsWith("/api/cron");
 
   if (!user) {
     if (isPublic) return response;

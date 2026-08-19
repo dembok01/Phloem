@@ -6,6 +6,7 @@ import {
   CheckCheck,
   FileClock,
   PartyPopper,
+  PhoneOff,
   Sunrise,
   UserPlus,
 } from "lucide-react";
@@ -16,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { formatDateTimeIST, isTodayIST } from "@/lib/datetime";
 import type { CareRole } from "@/lib/member-status";
 import { ScheduleSheet } from "@/components/coordinator/schedule-sheet";
+import { EngagementBadge, type EngagementRow } from "@/components/engagement";
 
 // §10 Today queue — every row is one clear action on one member (C3).
 const ROLE_NAME: Record<CareRole, string> = {
@@ -166,10 +168,57 @@ export default async function CoordinatorTodayPage() {
           );
         })
       )}
+
+      {/* W3 — families who have gone quiet. Separate from the task queue on
+          purpose: these are not tasks the system generated, they are people who
+          have stopped showing up, and they need a human decision rather than a
+          click. */}
+      <QuietFamilies />
     </section>
   );
 }
 
 function capitalize(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+
+/** The "who needs a call today" list, worst first. Renders nothing when every
+ *  family is engaged — an empty section would just be noise on a good day. */
+async function QuietFamilies() {
+  const supabase = await createClient();
+  const { data } = await supabase.rpc("list_engagement");
+  const rows = ((data ?? []) as unknown as EngagementRow[]).filter(
+    (r) => r.state === "quiet" || r.state === "at_risk",
+  );
+  if (rows.length === 0) return null;
+
+  return (
+    <div className="space-y-2">
+      <h2 className="eyebrow flex items-center gap-2">
+        <PhoneOff className="size-3.5 text-warning" aria-hidden />
+        Families who have gone quiet
+        <span className="font-data text-foreground tabular-nums">{rows.length}</span>
+      </h2>
+      <ul className="space-y-2">
+        {rows.map((r) => (
+          <li key={r.member_id}>
+            <Link
+              href={`/coordinator/members/${r.member_id}`}
+              className={cn(
+                "pressable flex items-center gap-3 rounded-xl border bg-card p-4 shadow-card hover:border-primary/40 hover:bg-secondary/40",
+                r.state === "at_risk" && "border-danger/40",
+              )}
+            >
+              <div className="min-w-0 flex-1">
+                <p className="font-medium">{r.full_name}</p>
+                <p className="text-sm text-muted-foreground">{r.reason}</p>
+              </div>
+              <EngagementBadge state={r.state} reason={r.reason} />
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
 }

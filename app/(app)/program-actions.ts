@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { rpcErrorCode, type RpcErrorCode } from "@/lib/rpc-errors";
+import { actionOk, actionFail, actionFromError, type ActionResult } from "@/lib/action-result";
 
 // §6 program-lifecycle actions shared by the coordinator + admin member pages.
 // Every mutation goes through a §6 RPC, which is the enforcement boundary: a
@@ -109,4 +110,46 @@ export async function reactivateMember(formData: FormData): Promise<void> {
   if (error) back(path, code(error.message));
   revalidatePath(path);
   back(path, undefined, "reactivated");
+}
+
+// ============ W3.2 — family check-in links ============
+// The coordinator generates a URL and sends it over WhatsApp. create_checkin_link
+// reuses a live link rather than minting a second one, so pressing the button twice
+// is safe and the family only ever holds one working URL.
+
+const checkinLinkSchema = z.object({ member_id: z.string().uuid() });
+
+export async function createCheckinLink(input: {
+  member_id: string;
+}): Promise<ActionResult<string>> {
+  const parsed = checkinLinkSchema.safeParse(input);
+  if (!parsed.success) return actionFail("Invalid request.");
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("create_checkin_link", {
+    p_member: parsed.data.member_id,
+  });
+  if (error) {
+    return actionFromError(error, "Could not create a check-in link.", {
+      not_allowed: "Only the coordinator, an admin, or an assigned clinician can create this link.",
+    });
+  }
+  revalidatePath(`/coordinator/members/${parsed.data.member_id}`);
+  revalidatePath(`/admin/members/${parsed.data.member_id}`);
+  return actionOk(data as unknown as string);
+}
+
+const revokeSchema = z.object({ token: z.string().uuid(), member_id: z.string().uuid() });
+
+export async function revokeCheckinLink(input: {
+  token: string;
+  member_id: string;
+}): Promise<ActionResult> {
+  const parsed = revokeSchema.safeParse(input);
+  if (!parsed.success) return actionFail("Invalid request.");
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("revoke_checkin_link", { p_token: parsed.data.token });
+  if (error) return actionFromError(error, "Could not revoke that link.");
+  revalidatePath(`/coordinator/members/${parsed.data.member_id}`);
+  revalidatePath(`/admin/members/${parsed.data.member_id}`);
+  return actionOk(undefined);
 }

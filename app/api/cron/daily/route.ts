@@ -49,6 +49,15 @@ async function handle(req: Request): Promise<NextResponse> {
     logError("cron.daily.rpc_failed", error, { simulated: today ?? null });
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+  // W3.4 — tell someone when a family goes quiet. Its own RPC rather than a change
+  // to run_daily_jobs, whose ~100 lines of hardened §9 logic are not worth
+  // reproducing to add one loop. Deduped per ISO week.
+  const { data: quiet, error: quietError } = await admin.rpc(
+    "flag_quiet_families",
+    today ? { p_today: today } : {},
+  );
+  if (quietError) logError("cron.daily.quiet_flags_failed", quietError, { simulated: today ?? null });
+
   // W1.6 — the family's monthly report. Runs AFTER run_daily_jobs so cycles closed
   // in this same run are picked up, and reads the DB rather than the RPC's return
   // value, so anything missed on an earlier day is caught up too.
@@ -64,6 +73,7 @@ async function handle(req: Request): Promise<NextResponse> {
     ...summary,
     progress_summaries: progress.generated,
     progress_failures: progress.failed,
+    quiet_families: (quiet as { flagged?: number } | null)?.flagged ?? 0,
     emails_sent: email.sent,
     duration_ms: Date.now() - startedAt,
   });
@@ -73,6 +83,7 @@ async function handle(req: Request): Promise<NextResponse> {
     summary: data,
     failures: summary.failures ?? 0,
     progress_summaries: progress.generated,
+    quiet_families: (quiet as { flagged?: number } | null)?.flagged ?? 0,
     emails_sent: email.sent,
   });
 }

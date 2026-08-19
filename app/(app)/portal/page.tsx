@@ -101,6 +101,13 @@ export default async function PortalHomePage({
   if (isElderly) return <ElderlyHome supabase={supabase} member={list[0]} />;
 
   const selected = list.find((m) => m.id === memberParam) ?? list[0];
+
+  // W3 — a family opening the portal is the clearest sign they are still engaged.
+  // record_activity dedupes to one row per member per day, so firing it on every
+  // render is cheap and needs no guard here.
+  if (selected) {
+    await supabase.rpc("record_activity", { p_member: selected.id, p_kind: "portal_visit" });
+  }
   const firstName = (profile.full_name ?? "").split(" ")[0];
 
   return (
