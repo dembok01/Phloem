@@ -30,6 +30,11 @@ export const RPC_ERROR_CODES = [
   "bad_status",
   "summary_required",
   "bad_content",
+  // 0027 threads
+  "bad_kind",
+  "subject_required",
+  "body_required",
+  "thread_resolved",
 ] as const;
 
 export type RpcErrorCode = (typeof RPC_ERROR_CODES)[number];
@@ -69,6 +74,10 @@ export const RPC_ERROR_COPY: Record<RpcErrorCode, string> = {
   bad_status: "Status must be open, monitoring or resolved.",
   summary_required: "Write a note before saving it.",
   bad_content: "The report content was malformed and could not be saved.",
+  bad_kind: "That kind of conversation isn't available here.",
+  subject_required: "Give the conversation a subject so the team can find it.",
+  body_required: "Write a message before sending.",
+  thread_resolved: "This conversation is closed. Reopen it to add a message.",
 };
 
 export function rpcErrorMessage(

@@ -19,6 +19,10 @@ import { CLEARED, resolveClearance } from "@/lib/clearance";
 import { ClinicalForm } from "@/components/forms/ClinicalForm";
 import { FeedbackForm } from "@/components/forms/FeedbackForm";
 import { DocumentList, type DocumentRow } from "@/components/documents/document-list";
+import { MeasureTrends } from "@/components/charts/measure-trends";
+import { CasePanel } from "@/components/cases/case-panel";
+import { MemberTimeline } from "@/components/member-timeline";
+import { CompileProgressButton } from "@/components/reports/compile-progress-button";
 import type { FormValues } from "@/components/forms/types";
 import { parseFormTemplate } from "@/components/forms/schema";
 
@@ -28,6 +32,9 @@ const TABS: Record<CareRole, [string, string][]> = {
   doctor: [
     ["overview", "Overview"],
     ["onboarding", "Onboarding"],
+    ["trends", "Trends"],
+    ["cases", "Health matters"],
+    ["timeline", "Timeline"],
     ["form", "Consult form"],
     ["reports", "Reports"],
   ],
@@ -35,6 +42,8 @@ const TABS: Record<CareRole, [string, string][]> = {
     ["overview", "Overview"],
     ["onboarding", "Onboarding (diet)"],
     ["directives", "Doctor's directives"],
+    ["trends", "Trends"],
+    ["cases", "Health matters"],
     ["form", "Consult form"],
     ["feedback", "Monthly feedback"],
     ["reports", "Reports"],
@@ -43,12 +52,15 @@ const TABS: Record<CareRole, [string, string][]> = {
     ["overview", "Overview"],
     ["onboarding", "Onboarding (activity)"],
     ["clearance", "Doctor's clearance"],
+    ["trends", "Trends"],
+    ["cases", "Health matters"],
     ["form", "Consult form"],
     ["feedback", "Monthly feedback"],
     ["reports", "Reports"],
   ],
   psychologist: [
     ["context", "Context"],
+    ["trends", "Wellbeing trend"],
     ["form", "Check-in"],
     ["reports", "Wellbeing reports"],
   ],
@@ -64,10 +76,10 @@ export default async function ClinicianClientPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; tl?: string }>;
 }) {
   const { id } = await params;
-  const { tab } = await searchParams;
+  const { tab, tl } = await searchParams;
   const supabase = await createClient();
 
   const session = await getSessionProfile();
@@ -148,6 +160,36 @@ export default async function ClinicianClientPage({
         {activeTab === "form" ? (
           <FormPanel supabase={supabase} role={role} memberId={id} userId={session.user.id} />
         ) : null}
+        {activeTab === "trends" ? (
+          <MeasureTrends
+            memberId={id}
+            title={role === "psychologist" ? "Wellbeing trend" : "Trends"}
+            description={
+              role === "psychologist"
+                ? "Your check-in scales over time. Confidential to you and the admin."
+                : "Every measurement recorded for this member, with the direction of travel. Whether a change is good is per-measure — a faster timed up-and-go is an improvement, a slower one is not."
+            }
+          />
+        ) : null}
+        {activeTab === "cases" ? (
+          <CasePanel
+            memberId={id}
+            canEdit={role === "doctor"}
+            description={
+              role === "doctor"
+                ? "Each problem you list at intake becomes a tracked matter with its own history. Reviews append to the open ones automatically."
+                : "Long-running health matters the doctor is tracking."
+            }
+          />
+        ) : null}
+        {activeTab === "timeline" ? (
+          <MemberTimeline
+            memberId={id}
+            filter={tl}
+            basePath={`/clinician/clients/${id}?tab=timeline`}
+            limit={60}
+          />
+        ) : null}
         {activeTab === "feedback" ? (
           <FeedbackPanel supabase={supabase} role={role} memberId={id} userId={session.user.id} />
         ) : null}
@@ -155,7 +197,7 @@ export default async function ClinicianClientPage({
           <div className="space-y-4">
             {/* §3: WHO-5 renders only where psych responses are readable (psychologist/admin). */}
             {role === "psychologist" ? <Who5Card memberId={id} /> : null}
-            <ReportsPanel supabase={supabase} memberId={id} />
+            <ReportsPanel supabase={supabase} memberId={id} canCompile={role === "doctor"} />
             {role === "doctor" ? <DocumentsPanel supabase={supabase} memberId={id} /> : null}
           </div>
         ) : null}
@@ -412,7 +454,16 @@ function ReadonlySection({ section }: { section: { heading: string; kind: string
   );
 }
 
-async function ReportsPanel({ supabase, memberId }: { supabase: SB; memberId: string }) {
+async function ReportsPanel({
+  supabase,
+  memberId,
+  canCompile,
+}: {
+  supabase: SB;
+  memberId: string;
+  /** only the doctor compiles the progress summary on demand (the RPC agrees) */
+  canCompile: boolean;
+}) {
   // P-5 read receipts: fetch family (caregiver/member) opens of the reports THIS
   // clinician authored, so each row can say whether the plan was actually read.
   const [{ data: reports }, { data: receipts }] = await Promise.all([
@@ -424,14 +475,28 @@ async function ReportsPanel({ supabase, memberId }: { supabase: SB; memberId: st
     supabase.rpc("get_report_view_receipts", { p_member: memberId }),
   ]);
   const list = reports ?? [];
+
+  // The active cycle is what a fresh summary would cover; null means "all time",
+  // which is the right scope before the first cycle starts.
+  const { data: activeCycle } = await supabase
+    .from("cycles")
+    .select("id, packages!inner(member_id)")
+    .eq("packages.member_id", memberId)
+    .eq("status", "active")
+    .maybeSingle();
+  const cycleId = activeCycle?.id ?? null;
+  const hasSummary = list.some((r) => r.type === "progress_summary");
   const receiptByReport = new Map<string, { last_viewed_at: string; viewer_name: string }>();
   for (const v of receipts ?? []) {
     receiptByReport.set(v.report_id, { last_viewed_at: v.last_viewed_at, viewer_name: v.viewer_name });
   }
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex-row items-center justify-between gap-3">
         <CardTitle>Reports</CardTitle>
+        {canCompile ? (
+          <CompileProgressButton memberId={memberId} cycleId={cycleId} exists={hasSummary} />
+        ) : null}
       </CardHeader>
       <CardContent>
         {list.length === 0 ? (

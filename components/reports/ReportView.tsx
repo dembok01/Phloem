@@ -35,7 +35,15 @@ function display(v: unknown): string {
   return s;
 }
 
-export function ReportView({ content }: { content: ReportContent }) {
+export function ReportView({
+  content,
+  sectionIdPrefix,
+}: {
+  content: ReportContent;
+  /** When set, each section gets `id="{prefix}{index}"` so a contents rail can
+   *  link into it. Omitted for the PDF, which has no navigation. */
+  sectionIdPrefix?: string;
+}) {
   return (
     <article className="report-doc">
       <p className="report-eyebrow">PHLOEM · Clinical report</p>
@@ -45,16 +53,24 @@ export function ReportView({ content }: { content: ReportContent }) {
         {content.cycle != null ? ` · Cycle ${content.cycle}` : ""}
       </p>
       {content.sections.map((section, i) => (
-        <section key={i} className={i === 0 ? "report-section report-section--lead" : "report-section"}>
+        <section
+          key={i}
+          id={sectionIdPrefix ? `${sectionIdPrefix}${i}` : undefined}
+          className={i === 0 ? "report-section report-section--lead" : "report-section"}
+        >
           <h2>{section.heading}</h2>
-          <SectionBody section={section} />
+          {/* The lead treatment (rule + larger type) already marks this as the
+              document's opening voice. A plain_language block in that slot would
+              otherwise wear a second tinted box inside the first — one frame too
+              many, so it renders as bare lead text. */}
+          <SectionBody section={section} bare={i === 0 && section.kind === "plain_language"} />
         </section>
       ))}
     </article>
   );
 }
 
-function SectionBody({ section }: { section: ReportSection }) {
+function SectionBody({ section, bare = false }: { section: ReportSection; bare?: boolean }) {
   switch (section.kind) {
     case "text":
       return <p className="report-text">{section.data}</p>;
@@ -120,7 +136,9 @@ function SectionBody({ section }: { section: ReportSection }) {
     }
 
     case "plain_language":
-      return (
+      return bare ? (
+        <p className="report-text">{section.data}</p>
+      ) : (
         <div className="report-plain">
           <p className="report-text">{section.data}</p>
         </div>
