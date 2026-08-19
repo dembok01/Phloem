@@ -16,6 +16,7 @@ import { parseRedFlags } from "@/lib/red-flags";
 import { telHref, waMeLink } from "@/lib/wa";
 import { formatDateIST, formatDateTimeIST } from "@/lib/datetime";
 import { CheckinLinkCard } from "@/components/checkin-link-card";
+import { RenewalPanel } from "@/components/renewal-panel";
 import { EngagementBadge, type EngagementRow } from "@/components/engagement";
 import { ThreadPanel } from "@/components/threads/thread-panel";
 import {
@@ -102,6 +103,7 @@ export default async function CoordinatorMemberPage({
     { data: pkg },
     { data: caregiver },
     { data: engagementRows },
+    { data: renewalRow },
     { data: checkinRow },
   ] = await Promise.all([
     supabase.from("member_contacts").select("phone, whatsapp").eq("member_id", id).maybeSingle(),
@@ -129,6 +131,13 @@ export default async function CoordinatorMemberPage({
       : Promise.resolve({ data: null }),
     // W3: engagement is derived on read, so it is always current.
     supabase.rpc("get_engagement", { p_member: id }),
+    supabase
+      .from("renewals")
+      .select("id, status, proposed_months, decision_note")
+      .eq("member_id", id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
     supabase
       .from("checkin_links")
       .select("token, expires_at")
@@ -417,6 +426,15 @@ export default async function CoordinatorMemberPage({
         psychSubmitted={psychSubmitted}
         redirectTo={redirectTo}
         isAdmin={false}
+      />
+
+      <RenewalPanel
+        memberId={member.id}
+        memberFirstName={member.full_name.split(" ")[0]}
+        isAdmin={false}
+        hasActivePackage={pkg?.status === "active" || pkg?.status === "paused"}
+        endsOn={pkg?.end_date ? formatDateIST(pkg.end_date) : null}
+        renewal={renewalRow ?? null}
       />
 
       {/* The coordinator is the hinge between the family and the clinicians, so

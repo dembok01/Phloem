@@ -14,6 +14,7 @@ import { getSessionProfile } from "@/lib/auth";
 import type { Database } from "@/lib/supabase/database.types";
 import { formatDateIST, formatDateTimeIST, istDaysSince } from "@/lib/datetime";
 import { CareTeamCard, type CareTeamMember } from "@/components/portal/care-team-card";
+import { RenewalCard } from "@/components/portal/renewal-card";
 import { MemberTimeline } from "@/components/member-timeline";
 
 type MemberStatus = Database["public"]["Enums"]["member_status"];
@@ -186,7 +187,7 @@ async function CaregiverMember({
   const [{ data: pkg }, team] = await Promise.all([
     supabase
       .from("packages")
-      .select("id, status, paused_at")
+      .select("id, status, paused_at, end_date")
       .eq("member_id", member.id)
       .order("created_at", { ascending: false })
       .limit(1)
@@ -211,6 +212,25 @@ async function CaregiverMember({
   const cycleList = cycles ?? [];
   const active = cycleList.find((c) => c.status === "active");
   const paused = pkg?.status === "paused";
+
+  // W4 — the programme ending is a fact the family should meet before it happens,
+  // not a surprise. `ending` drives the signature ring; the offer drives the card.
+  const daysLeft =
+    pkg?.end_date != null
+      ? Math.ceil(
+          (new Date(`${pkg.end_date}T00:00:00+05:30`).getTime() - Date.now()) / 86_400_000,
+        )
+      : null;
+  const ending = !paused && daysLeft !== null && daysLeft <= 14 && daysLeft >= 0;
+
+  const { data: renewal } = await supabase
+    .from("renewals")
+    .select("id, proposed_months, status")
+    .eq("member_id", member.id)
+    .in("status", ["proposed", "interested", "declined"])
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
   const day = active ? Math.min(Math.max(istDaysSince(active.start_date) + 1, 1), 30) : undefined;
   const story = storyLine(member.status, {
     cycle: active?.number,
@@ -231,6 +251,7 @@ async function CaregiverMember({
                   cycles={cycleList as RingCycle[]}
                   dayOfActive={day}
                   paused={paused}
+                  ending={ending}
                   size={112}
                   once
                 />
@@ -271,6 +292,16 @@ async function CaregiverMember({
           </div>
         </CardContent>
       </Card>
+
+      {renewal ? (
+        <RenewalCard
+          renewalId={renewal.id}
+          memberFirstName={member.full_name.split(" ")[0]}
+          months={renewal.proposed_months}
+          status={renewal.status}
+          endsOn={pkg?.end_date ? formatDateIST(pkg.end_date) : null}
+        />
+      ) : null}
 
       <div className="stagger-in grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <PortalLink

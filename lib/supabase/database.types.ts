@@ -1072,6 +1072,69 @@ export type Database = {
         }
         Relationships: []
       }
+      renewals: {
+        Row: {
+          completed_package: string | null
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
+          id: string
+          member_id: string
+          note: string | null
+          package_id: string
+          proposed_at: string
+          proposed_by: string | null
+          proposed_months: number
+          status: string
+        }
+        Insert: {
+          completed_package?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          id?: string
+          member_id: string
+          note?: string | null
+          package_id: string
+          proposed_at?: string
+          proposed_by?: string | null
+          proposed_months: number
+          status?: string
+        }
+        Update: {
+          completed_package?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          id?: string
+          member_id?: string
+          note?: string | null
+          package_id?: string
+          proposed_at?: string
+          proposed_by?: string | null
+          proposed_months?: number
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "renewals_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "renewals_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "packages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reports: {
         Row: {
           content: Json
@@ -1331,6 +1394,19 @@ export type Database = {
       submit_checkin: {
         Args: { p_answers: Json; p_token: string }
         Returns: Json
+      }
+      complete_renewal: {
+        Args: { p_months?: number; p_renewal: string }
+        Returns: string
+      }
+      open_due_renewals: { Args: { p_today?: string }; Returns: Json }
+      propose_renewal: {
+        Args: { p_member: string; p_months?: number; p_note?: string }
+        Returns: string
+      }
+      respond_to_renewal: {
+        Args: { p_intent: string; p_note?: string; p_renewal: string }
+        Returns: undefined
       }
       accept_invite: {
         Args: {

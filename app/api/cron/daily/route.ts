@@ -49,6 +49,14 @@ async function handle(req: Request): Promise<NextResponse> {
     logError("cron.daily.rpc_failed", error, { simulated: today ?? null });
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+  // W4 — open a renewal offer 14 days before a package ends, so the coordinator
+  // always has something concrete to act on rather than a status change to notice.
+  const { data: renewals, error: renewalError } = await admin.rpc(
+    "open_due_renewals",
+    today ? { p_today: today } : {},
+  );
+  if (renewalError) logError("cron.daily.renewals_failed", renewalError, { simulated: today ?? null });
+
   // W3.4 — tell someone when a family goes quiet. Its own RPC rather than a change
   // to run_daily_jobs, whose ~100 lines of hardened §9 logic are not worth
   // reproducing to add one loop. Deduped per ISO week.
@@ -74,6 +82,7 @@ async function handle(req: Request): Promise<NextResponse> {
     progress_summaries: progress.generated,
     progress_failures: progress.failed,
     quiet_families: (quiet as { flagged?: number } | null)?.flagged ?? 0,
+    renewals_opened: (renewals as { opened?: number } | null)?.opened ?? 0,
     emails_sent: email.sent,
     duration_ms: Date.now() - startedAt,
   });
@@ -84,6 +93,7 @@ async function handle(req: Request): Promise<NextResponse> {
     failures: summary.failures ?? 0,
     progress_summaries: progress.generated,
     quiet_families: (quiet as { flagged?: number } | null)?.flagged ?? 0,
+    renewals_opened: (renewals as { opened?: number } | null)?.opened ?? 0,
     emails_sent: email.sent,
   });
 }

@@ -56,3 +56,36 @@ export async function setMemberPhotoAction(
   revalidatePath(`/admin/members/${parsed.data.memberId}`);
   return actionOk(undefined);
 }
+
+// ============ W4 — the family's answer to a renewal offer ============
+// Two soft options on purpose. A renewal decision for an elderly parent is rarely
+// a click, so "I'd like to continue" records intent without committing anyone, and
+// "Let's talk first" is a real answer rather than a dead end — both notify the
+// coordinator, who runs the actual conversation.
+const renewalResponseSchema = z.object({
+  renewal_id: z.string().uuid(),
+  intent: z.enum(["interested", "declined"]),
+  note: z.string().trim().max(1000).optional(),
+});
+
+export async function respondToRenewal(input: {
+  renewal_id: string;
+  intent: string;
+  note?: string;
+}): Promise<ActionResult> {
+  const parsed = renewalResponseSchema.safeParse(input);
+  if (!parsed.success) return actionFail("Invalid request.");
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("respond_to_renewal", {
+    p_renewal: parsed.data.renewal_id,
+    p_intent: parsed.data.intent,
+    p_note: parsed.data.note ?? undefined,
+  });
+  if (error) {
+    return actionFromError(error, "Could not send your answer. Please try again.", {
+      renewal_closed: "This renewal has already been settled — your coordinator can help.",
+    });
+  }
+  revalidatePath("/portal");
+  return actionOk(undefined);
+}

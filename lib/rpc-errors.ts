@@ -35,6 +35,10 @@ export const RPC_ERROR_CODES = [
   "subject_required",
   "body_required",
   "thread_resolved",
+  // 0031 renewals
+  "bad_intent",
+  "renewal_closed",
+  "no_active_package",
 ] as const;
 
 export type RpcErrorCode = (typeof RPC_ERROR_CODES)[number];
@@ -78,6 +82,9 @@ export const RPC_ERROR_COPY: Record<RpcErrorCode, string> = {
   subject_required: "Give the conversation a subject so the team can find it.",
   body_required: "Write a message before sending.",
   thread_resolved: "This conversation is closed. Reopen it to add a message.",
+  bad_intent: "Choose whether you'd like to continue or talk it through first.",
+  renewal_closed: "This renewal has already been settled — your coordinator can help.",
+  no_active_package: "There is no running programme to renew for this member.",
 };
 
 export function rpcErrorMessage(
