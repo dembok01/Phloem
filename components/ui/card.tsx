@@ -2,17 +2,37 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
+// V1/M1 — surface tiers. Before this every container in the product was the same
+// object, so nothing could be more important than anything else. Four tiers now
+// carry meaning: `panel` is the default workhorse (unchanged, so nothing that
+// already exists shifts), `hero` is the ONE element per screen that outranks
+// everything around it, `inset` is a recessed ground for lists, and `quiet` is a
+// grouping with no chrome at all.
+const CARD_VARIANT = {
+  panel: "bg-card ring-1 ring-foreground/10",
+  // shadow-2 is reserved for this tier and overlays, so elevation means something.
+  hero: "bg-card ring-1 ring-foreground/10 shadow-pop rounded-2xl",
+  inset: "bg-muted/35 ring-1 ring-foreground/[0.04]",
+  quiet: "bg-transparent",
+} as const
+
 function Card({
   className,
   size = "default",
+  variant = "panel",
   ...props
-}: React.ComponentProps<"div"> & { size?: "default" | "sm" }) {
+}: React.ComponentProps<"div"> & {
+  size?: "default" | "sm"
+  variant?: keyof typeof CARD_VARIANT
+}) {
   return (
     <div
       data-slot="card"
       data-size={size}
+      data-variant={variant}
       className={cn(
-        "group/card flex flex-col gap-(--card-spacing) overflow-hidden rounded-xl bg-card py-(--card-spacing) text-sm text-card-foreground ring-1 ring-foreground/10 [--card-spacing:--spacing(4)] has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:[--card-spacing:--spacing(3)] data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl",
+        "group/card flex flex-col gap-(--card-spacing) overflow-hidden rounded-xl py-(--card-spacing) text-sm text-card-foreground [--card-spacing:--spacing(4)] has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:[--card-spacing:--spacing(3)] data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl",
+        CARD_VARIANT[variant],
         className
       )}
       {...props}
@@ -38,7 +58,7 @@ function CardTitle({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="card-title"
       className={cn(
-        "font-heading text-base leading-snug font-medium group-data-[size=sm]/card:text-sm",
+        "font-display text-[17px] leading-snug font-semibold tracking-tight group-data-[size=sm]/card:text-sm group-data-[variant=hero]/card:text-2xl",
         className
       )}
       {...props}

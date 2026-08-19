@@ -5,18 +5,31 @@ import { cn } from "@/lib/utils";
 export type Crumb = { label: string; href?: string };
 
 /** Consistent page header: optional breadcrumbs, display-face title, one-line
- * description, and an actions slot pinned to the right (C1). */
+ * description, and an actions slot pinned to the right (C1).
+ *
+ * V1/M9 — the title now uses the documented display scale. It was capped at
+ * `text-3xl` (30px) while DESIGN-SYSTEM.md specifies steps up to 44, which is a
+ * large part of why no screen had a focal point: the biggest thing on the page was
+ * barely larger than the body text. `eyebrow` and `stats` are additive slots for
+ * the hero treatment (M3); every existing call site renders as before, only
+ * bigger. */
 export function PageHeader({
   title,
   description,
   crumbs,
   actions,
+  eyebrow,
+  stats,
   className,
 }: {
   title: React.ReactNode;
   description?: React.ReactNode;
   crumbs?: Crumb[];
   actions?: React.ReactNode;
+  /** small mono label above the title — names the surface */
+  eyebrow?: React.ReactNode;
+  /** a strip of at-a-glance figures under the description */
+  stats?: React.ReactNode;
   className?: string;
 }) {
   return (
@@ -42,10 +55,14 @@ export function PageHeader({
             </ol>
           </nav>
         ) : null}
-        <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+        {eyebrow ? <p className="eyebrow">{eyebrow}</p> : null}
+        <h1 className="font-display text-3xl font-semibold tracking-tight text-balance text-foreground sm:text-4xl">
           {title}
         </h1>
-        {description ? <p className="max-w-2xl text-muted-foreground">{description}</p> : null}
+        {description ? (
+          <p className="max-w-2xl text-[17px] text-muted-foreground">{description}</p>
+        ) : null}
+        {stats ? <div className="pt-2">{stats}</div> : null}
       </div>
       {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
     </header>

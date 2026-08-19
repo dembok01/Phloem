@@ -4,6 +4,9 @@ import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/page-header";
 import { Sparkline } from "@/components/charts/sparkline";
 import { StageFunnel, type Stage } from "@/components/charts/stage-funnel";
+import { EmptyState } from "@/components/ui/empty-state";
+import { CalendarHeart } from "lucide-react";
+import { GrowthRings } from "@/components/growth-rings";
 import { TrendLine } from "@/components/charts/trend-line";
 import { createClient } from "@/lib/supabase/server";
 import { formatDateIST } from "@/lib/datetime";
@@ -81,7 +84,22 @@ async function analytics() {
   const consultSeries = weekly((consultRows.data ?? []).map((r) => ({ at: r.completed_at })));
   const reportSeries = weekly((reportRows.data ?? []).map((r) => ({ at: r.created_at })));
 
+  // "In care" is everyone past intake — the number an admin means when they ask
+  // how big the programme is. `active` alone under-reports it badly while
+  // families are still in their initial consultations.
+  const IN_CARE = ["assigned", "initial_consults", "ready_to_start", "active", "renewal_due"];
+  const inCare = IN_CARE.reduce((n, k) => n + (byStatus.get(k) ?? 0), 0);
+
+  // The signature mark, aggregated: one ring per family in care, filled for those
+  // already running. It encodes the same fact as the number beside it.
+  const ringCycles = Array.from({ length: Math.min(inCare, 6) }, (_, i) => ({
+    number: i + 1,
+    status: i < (byStatus.get("active") ?? 0) ? "closed" : "upcoming",
+  }));
+
   return {
+    inCare,
+    ringCycles,
     active: byStatus.get("active") ?? 0,
     consultsWeek: consultsWeek.count ?? 0,
     overdue: overdue.count ?? 0,
@@ -138,30 +156,84 @@ export default async function AdminOverviewPage() {
   return (
     <section className="space-y-6">
       <PageHeader
+        eyebrow="Programme health"
         title="Overview"
-        description="Program health at a glance — last 12 weeks."
+        description="Where every family is right now, and what moved in the last 12 weeks."
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {/* M3 — the hero. The four equal tiles used to give the largest type on the
+          page to four zeros; the answer to "how is the programme doing" is one
+          number with a sentence, not a row of counters. */}
+      <Card variant="hero" className="hero-glow">
+        <CardContent className="flex flex-wrap items-center gap-x-12 gap-y-6">
+          <div className="flex items-center gap-5">
+            {a.active > 0 && a.ringCycles.length > 0 ? (
+              <GrowthRings cycles={a.ringCycles} size={72} title="Programme cycles in flight" once />
+            ) : null}
+            <div>
+              <p className="eyebrow">In care today</p>
+              <p className="stat-figure text-foreground">{a.inCare}</p>
+              <p className="text-sm text-muted-foreground">
+                {a.active > 0 ? `${a.active} on an active programme` : "none started yet"}
+              </p>
+            </div>
+          </div>
+
+          <p className="min-w-56 max-w-md flex-1 text-[17px] leading-relaxed text-muted-foreground">
+            {a.overdue > 0 ? (
+              <>
+                <span className="font-medium text-warning">{a.overdue} report{a.overdue === 1 ? "" : "s"} overdue</span>
+                {" — the rest of the programme is running to plan."}
+              </>
+            ) : a.inCare === 0 ? (
+              "No families in care yet. Invite a caregiver to begin."
+            ) : (
+              "Nothing overdue. Every family has a care team and a plan in flight."
+            )}
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Secondary strip: the counters keep their trend but stop competing with
+          the hero. A zero renders as an em-dash with a hint (M8) — a giant 0 in
+          the display face reads as a broken page. */}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {tiles.map((t) => (
           <Link
             key={t.label}
             href={t.href}
             className={cn(
-              "pressable group flex flex-col justify-between gap-3 rounded-xl bg-card p-5 shadow-card ring-1 ring-foreground/10 hover:ring-primary/30",
+              "pressable group relative flex flex-col justify-between gap-2 overflow-hidden rounded-xl bg-card p-4 shadow-card ring-1 ring-foreground/10 hover:ring-primary/30",
               t.alert && "ring-warning/40",
             )}
           >
-            <span className="text-sm text-muted-foreground">{t.label}</span>
-            <span className="flex items-end justify-between gap-3">
-              <span className="font-display text-3xl font-semibold tabular-nums">{t.value}</span>
-              {t.series ? (
+            {/* the trend sits BEHIND the figure as texture, not beside it */}
+            {t.series && t.series.some((v) => v > 0) ? (
+              <span className="pointer-events-none absolute inset-x-0 bottom-0 opacity-70">
                 <Sparkline
                   values={t.series}
                   stroke={t.tone}
+                  area
+                  domain="zero"
+                  width={320}
+                  height={44}
                   label={`${t.label}: ${WEEKS}-week trend`}
-                  className="shrink-0"
+                  className="w-full"
                 />
+              </span>
+            ) : null}
+            <span className="eyebrow relative">{t.label}</span>
+            <span className="relative flex items-baseline gap-2">
+              <span
+                className={cn(
+                  "font-display text-3xl font-semibold tabular-nums",
+                  t.value === 0 && "text-muted-foreground/60",
+                )}
+              >
+                {t.value}
+              </span>
+              {t.value === 0 && !(t.series && t.series.some((v) => v > 0)) ? (
+                <span className="text-xs text-muted-foreground">none yet</span>
               ) : null}
             </span>
           </Link>
@@ -207,9 +279,11 @@ export default async function AdminOverviewPage() {
           </CardHeader>
           <CardContent>
             {a.renewalList.length === 0 ? (
-              <p className="text-muted-foreground">
-                Nothing coming up — members whose package ends within 30 days surface here.
-              </p>
+              <EmptyState
+                icon={CalendarHeart}
+                title="Nothing in the next 30 days"
+                description="Families whose programme is ending appear here two weeks out, with a renewal offer already open."
+              />
             ) : (
               <ul className="divide-y">
                 {a.renewalList.map((p) => {

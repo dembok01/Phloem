@@ -1,7 +1,5 @@
 import Link from "next/link";
 import {
-  CalendarClock,
-  ChevronRight,
   FileWarning,
   ShieldAlert,
   Stethoscope,
@@ -9,12 +7,13 @@ import {
   Video,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { List, ListRow, ListSection } from "@/components/ui/list";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Monogram } from "@/components/monogram";
+import { Monogram, toneForRole } from "@/components/monogram";
 import { PageHeader } from "@/components/page-header";
 import { IssueChips } from "@/components/issue-chips";
 import { createClient } from "@/lib/supabase/server";
-import { cn } from "@/lib/utils";
 import { formatDateTimeIST, isTodayIST } from "@/lib/datetime";
 import { hasHighFlag, parseRedFlags } from "@/lib/red-flags";
 import { resolveClearance } from "@/lib/clearance";
@@ -211,6 +210,7 @@ export default async function ClinicianClientsPage() {
   return (
     <section className="mx-auto max-w-3xl space-y-6">
       <PageHeader
+        eyebrow={isDoctor ? "Clinical" : undefined}
         title={isDoctor ? "Your day" : "My members"}
         description={
           isDoctor
@@ -218,6 +218,68 @@ export default async function ClinicianClientsPage() {
             : "Your queue — what is blocking comes first, then what only you can decide."
         }
       />
+
+      {/* M3 — the hero: the next consultation, or the state of the queue when the
+          calendar is clear. A doctor opening this asks "who am I seeing, and what
+          is on fire" — both answers now outrank everything else on the page. */}
+      {isDoctor && rows.length > 0 ? (
+        <Card variant="hero" className="hero-glow">
+          <CardContent className="flex flex-wrap items-center gap-x-10 gap-y-5">
+            {todayConsults[0] && byId.get(todayConsults[0].memberId) ? (
+              <>
+                <Monogram
+                  name={byId.get(todayConsults[0].memberId)!.m.full_name}
+                  size="lg"
+                  tone="doctor"
+                  ring
+                />
+                <div className="min-w-0">
+                  <p className="eyebrow">Next consultation</p>
+                  <Link
+                    href={`/clinician/clients/${todayConsults[0].memberId}`}
+                    className="font-display text-2xl font-semibold tracking-tight hover:underline"
+                  >
+                    {byId.get(todayConsults[0].memberId)!.m.full_name}
+                  </Link>
+                  <p className="font-data text-sm text-muted-foreground">
+                    {formatDateTimeIST(todayConsults[0].at)}
+                    {todayConsults[0].mode ? ` · ${todayConsults[0].mode.replace("_", " ")}` : ""}
+                  </p>
+                </div>
+                {todayConsults[0].link ? (
+                  <a
+                    href={todayConsults[0].link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="pressable inline-flex h-11 shrink-0 items-center gap-2 rounded-lg bg-primary px-5 font-medium text-primary-foreground hover:bg-primary/85"
+                  >
+                    <Video className="size-4" aria-hidden /> Join
+                  </a>
+                ) : null}
+              </>
+            ) : (
+              <div>
+                <p className="eyebrow">Your calendar</p>
+                <p className="stat-figure text-foreground">Clear</p>
+                <p className="text-sm text-muted-foreground">No consultations booked for today.</p>
+              </div>
+            )}
+
+            <div className="ml-auto flex gap-8">
+              <div>
+                <p className="eyebrow">Needs you</p>
+                <p className="font-display text-2xl font-semibold tabular-nums">
+                  {rows.filter((r) => r.worst === "danger" || r.worst === "warning").length}
+                </p>
+              </div>
+              <div>
+                <p className="eyebrow">Your members</p>
+                <p className="font-display text-2xl font-semibold tabular-nums">{rows.length}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {rows.length === 0 ? (
         <EmptyState
@@ -227,124 +289,71 @@ export default async function ClinicianClientsPage() {
         />
       ) : (
         <>
-          {isDoctor && todayConsults.length > 0 ? (
-            <div className="space-y-2">
-              <h2 className="eyebrow flex items-center gap-2">
-                <CalendarClock className="size-3.5 text-info" aria-hidden />
-                Today
-                <span className="font-data text-foreground tabular-nums">{todayConsults.length}</span>
-              </h2>
-              <ul className="space-y-2">
-                {todayConsults.map((c, i) => {
-                  const row = byId.get(c.memberId);
-                  if (!row) return null;
-                  return (
-                    <li
-                      key={i}
-                      className="flex items-center gap-3 rounded-xl border border-info/40 bg-card p-4 shadow-card"
-                    >
-                      <Monogram name={row.m.full_name} size="sm" />
-                      <div className="min-w-0 flex-1">
-                        <Link
-                          href={`/clinician/clients/${c.memberId}`}
-                          className="font-medium hover:underline"
-                        >
-                          {row.m.full_name}
-                        </Link>
-                        <p className="font-data text-sm text-muted-foreground">
-                          {formatDateTimeIST(c.at)}
-                          {c.mode ? ` · ${c.mode.replace("_", " ")}` : ""}
-                        </p>
-                      </div>
-                      {c.link ? (
-                        <a
-                          href={c.link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/80"
-                        >
-                          <Video className="size-4" aria-hidden /> Join
-                        </a>
-                      ) : null}
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          ) : null}
-
           {groups.map((g) => (
-            <div key={g.key} className="space-y-2">
-              <h2 className="eyebrow flex items-center gap-2">
-                {g.key === "needs" ? (
+            <ListSection
+              key={g.key}
+              label={g.label}
+              count={g.rows.length}
+              tone={g.tone === "danger" ? "danger" : g.tone === "warning" ? "warning" : "none"}
+              icon={
+                g.key === "needs" ? (
                   <Stethoscope className="size-3.5 text-danger" aria-hidden />
-                ) : null}
-                {g.label}
-                <span className="font-data text-foreground tabular-nums">{g.rows.length}</span>
-              </h2>
-              <ul className="space-y-2">
+                ) : g.key === "due" ? (
+                  <FileWarning className="size-3.5 text-warning" aria-hidden />
+                ) : null
+              }
+            >
+              <List>
                 {g.rows.map(({ m, flags, high, due, next, clearance, issues, worst }) => (
-                  <li key={m.id}>
-                    <Link
-                      href={`/clinician/clients/${m.id}${
-                        issues[0]?.tab ? `?tab=${issues[0].tab}` : due ? "?tab=form" : clearance ? "?tab=clearance" : ""
-                      }`}
-                      className={cn(
-                        "pressable block rounded-xl border bg-card p-4 shadow-card hover:border-primary/40 hover:bg-secondary/40",
-                        worst === "danger" && "border-danger/40",
-                        worst === "warning" && "border-warning/50",
-                        !worst && due && "border-warning/50",
-                      )}
-                    >
-                      <div className="flex items-center gap-3">
-                        <Monogram name={m.full_name} size="sm" />
-                        <div className="min-w-0 flex-1">
-                          <p className="flex items-center gap-1.5 font-medium">
-                            {m.full_name}
-                            {m.age ? (
-                              <span className="font-normal text-muted-foreground"> · {m.age} yrs</span>
-                            ) : null}
-                            {high ? (
-                              <span
-                                className="size-2.5 shrink-0 rounded-full bg-danger ring-2 ring-danger/20"
-                                title="High red flag on file"
-                                aria-label="High red flag on file"
-                              />
-                            ) : flags.length > 0 ? (
-                              <span
-                                className="size-2.5 shrink-0 rounded-full bg-warning ring-2 ring-warning/20"
-                                title="Red flags on file"
-                                aria-label="Red flags on file"
-                              />
-                            ) : null}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {[
-                              cycleByMember.get(m.id),
-                              next ? `Next consult ${formatDateTimeIST(next)}` : "No upcoming consult",
-                            ]
-                              .filter(Boolean)
-                              .join(" · ")}
-                          </p>
-                        </div>
-                        {!isDoctor && due ? (
-                          <Badge variant="warning">
-                            <FileWarning className="size-3.5" aria-hidden /> Form due
-                          </Badge>
-                        ) : !isDoctor && clearance ? (
-                          <Badge variant="danger">
-                            <ShieldAlert className="size-3.5" aria-hidden /> Decide
-                          </Badge>
+                  <ListRow
+                    key={m.id}
+                    href={`/clinician/clients/${m.id}${
+                      issues[0]?.tab
+                        ? `?tab=${issues[0].tab}`
+                        : due
+                          ? "?tab=form"
+                          : clearance
+                            ? "?tab=clearance"
+                            : ""
+                    }`}
+                    tone={worst ?? (due ? "warning" : "none")}
+                    leading={
+                      <span className="relative">
+                        <Monogram name={m.full_name} size="sm" tone={toneForRole(profile?.role)} />
+                        {high ? (
+                          <span
+                            className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full bg-danger ring-2 ring-card"
+                            title="High red flag on file"
+                            aria-label="High red flag on file"
+                          />
+                        ) : flags.length > 0 ? (
+                          <span
+                            className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full bg-warning ring-2 ring-card"
+                            title="Red flags on file"
+                            aria-label="Red flags on file"
+                          />
                         ) : null}
-                        <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                      </div>
-
-                      {issues.length > 0 ? <IssueChips issues={issues} className="mt-2.5" /> : null}
-                    </Link>
-                  </li>
+                      </span>
+                    }
+                    eyebrow={cycleByMember.get(m.id) ?? (m.age ? `${m.age} yrs` : undefined)}
+                    title={m.full_name}
+                    detail={next ? `Next consult ${formatDateTimeIST(next)}` : "No upcoming consult"}
+                    chips={issues.length > 0 ? <IssueChips issues={issues} /> : undefined}
+                    action={
+                      !isDoctor && due ? (
+                        <Badge variant="warning">
+                          <FileWarning className="size-3.5" aria-hidden /> Form due
+                        </Badge>
+                      ) : !isDoctor && clearance ? (
+                        <Badge variant="danger">
+                          <ShieldAlert className="size-3.5" aria-hidden /> Decide
+                        </Badge>
+                      ) : undefined
+                    }
+                  />
                 ))}
-              </ul>
-            </div>
+              </List>
+            </ListSection>
           ))}
         </>
       )}

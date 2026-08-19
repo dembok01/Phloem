@@ -10,6 +10,7 @@ export function Sparkline({
   stroke = "var(--chart-1)",
   label,
   domain = "zero",
+  area = false,
   ringColor = "var(--card)",
 }: {
   values: number[];
@@ -22,6 +23,10 @@ export function Sparkline({
    *  themselves (required for clinical measures — a 138→148 blood pressure is a
    *  flat line against a 0 baseline, and flat is the wrong reading). */
   domain?: "zero" | "data";
+  /** V1/M8 — draw a soft area under the line. Used when the mark sits BEHIND a
+   *  number rather than beside it: a bare polyline disappears at that scale, an
+   *  area reads as texture and gives the figure something to sit on. */
+  area?: boolean;
   /** Explicit ring color for contexts with no CSS variables — the PDF renderer
    *  inlines static CSS, so `var(--card)` would resolve to nothing there. */
   ringColor?: string;
@@ -36,6 +41,9 @@ export function Sparkline({
   const points = values.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
   const lastX = x(values.length - 1);
   const lastY = y(values[values.length - 1]!);
+  // Close the path down to the baseline for the area fill.
+  const areaPath = `${points} ${lastX.toFixed(1)},${height} ${x(0).toFixed(1)},${height}`;
+  const gradId = `spark-${label.replace(/[^a-z0-9]/gi, "").slice(0, 24)}-${values.length}`;
 
   return (
     <svg
@@ -46,6 +54,17 @@ export function Sparkline({
       role="img"
       aria-label={label}
     >
+      {area ? (
+        <>
+          <defs>
+            <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={stroke} stopOpacity="0.28" />
+              <stop offset="100%" stopColor={stroke} stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          <polygon points={areaPath} fill={`url(#${gradId})`} />
+        </>
+      ) : null}
       <polyline
         points={points}
         fill="none"
