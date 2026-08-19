@@ -159,14 +159,18 @@ function CaseRow({
   return (
     <article
       className={cn(
-        // V3 — a severity rail on the case itself, so the shape of the list tells
-        // you where the serious problems are before you read a word.
-        "relative overflow-hidden rounded-xl border bg-card p-4 pl-5 shadow-card",
-        "before:absolute before:inset-y-0 before:left-0 before:w-1 before:content-['']",
-        resolved && "opacity-75 before:bg-border",
+        // V3 — a severity rail, but ONLY where it carries information. A grey bar
+        // down every card is decoration, and decoration on one edge of a card is
+        // exactly the pattern that reads as generated. It appears for `high` and
+        // `medium`; a low-severity or resolved case gets no rail, which is itself
+        // the signal that nothing here is urgent.
+        "relative overflow-hidden rounded-xl border bg-card p-4 shadow-card",
+        !resolved &&
+          (row.severity === "high" || row.severity === "medium") &&
+          "pl-5 before:absolute before:inset-y-0 before:left-0 before:w-1 before:content-['']",
+        resolved && "opacity-75",
         !resolved && row.severity === "high" && "border-danger/30 before:bg-danger",
         !resolved && row.severity === "medium" && "before:bg-warning",
-        !resolved && row.severity === "low" && "before:bg-border",
       )}
     >
       <header className="flex flex-wrap items-baseline gap-2">
