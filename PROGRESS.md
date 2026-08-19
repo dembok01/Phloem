@@ -618,3 +618,142 @@ The doctor queue could not be seen: `doctor@phloem.local` has zero assignments, 
 the four new groups have nothing to render. Branch creation via MCP is unavailable
 in this tool build (`confirm_cost` is not exposed), so the `SEED_DEMO=1` project
 remains the outstanding prerequisite for verifying doctor and client surfaces.
+
+---
+
+## Care Continuum — W1–W5 (2026-08-19)
+
+**Status:** ✅ complete · branch `feature/care-continuum` · spec
+`docs/superpowers/specs/2026-08-18-care-continuum-design.md`
+
+Five workstreams over the shipped 8-phase system, built in order, each verified
+before the next began. Owner decisions taken at the start: **Focuni integration
+dropped entirely** (not designed, not built, not stubbed); **renewal is workflow
+only, no payments**; family re-engagement uses **tokenised check-in links**.
+
+### Migrations
+`0022_measures` · `0023_doctor_review_v2` · `0024_cases` · `0025_progress_report_enum`
+· `0026_progress_report` · `0027_threads` · `0028_activity` · `0029_checkin_links`
+· `0030_quiet_flags` · `0031_renewals` · `0032_declining_measures`
+· `0033_anon_execute_lockdown`
+
+### W1 — Reports, timeline, improvement tracking
+- `measure_catalog` + `measure_sources` (20 measures, 32 sources) name the
+  longitudinal set the §7 templates were already collecting but nothing tracked.
+- `get_measure_series` is the access boundary (per-role domain filter, §5.3 shape).
+- **Gap found and fixed:** `doctor_review` v1 captured no vitals, so weight/BP/pulse
+  had a single data point forever. v2 adds a Vitals section reusing
+  `doctor_initial`'s exact field ids; derived from v1 in SQL so it is provably
+  "v1 + one section". `seed.ts` now activates only the newest version per key.
+- `member_cases` / `member_case_events`: the doctor's `problem_list` becomes tracked
+  cases at intake, and every review appends to the open ones — same transaction as
+  the report.
+- `progress_summary` report: composed in TypeScript (it stitches measures, timeline
+  and cases into one narrative, and reuses `lib/measures.ts` so a printed PDF can
+  never disagree with the live Trends tab), recorded through an RPC so §12 keeps
+  owning notification rows. Carries **family-safe measures only** — it is the
+  family's monthly artifact; the care team's full-fidelity view is the Trends tab.
+- Three new section kinds (`measure_trend`, `timeline`, `comparison`) render through
+  the existing pure-SVG `Sparkline`, never recharts, because the same components go
+  through `renderToStaticMarkup` into puppeteer.
+
+**Verified:** per-persona series access (doctor 9 rows clinical+training and 0 psych
+even when psych is requested explicitly; psychologist psych-only; caregiver
+family-safe only; coordinator 0; unassigned doctor 0); `"148/84"` parsed to
+systolic/diastolic; direction-aware wording on a fixture (sit-to-stand and balance
+improving, a *rising* timed up-and-go reported as "needs attention", weight reported
+with no verdict); case seeding 3 problem rows → 2 cases with control→severity
+mapping; report RPC idempotent, `force` supersedes rather than mutates.
+
+### W2 — Communication
+`threads` / `thread_messages` / `thread_reads`. Access is **derived from role +
+assignment**, not a participants table that would drift the moment a clinician is
+unassigned. **The psychologist is excluded from `care_team` and `family` threads**
+rather than filtered inside them — those threads carry clinical detail in other
+people's messages, and §3 grants that role only minimal demographics.
+
+**Verified per persona:** caregiver 1 family thread / 1 message and denied opening an
+internal one; the doctor *not* addressed sees only the internal thread while the
+addressed nutritionist sees both (audience filter); psychologist sees their own
+channel and **0 messages** from family/care-team threads; unassigned doctor 0.
+
+### W3 — Patient activity
+- `activity_events` + **derived** engagement (`engaged | quiet | at_risk`). The word
+  is deliberately *engagement*, never "inactive" — `member_status.inactive` already
+  means "package finished", a good outcome.
+- Check-in link: the only unauthenticated write path. `anon` reaches exactly two
+  security-definer functions; the caller never names a member (the token resolves
+  it); the page shows a first name and nothing else; invalid/expired/revoked/
+  already-used all return an identical `{"ok": false}`.
+- Cron job 7 flags quiet families weekly, escalating `at_risk` to admin.
+
+**Verified:** 3 presence calls → 1 row; family cannot read the signal about
+themselves; live REST with the real anon key — every table 401, every other RPC
+404/401; link reuse rather than duplication; concern detection firing both
+notifications; second same-day submit refused; revoke killing the link; weekly
+dedupe (two runs → 3 notifications, not 6).
+
+### W4 — Program lifecycle
+`renewals` + propose / respond / complete. §3 splits it: coordinator proposes and
+records the family's answer, **admin alone completes** (it creates a package, and §3
+gives reactivation to admin). `complete_renewal` wraps `reactivate_member` so one
+code path creates a package and its four consultations. Ending is carried by the
+**signature mark** — `GrowthRings` gains an `ending` state — rather than a new badge.
+
+**Verified:** cron opens exactly 1 offer at T-14 and 0 on a second run; coordinator
+**denied** `complete_renewal`; admin completes → new package, 4 fresh consults,
+member → `assigned`, prior reports intact.
+
+### W5 — Doctor experience
+`lib/issues.ts` is the single answer to "what is wrong with this member", shared by
+the list row and the member page. Two judgements live there: a red flag that **has**
+a clearance decision stops being an outstanding issue, and a `quiet` family is the
+coordinator's call — only `at_risk` reaches the doctor. `my_declining_measures`
+answers the whole list in one query; psych measures never appear on this surface and
+directionless measures (weight) are excluded entirely.
+
+Clinical forms show the previous consultation's value **beside** each field
+("Last time: 128/82") and never prefill it — copy-forward is a known charting hazard.
+
+**Verified:** 12 unit tests; of sit-to-stand 8→11, TUG 14→17 and balance 10→10 only
+the TUG is flagged; psychologist and unassigned doctor get 0 rows.
+
+### Security regression found and fixed (0033)
+0029's `grant usage on schema public to anon` re-activated Postgres's default
+PUBLIC EXECUTE for `anon`, taking anon-callable security-definer functions from 2 to
+8 — including `get_onboarding_scoped`. All eight still **failed closed** (the 0017
+NULL-role hardening), but 0033 snapshots what `authenticated` may execute, revokes
+EXECUTE from PUBLIC/anon schema-wide, and re-grants that snapshot — a blanket grant
+to `authenticated` would have handed it the five service/cron-only functions. The
+migration asserts its own end state.
+
+**Verified:** `has_function_privilege('anon', …)` = exactly `get_checkin_link` and
+`submit_checkin`; the five service-only functions still denied to `authenticated`;
+`get_onboarding_scoped` as anon over REST → **401 permission denied**; Supabase
+advisor `anon_security_definer_function_executable` **8 → 2**, 0 ERROR-level.
+
+### Verification summary
+`npm run build` ✓ (new `/c/[token]` route registered) · `tsc --noEmit` ✓ ·
+`eslint` ✓ 0 problems · `npm run test:unit` **62/62** · Supabase security advisor
+0 ERROR · authenticated route smoke 5/5 render clean (admin overview + member,
+coordinator today + member, clinician list) · public `/c/[token]` verified
+unauthenticated at phone width.
+
+### Assumptions logged
+1. **Psychologist excluded from care-team/family threads** (see W2). Their channel
+   is `psych` (psychologist ↔ admin), mirroring the existing escalation path.
+2. **`progress_summary` carries family-safe measures only.** One artifact serves the
+   family (shared by default, plain-language lead); clinicians get full fidelity
+   live in Trends rather than in a PDF that gets forwarded.
+3. **A `quiet` family is not a clinical issue** — only `at_risk` reaches the doctor.
+4. **Engagement is derived on read**, never stored, so it cannot go stale if a job
+   stops running.
+
+### Not verified live (environment)
+The caregiver portal surfaces (Messages page, renewal card, ending ring) and the
+doctor dashboard's populated state could not be exercised in a browser: this project
+has no caregiver login with a known password, `doctor@phloem.local` still has zero
+assignments, and `seed.ts` refuses demo fixtures without `SEED_DEMO=1` (a guard that
+should not be overridden against real data). Their data paths are verified at the
+database layer per persona, and every route that *could* be reached renders clean.
+This is the same constraint recorded for the portal-elevation phase.

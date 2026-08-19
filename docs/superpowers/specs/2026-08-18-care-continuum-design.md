@@ -1,6 +1,6 @@
 # Care Continuum — design spec
 
-**Date:** 2026-08-18 · **Branch:** `feature/care-continuum` · **Status:** approved, in build
+**Date:** 2026-08-18 · **Branch:** `feature/care-continuum` · **Status:** ✅ built and verified (2026-08-19) — see PROGRESS.md "Care Continuum" for results
 
 Extends the shipped 8-phase system (`PHLOEM-BUILD-SPEC.md` remains the source of
 truth for everything already built; this spec governs only what is added here).
@@ -374,3 +374,32 @@ green after every one, with new assertions added per workstream.
 
 Plus, throughout: `npm run typecheck`, `npm run lint`, `npm run test:unit`, and
 the §16 suite green before each workstream is called done.
+
+
+---
+
+## Divergences from this spec, as built
+
+1. **`progress_summary` carries family-safe measures only.** The spec left the
+   audience question open by making one artifact serve both the family and the care
+   team. Built as: the report is the FAMILY's monthly artifact (shared by default,
+   plain-language lead) and therefore excludes vitals and psych entirely; the care
+   team gets full fidelity live in the Trends tab. One artifact, honest permissions,
+   no leak surface in a document designed to be forwarded.
+
+2. **Migration numbering shifted.** The spec's table listed 0022–0028; the build used
+   0022–0033, because the `progress_summary` enum value needed its own migration
+   (Postgres forbids referencing a new enum value in the transaction that adds it),
+   the quiet-family and renewal cron jobs became their own RPCs rather than edits to
+   the hardened `run_daily_jobs`, and `0033` closes an anon-execute regression that
+   `0029` introduced.
+
+3. **`complete_renewal` is admin-only.** The spec assigned it to
+   "coordinator/admin". §3 gives reactivation to admin alone, and completing a
+   renewal creates a package — so the build follows the matrix, and the coordinator
+   sees the button as a disabled note explaining the handover.
+
+4. **Cron job 7/8 are separate RPCs.** `flag_quiet_families` and
+   `open_due_renewals` are called by the cron route alongside `run_daily_jobs`
+   rather than folded into it: reproducing ~100 lines of hardened §9 logic verbatim
+   to add one loop would put every existing job at risk for no benefit.
