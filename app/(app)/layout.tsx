@@ -8,9 +8,9 @@ import { ToastProvider } from "@/components/ui/toast";
 import { getSessionProfile } from "@/lib/auth";
 import { getLens, viewRoleFor } from "@/lib/lens";
 import { CareTeamSwitcher, lensLabel } from "@/components/care-team-switcher";
-import { setLens } from "@/app/(app)/lens-actions";
+import { LensChrome } from "@/components/lens-chrome";
 import { logout } from "@/app/(auth)/login/actions";
-import { ROLE_ACCENT_BAR, ROLE_CHIP, ROLE_LABEL, type UserRole } from "@/lib/roles";
+import { ROLE_CHIP, ROLE_LABEL, type UserRole } from "@/lib/roles";
 import { cn } from "@/lib/utils";
 
 const ROLE_HOME: Record<UserRole, string> = {
@@ -88,30 +88,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               </form>
             </div>
           </div>
-          {/* Role context line — each shell carries its hue (DESIGN-SYSTEM §1).
-              Under a lens it carries the BORROWED desk's hue, not the admin's. */}
-          <div className={cn("h-0.5 w-full", ROLE_ACCENT_BAR[viewRole])} aria-hidden />
-          {lens ? (
-            <div className="border-b bg-muted/60 px-4 py-1.5 sm:px-6">
-              <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3">
-                <p className="min-w-0 truncate text-xs text-muted-foreground">
-                  Viewing as{" "}
-                  <span className="font-semibold text-foreground">{lensName}</span>{" "}
-                  <span className={cn("rounded-full px-2 py-0.5 text-[0.7rem] font-semibold", ROLE_CHIP[viewRole])}>
-                    {ROLE_LABEL[viewRole]}
-                  </span>{" "}
-                  · read-only
-                </p>
-                <form action={setLens}>
-                  <input type="hidden" name="lens" value="" />
-                  <input type="hidden" name="to" value="/admin" />
-                  <SubmitButton variant="ghost" size="sm" className="h-7 shrink-0 px-2 text-xs" pendingText="Leaving…">
-                    Back to admin
-                  </SubmitButton>
-                </form>
-              </div>
-            </div>
-          ) : null}
+          <LensChrome
+            role={role}
+            lensRole={lens ? viewRole : null}
+            lensName={lensName}
+          />
         </header>
         <main id="main" className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 sm:py-8">
           {children}
