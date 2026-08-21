@@ -22,9 +22,15 @@ import { useCalmMotion } from "@/components/use-calm-motion";
 import { cn } from "@/lib/utils";
 
 type ToastKind = "success" | "error" | "info";
-type Toast = { id: number; kind: ToastKind; message: string };
+/** An optional single affordance on the toast — in practice, Undo. Only offer one
+ * where a TRUE inverse exists: a toast that says "Undo" and cannot is worse than
+ * no toast at all. (Suspend↔Reactivate qualifies; a hard-deleted invite does not.) */
+export type ToastAction = { label: string; run: () => void | Promise<void> };
+type Toast = { id: number; kind: ToastKind; message: string; action?: ToastAction };
 
-type ToastContextValue = { toast: (kind: ToastKind, message: string) => void };
+type ToastContextValue = {
+  toast: (kind: ToastKind, message: string, action?: ToastAction) => void;
+};
 
 const ToastContext = React.createContext<ToastContextValue | null>(null);
 
@@ -41,6 +47,8 @@ const ICONS: Record<ToastKind, React.ReactNode> = {
 };
 
 const AUTO_DISMISS_MS = 5000;
+/** An actionable toast has to outlive the reading of it, not just the noticing. */
+const AUTO_DISMISS_ACTION_MS = 9000;
 /** px/s. Motion reports velocity per second; the ~0.11 px/ms rule of thumb ×1000. */
 const FLICK_VELOCITY = 110;
 /** Past this fraction of its own height, a slow drag still dismisses. */
@@ -55,16 +63,21 @@ function ToastItem({
   onDismiss: (id: number) => void;
   calm: boolean;
 }) {
-  const { id, kind, message } = toast;
+  const { id, kind, message, action } = toast;
   const [paused, setPaused] = React.useState(false);
+  const [running, setRunning] = React.useState(false);
 
   // Errors never auto-dismiss. Everything else runs a timer that stops while the
-  // pointer is over the toast or the tab is in the background.
+  // pointer is over the toast, while its action is firing, or while the tab is
+  // in the background.
   React.useEffect(() => {
-    if (kind === "error" || paused) return;
-    const timer = window.setTimeout(() => onDismiss(id), AUTO_DISMISS_MS);
+    if (kind === "error" || paused || running) return;
+    const timer = window.setTimeout(
+      () => onDismiss(id),
+      action ? AUTO_DISMISS_ACTION_MS : AUTO_DISMISS_MS,
+    );
     return () => window.clearTimeout(timer);
-  }, [id, kind, paused, onDismiss]);
+  }, [id, kind, paused, running, action, onDismiss]);
 
   React.useEffect(() => {
     const onVisibility = () => setPaused(document.hidden);
@@ -100,6 +113,23 @@ function ToastItem({
     >
       {ICONS[kind]}
       <p className="min-w-0 flex-1 pt-px text-sm leading-snug">{message}</p>
+      {action ? (
+        <button
+          type="button"
+          disabled={running}
+          onClick={async () => {
+            setRunning(true);
+            try {
+              await action.run();
+            } finally {
+              onDismiss(id);
+            }
+          }}
+          className="pressable -my-1 shrink-0 rounded-lg border px-2.5 py-1.5 text-sm font-semibold hover:bg-muted disabled:opacity-60"
+        >
+          {running ? "…" : action.label}
+        </button>
+      ) : null}
       <button
         type="button"
         aria-label="Dismiss"
@@ -121,10 +151,13 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  const toast = React.useCallback((kind: ToastKind, message: string) => {
-    const id = nextId.current++;
-    setToasts((prev) => [...prev.slice(-3), { id, kind, message }]);
-  }, []);
+  const toast = React.useCallback(
+    (kind: ToastKind, message: string, action?: ToastAction) => {
+      const id = nextId.current++;
+      setToasts((prev) => [...prev.slice(-3), { id, kind, message, action }]);
+    },
+    [],
+  );
 
   return (
     <ToastContext.Provider value={React.useMemo(() => ({ toast }), [toast])}>

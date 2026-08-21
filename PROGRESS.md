@@ -848,3 +848,82 @@ while `curl` returned 200), and entering the admin password is not something the
 assistant does. Every data path is verified at the database layer per persona
 above, and the build renders all routes clean. A manual pass through
 `/coordinator` and a borrowed desk is the remaining check.
+
+---
+
+## Admin shell UI/UX upgrade — 2026-08-21, branch `feature/care-continuum`
+
+**Goal (user):** easier to use, feature-rich, all buttons visible, microinteractions
+evident and usable.
+
+### Diagnosis
+
+`/admin` (Overview) was already strong — hero, sparkline tiles, stage funnel,
+throughput chart, renewal radar. The four **list** pages were the gap: raw `<table>`
+markup that never received the V1 elevation pass, with no search, no filters, no
+sorting, and bare `<td>` grey text where an `EmptyState` belonged.
+
+**Bug found during verification:** `/admin/members` took no `searchParams` and
+ignored `?status=`. The Overview's nine funnel stages and two of its tiles all
+deep-link to `/admin/members?status=…`, so **eleven links looked like features and
+silently did nothing.** Fixed — the page now reads and validates the param against
+the `member_status` enum.
+
+### Decisions
+
+1. **They stay tables.** Moving them onto `List`/`ListRow` was considered and
+   rejected: a queue has one dominant name per row and repeats its verb, whereas
+   admin data is genuinely columnar. What they needed was a sticky header, a real
+   hover state, tabular numerals, sortable columns and designed empty states — not
+   a different component.
+2. **Single-click actions with an Undo toast** (user's call, over an inline
+   two-beat confirm). The audit-noise cost was raised and accepted: an undo writes
+   a second audit row rather than erasing the first.
+3. **Undo is offered only where a true inverse exists.** `set_account_status` is a
+   clean inverse, so Suspend/Reactivate gets one. `revokeInvite` **hard-deletes**
+   the row and `reactivate_member` mints a *fresh package* — neither can be undone,
+   so neither advertises it. An Undo that cannot undo is worse than none.
+4. **Filtering is client-side** over rows the page already fetched (admin lists are
+   in the hundreds), mirrored into the URL with `history.replaceState` so links stay
+   shareable without re-running the server component per keystroke.
+
+### Built
+
+| File | Role |
+|---|---|
+| `lib/admin-filters.ts` (new) | pure search/sort/date helpers — accent-insensitive token search, nulls-last sort, `relativeDayLabel` |
+| `lib/admin-filters.test.ts` (new) | 10 tests over the above |
+| `components/admin/filter-bar.tsx` (new) | search + count-bearing chips, `/` to focus, Esc to clear |
+| `components/admin/table.tsx` (new) | `AdminTable`/`Tr`/`Td`/`Th`/`SortTh`/`useSort` |
+| `components/admin/row-action.tsx` (new) | single-click action → toast → optional honest Undo |
+| `components/admin/{members,care-team,invites,audit}-table.tsx` (new) | the four lists |
+| `components/ui/toast.tsx` | gains optional `action` (Undo); actionable toasts live 9s and pause while firing |
+| `app/globals.css` | new `.liftable` utility |
+| the four `admin/*/page.tsx` | now server-fetch + hand off to their table |
+| `admin/{care-team,invites}/actions.ts` | `ActionResult`-returning twins of the redirect actions |
+
+**Per page:** Members — search, 10 status chips, sortable name/age/city/status,
+"Flagged first" toggle, flagged rows tinted. Care team — search, 4 role chips,
+"Suspended only" toggle, Suspend/Reactivate with Undo. Invites — search, state
+chips, expiry as *"in 3 days"*, copy-link, Revoke (no Undo). Audit — window raised
+100 → 400, search, entity chips, "Show more" 50 at a time.
+
+**Microinteractions**, all from tokens that already existed and were unused here:
+`.pressable` on every row, chip and action; `SortTh` shows its neutral sort glyph
+before you have used it; row dims + spinner while its own action is in flight; the
+result count is `aria-live` and firms up when a filter is on; new `.liftable`
+(a 2px hover lift on the dashboard tiles) deliberately uses `translate` rather than
+`transform`, because `.pressable:active` already owns `transform` and one rule
+setting both would make a press cancel the lift instead of composing with it —
+the same reasoning `stagger-rise` documents. Reduced-motion and `.elderly` drop it.
+
+### Verification
+`npx tsc --noEmit` clean · `npx eslint .` clean across the whole repo ·
+`npm run test:unit` **79/79** (was 69; +10 for `admin-filters`) ·
+`npm run build` compiled, 17/17 pages.
+
+### Not verified live (environment)
+Still not exercised in a browser: the Chrome extension returns "Frame is showing
+error page" for both `localhost:3000` and `127.0.0.1:3000` while `curl` returns 200
+— an extension site-permission issue, not an app fault. A manual pass over the four
+list pages is the remaining check.

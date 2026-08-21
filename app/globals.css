@@ -306,6 +306,29 @@
     transform: none;
   }
 
+  /* Hover lift for the dashboard tiles, which are links you aim at rather than
+     rows you scan past. Deliberately uses `translate` and not `transform`:
+     `.pressable:active` already owns `transform`, and one rule setting both
+     would make a press cancel the lift instead of composing with it. Different
+     property, no cascade race — the same reasoning `stagger-rise` uses.
+
+     Reduced motion and elderly mode drop it: a lift is a position change, and
+     the ring these tiles already grow on hover carries the affordance alone. */
+  .liftable {
+    transition: translate var(--motion-press) var(--motion-ease-out);
+  }
+  .liftable:hover {
+    translate: 0 -2px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .liftable:hover {
+      translate: none;
+    }
+  }
+  .elderly .liftable:hover {
+    translate: none;
+  }
+
   /* Group entrance for the portal's tile row. CSS-only, no JS, no hydration cost,
      and it cannot block interaction. Occasional-tier surface only; never use this
      on anything seen many times a day.

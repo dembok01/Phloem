@@ -203,7 +203,7 @@ export default async function AdminOverviewPage() {
             key={t.label}
             href={t.href}
             className={cn(
-              "pressable group relative flex flex-col justify-between gap-2 overflow-hidden rounded-xl bg-card p-4 shadow-card ring-1 ring-foreground/10 hover:ring-primary/30",
+              "pressable liftable group relative flex flex-col justify-between gap-2 overflow-hidden rounded-xl bg-card p-4 shadow-card ring-1 ring-foreground/10 hover:shadow-pop hover:ring-primary/30",
               t.alert && "ring-warning/40",
             )}
           >
