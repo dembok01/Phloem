@@ -11,6 +11,7 @@ import { RedFlagBanner } from "@/components/red-flag-banner";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionProfile } from "@/lib/auth";
+import { getLens, viewRoleFor } from "@/lib/lens";
 import type { Database, Json } from "@/lib/supabase/database.types";
 import { formatDateTimeIST } from "@/lib/datetime";
 import { hasHighFlag, parseRedFlags } from "@/lib/red-flags";
@@ -91,7 +92,15 @@ export default async function ClinicianClientPage({
 
   const session = await getSessionProfile();
   if (!session) notFound();
-  const role = session.role as CareRole;
+
+  // An admin lands here by borrowing a care-team desk (lib/lens.ts); everyone
+  // else is simply themselves. `role` from here down is the desk's role, so the
+  // whole page — every .eq("type", role), every panel — follows the lens without
+  // knowing it exists.
+  const lens = await getLens();
+  const isAdminView = session.role === "admin";
+  if (isAdminView && !lens) notFound();
+  const role = viewRoleFor(session.role, lens) as CareRole;
   if (!(role in TABS)) notFound();
 
   // RLS mem_clinician: visible only if assigned to this member.
@@ -102,7 +111,12 @@ export default async function ClinicianClientPage({
     .maybeSingle();
   if (!member) notFound();
 
-  const tabs = TABS[role];
+  // A borrowed desk is read-only. The consult form and monthly feedback are the
+  // two surfaces the database refuses an admin (submit_clinical_form and
+  // submit_feedback both require the assigned clinician), and FormPanel would
+  // additionally INSERT a draft response on render — a clinical row authored by
+  // someone who never held the consultation. So those tabs are simply not there.
+  const tabs = isAdminView ? TABS[role].filter(([k]) => k !== "form" && k !== "feedback") : TABS[role];
   const activeTab = tabs.some(([k]) => k === tab) ? tab! : tabs[0][0];
   const flags = parseRedFlags(member.red_flags);
 
@@ -181,7 +195,14 @@ export default async function ClinicianClientPage({
           is non-null per request, so one Suspense boundary is active. */}
       <Suspense key={activeTab} fallback={<CardSkeleton />}>
         {activeTab === "overview" || activeTab === "context" ? (
-          <OverviewPanel role={role} flags={flags} member={member} supabase={supabase} memberId={id} />
+          <OverviewPanel
+            role={role}
+            flags={flags}
+            member={member}
+            supabase={supabase}
+            memberId={id}
+            readOnly={isAdminView}
+          />
         ) : null}
         {activeTab === "onboarding" ? <ScopedOnboardingPanel supabase={supabase} memberId={id} /> : null}
         {activeTab === "directives" ? <DirectivesPanel supabase={supabase} memberId={id} /> : null}
@@ -255,12 +276,15 @@ async function OverviewPanel({
   member,
   supabase,
   memberId,
+  readOnly,
 }: {
   role: CareRole;
   flags: ReturnType<typeof parseRedFlags>;
   member: { status: string };
   supabase: SB;
   memberId: string;
+  /** True when an admin is borrowing this desk — no write CTAs. */
+  readOnly: boolean;
 }) {
   // Psychologist "context" = the minimal scoped RPC; others show the red-flag callout.
   const context = role === "psychologist" ? await scoped(supabase, memberId) : null;
@@ -324,7 +348,7 @@ async function OverviewPanel({
           <IssueChips issues={issues} showDetail />
         </div>
       ) : null}
-      {formDue ? (
+      {formDue && !readOnly ? (
         <Link
           href={`/clinician/clients/${memberId}?tab=form`}
           className="flex items-center gap-3 rounded-xl border border-warning/50 bg-warning-tint p-4 font-medium transition-colors hover:border-warning"
@@ -332,6 +356,11 @@ async function OverviewPanel({
           <FileCheck2 className="size-5 shrink-0 text-warning" aria-hidden />
           Your consultation form is due — open it
         </Link>
+      ) : formDue ? (
+        <div className="flex items-center gap-3 rounded-xl border border-warning/50 bg-warning-tint p-4 font-medium">
+          <FileCheck2 className="size-5 shrink-0 text-warning" aria-hidden />
+          Their consultation form is due.
+        </div>
       ) : null}
       <Card>
         <CardHeader>

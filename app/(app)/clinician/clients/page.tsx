@@ -19,6 +19,7 @@ import { hasHighFlag, parseRedFlags } from "@/lib/red-flags";
 import { resolveClearance } from "@/lib/clearance";
 import { computeIssues, worstSeverity, type Issue } from "@/lib/issues";
 import { getSessionProfile } from "@/lib/auth";
+import { getLens, viewRoleFor } from "@/lib/lens";
 
 // §10 clinician list — assigned members only (mem_clinician RLS).
 //
@@ -34,7 +35,46 @@ export default async function ClinicianClientsPage() {
   const supabase = await createClient();
 
   const profile = await getSessionProfile();
-  const isDoctor = profile?.role === "doctor";
+
+  // An admin reaches this shell by borrowing a desk (lib/lens.ts). Without a
+  // lens there is no caseload to show, so say so rather than dumping every
+  // member in the system into a doctor-shaped page.
+  const lens = await getLens();
+  const isAdmin = profile?.role === "admin";
+  if (isAdmin && !lens) {
+    return (
+      <section className="mx-auto max-w-3xl space-y-6">
+        <PageHeader
+          eyebrow="Clinical"
+          title="Care-team desks"
+          description="Pick a doctor, nutritionist or trainer from the desk menu in the header to see their day exactly as they see it."
+        />
+        <EmptyState
+          icon={Stethoscope}
+          title="No desk selected"
+          description="Choose whose desk to stand at. Their caseload, their tabs, their queue — read-only."
+        />
+      </section>
+    );
+  }
+
+  const viewRole = viewRoleFor(profile?.role ?? "doctor", lens);
+  const isDoctor = viewRole === "doctor";
+
+  // RLS hands an admin every member and every consultation, so the desk's own
+  // caseload has to be reconstructed here — the same set `mem_clinician` and
+  // `cons_clinician` would have handed the clinician whose desk this is.
+  let caseload: Set<string> | null = null;
+  if (isAdmin && lens) {
+    let q = supabase
+      .from("assignments")
+      .select("member_id")
+      .eq("care_role", lens.role)
+      .eq("active", true);
+    if (lens.userId) q = q.eq("care_user_id", lens.userId);
+    const { data: assigned } = await q;
+    caseload = new Set((assigned ?? []).map((a) => a.member_id));
+  }
 
   const [
     { data: members },
@@ -50,7 +90,7 @@ export default async function ClinicianClientsPage() {
     // cons_clinician already scopes these to the viewer's own type + assigned members.
     supabase
       .from("consultations")
-      .select("member_id, meeting_status, report_status, scheduled_at, completed_at, mode, meeting_link"),
+      .select("member_id, type, meeting_status, report_status, scheduled_at, completed_at, mode, meeting_link"),
     // cyc_read: assigned clinicians may read cycles through the package join.
     supabase
       .from("cycles")
@@ -75,6 +115,15 @@ export default async function ClinicianClientsPage() {
           .not("submitted_at", "is", null)
       : Promise.resolve({ data: [] }),
   ]);
+
+  // Narrow to the desk being borrowed. For a real clinician both lists arrived
+  // pre-scoped by RLS and these are no-ops.
+  const deskMembers = caseload
+    ? (members ?? []).filter((m) => caseload.has(m.id))
+    : (members ?? []);
+  const deskConsults = caseload
+    ? (consults ?? []).filter((c) => c.type === viewRole && caseload.has(c.member_id))
+    : (consults ?? []);
 
   // ---- per-member derivations -------------------------------------------------
   const reportsByMember = new Map<string, { content: unknown }[]>();
@@ -116,7 +165,7 @@ export default async function ClinicianClientsPage() {
     link: string | null;
   }[] = [];
   const now = Date.now();
-  for (const c of consults ?? []) {
+  for (const c of deskConsults) {
     if (c.meeting_status === "done" && c.report_status === "pending") {
       pending.set(c.member_id, true);
       if (c.completed_at) {
@@ -150,7 +199,7 @@ export default async function ClinicianClientsPage() {
     }
   }
 
-  const rows = (members ?? []).map((m) => {
+  const rows = deskMembers.map((m) => {
     const flags = parseRedFlags(m.red_flags);
     const clearance = isDoctor ? resolveClearance(reportsByMember.get(m.id) ?? []) : null;
     const issues: Issue[] = isDoctor

@@ -757,3 +757,94 @@ assignments, and `seed.ts` refuses demo fixtures without `SEED_DEMO=1` (a guard 
 should not be overridden against real data). Their data paths are verified at the
 database layer per persona, and every route that *could* be reached renders clean.
 This is the same constraint recorded for the portal-elevation phase.
+
+---
+
+## Admin desks ("god mode") — 2026-08-21, branch `feature/care-continuum`
+
+**Goal (user, narrowed twice during design):** the admin should do everything the
+coordinator does, and be able to open the doctor / nutritionist / trainer care-team
+views and see exactly what those clinicians see. Minimal DB and permission change.
+
+### The verification that shaped the build
+
+Before writing anything, every table and RPC the two shells touch was checked
+against the **live** hosted project (`pg_policies` + `pg_get_functiondef`). The
+result changed the plan from "one migration" to **zero migrations**:
+
+- **Coordinator parity was already complete.** Every RPC the coordinator UI calls
+  (`activate_program`, `pause_program`, `resume_program`, `assign_care_team`,
+  `set_consultation_schedule`, `mark_meeting_done`, `set_package_duration`,
+  `propose_renewal`, `create_checkin_link`, `revoke_checkin_link`,
+  `create_member_with_invite`) guards on `auth_role() not in ('admin','coordinator')`.
+  Five more (`deactivate_member`, `reactivate_member`, `complete_renewal`,
+  `set_report_sharing`, `set_account_status`) are **admin-only** — the admin was
+  already a strict superset of the coordinator. The single blocker was
+  `allowedPrefix()` fencing admin into `/admin`.
+- **Clinician read parity was already complete.** `members`, `consultations`,
+  `cycles`, `reports`, `form_responses`, `form_templates`, `assignments`,
+  `member_cases`, `threads`, `thread_messages`, `member_documents`, `packages` each
+  carry an `admin … ALL` policy (policies OR together, so `doc_select` omitting
+  admin is irrelevant). `my_declining_measures`, `get_engagement`, `list_engagement`,
+  `get_report_view_receipts`, `get_measure_series` all name admin;
+  `get_onboarding_scoped` returns admin the *full* answers; `my_unread_threads`
+  gates on `auth_role() is not null`.
+- **The only two RPCs that exclude admin are `submit_clinical_form` and
+  `submit_feedback`** — both writes. Scope is read-only, so both stay untouched.
+
+### What was built (app layer only — no migration, no RLS edit)
+
+| File | Change |
+|---|---|
+| `lib/permissions.ts` | `allowedPrefix(): string` → `allowedPrefixes(): readonly string[]`. Admin gets `/admin`, `/coordinator`, `/clinician`; every other role keeps exactly one. `/portal` deliberately excluded. |
+| `middleware.ts` | prefix check becomes `.some()` |
+| `lib/lens-core.ts` (new) | pure lens vocabulary + cookie parser (`parseLens` rejects any role outside doctor/nutritionist/trainer, and any non-UUID id) |
+| `lib/lens.ts` (new) | `getLens()` — request-cached, returns `null` for every non-admin *whatever the cookie says* |
+| `app/(app)/lens-actions.ts` (new) | `setLens` server action, Zod-validated, re-checks admin before setting an httpOnly cookie (8h) |
+| `components/care-team-switcher{,-menu}.tsx` (new) | admin-only desk picker; each row is its own `<form>`, so it works with JS off |
+| `app/(app)/layout.tsx` | switcher in the header; accent bar takes the **borrowed** desk's hue; "Viewing as … · read-only" banner with an exit |
+| `app/(app)/clinician/clients/page.tsx` | `viewRole` drives the shell; admin's caseload is reconstructed from `assignments` (RLS hands an admin everyone, so the desk's own set has to be rebuilt); consultations filtered to the desk's type |
+| `app/(app)/clinician/clients/[id]/page.tsx` | `viewRole` drives tabs and every `.eq("type", role)`; **`form` and `feedback` tabs are removed for an admin** |
+
+**Why the two tabs are removed rather than disabled:** besides the DB refusing both
+submits, `FormPanel` *inserts a draft `form_response` on render*. Under `fr_admin ALL`
+that insert would succeed — a clinical row authored by someone who never held the
+consultation. Not rendering the panel is the fix.
+
+### Verification
+
+- `npm run typecheck` clean · `npx eslint` clean on all changed files · `npm run build` clean
+- `npm run test:unit` — **69/69** (was 62; `lib/lens-core.test.ts` adds 7 covering
+  cookie forgery: `psychologist`/`admin`/`coordinator`/`caregiver` and malformed
+  UUIDs all rejected; `viewRoleFor` bends for admin only; admin is the only role
+  with >1 shell and never gets `/portal`; every role's `roleHome` lies inside its
+  own `allowedPrefixes`)
+- **§16 suite** — new `admin desks` section, run via MCP `execute_sql` inside a
+  rolled-back transaction. 11/11 PASS:
+  admin sees ≥ the assigned doctor on members / reports / consultations /
+  form_responses / cases / onboarding fields; admin reads `assignments`; admin
+  **REFUSED** `submit_clinical_form` and `submit_feedback` with exactly
+  `not_allowed`; regression — coordinator still sees 0 reports and 0 clinical
+  form responses.
+
+### Assumptions logged
+1. **Psychologist is not a borrowable desk.** The user named doctor/nutritionist/
+   trainer. §3 does grant admin the wellbeing report, so it stays readable from
+   `/admin` — it just has no working shell.
+2. **`/portal` is not a borrowable desk.** It is the family's surface, and it fires
+   `record_activity('portal_visit')` on render — an admin browsing it would forge
+   family engagement and mask the very quiet families W3 exists to surface.
+3. **The onboarding tab shows an admin a superset**, not a byte-identical view:
+   `get_onboarding_scoped` returns admin the full answers where a nutritionist gets
+   the diet subset. §3 grants admin full onboarding, so this is spec-correct.
+4. **The lens is a preference, not a credential.** It is presentation state in the
+   same sense as `lib/permissions.ts`; `getLens()` returns `null` for non-admins,
+   and every write still goes through the §6 RPCs, which do not know it exists.
+
+### Not verified live (environment)
+The four shells were not exercised in a browser: the Chrome extension could not
+reach the dev server (error page on both `localhost:3000` and `127.0.0.1:3000`
+while `curl` returned 200), and entering the admin password is not something the
+assistant does. Every data path is verified at the database layer per persona
+above, and the build renders all routes clean. A manual pass through
+`/coordinator` and a borrowed desk is the remaining check.

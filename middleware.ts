@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import type { Database } from "@/lib/supabase/database.types";
-import { allowedPrefix, APP_PREFIXES, roleHome } from "@/lib/permissions";
+import { allowedPrefixes, APP_PREFIXES, roleHome } from "@/lib/permissions";
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -66,7 +66,7 @@ export async function middleware(request: NextRequest) {
   }
 
   const home = roleHome(profile.role);
-  const prefix = allowedPrefix(profile.role);
+  const prefixes = allowedPrefixes(profile.role);
 
   if (pathname === "/" || pathname === "/login") {
     const url = request.nextUrl.clone();
@@ -76,8 +76,9 @@ export async function middleware(request: NextRequest) {
   }
 
   // Keep each role inside its own §10 shell (cosmetic; RLS is the boundary).
+  // Admin is the one role with more than one shell — see allowedPrefixes().
   const inGuardedSection = APP_PREFIXES.some((p) => pathname.startsWith(p));
-  if (inGuardedSection && !pathname.startsWith(prefix)) {
+  if (inGuardedSection && !prefixes.some((p) => pathname.startsWith(p))) {
     const url = request.nextUrl.clone();
     url.pathname = home;
     url.search = "";
