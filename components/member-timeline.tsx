@@ -9,9 +9,20 @@
 // Filtering is links + a search param rather than client state: the timeline is a
 // reading surface, and a server-rendered filter keeps it working with no JS and
 // leaves each view linkable.
+//
+// Each entry is a native <details>. That is the whole expansion mechanism: it
+// opens on click AND on Enter/Space, it is announced as expandable, it works on
+// touch where hover does not exist, and it survives with JavaScript off — which
+// a hand-rolled disclosure in a server component could not do without turning
+// this file into a client component. The collapsed row carries what you scan by
+// (what happened, how long ago); the expansion carries what you'd otherwise have
+// to open another page to learn (status, who, exact time, the round it belongs
+// to) plus the link to the thing itself.
 import Link from "next/link";
 import {
+  ArrowUpRight,
   CalendarClock,
+  ChevronRight,
   FileText,
   FolderOpen,
   Sprout,
@@ -20,10 +31,12 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
-import { formatDateIST, formatDateTimeIST } from "@/lib/datetime";
+import { formatDateIST, formatDateTimeIST, relativeDayIST } from "@/lib/datetime";
 import { humanize } from "@/lib/reports/build/helpers";
 
 type Kind = "consult" | "report" | "cycle" | "case" | "document";
+
+type Fact = { label: string; value: string };
 
 type Item = {
   at: string;
@@ -33,6 +46,10 @@ type Item = {
   title: string;
   detail?: string;
   href?: string;
+  /** what the expansion shows; the row is only expandable when this is non-empty */
+  facts?: Fact[];
+  /** call to action on the expansion, when `href` is set */
+  action?: string;
 };
 
 const KIND_META: Record<Kind, { label: string; icon: typeof FileText; tint: string }> = {
@@ -50,6 +67,13 @@ const ROLE_TINT: Record<string, string> = {
   nutritionist: "bg-role-nutritionist/12 text-role-nutritionist",
   trainer: "bg-role-trainer/12 text-role-trainer",
   psychologist: "bg-role-psychologist/12 text-role-psychologist",
+};
+
+const MEETING_STATUS: Record<string, string> = {
+  done: "Held",
+  cancelled: "Cancelled",
+  scheduled: "Scheduled",
+  no_show: "Missed",
 };
 
 const monthFmt = new Intl.DateTimeFormat("en-IN", {
@@ -80,7 +104,10 @@ export async function MemberTimeline({
         .from("consultations")
         .select("type, cycle_id, scheduled_at, completed_at, meeting_status")
         .eq("member_id", memberId),
-      supabase.from("reports").select("id, type, created_at, cycle_id").eq("member_id", memberId),
+      supabase
+        .from("reports")
+        .select("id, type, created_at, cycle_id, version")
+        .eq("member_id", memberId),
       supabase
         .from("cycles")
         .select("number, start_date, end_date, status, packages!inner(member_id)")
@@ -101,25 +128,37 @@ export async function MemberTimeline({
     const when = c.completed_at ?? c.scheduled_at;
     if (!when) continue;
     const roleTone = c.type as string;
-    // §3: the psychologist's session is acknowledged, never characterised.
-    const title =
-      c.type === "psychologist"
-        ? c.meeting_status === "done"
-          ? "Wellbeing check-in completed"
-          : "Wellbeing check-in scheduled"
-        : `${humanize(c.type)} consultation ${
-            c.meeting_status === "done"
-              ? "held"
-              : c.meeting_status === "cancelled"
-                ? "cancelled"
-                : "scheduled"
-          }`;
+    const status = MEETING_STATUS[c.meeting_status as string] ?? humanize(c.meeting_status ?? "");
+    const round = c.cycle_id ? "Monthly round" : "First round";
+    // §3: the psychologist's session is acknowledged, never characterised — which
+    // holds for the expansion too, so it gets status and timing and nothing else.
+    const isPsych = c.type === "psychologist";
+    const title = isPsych
+      ? c.meeting_status === "done"
+        ? "Wellbeing check-in completed"
+        : "Wellbeing check-in scheduled"
+      : `${humanize(c.type)} consultation ${
+          c.meeting_status === "done"
+            ? "held"
+            : c.meeting_status === "cancelled"
+              ? "cancelled"
+              : "scheduled"
+        }`;
     items.push({
       at: when,
       kind: "consult",
       role: roleTone,
       title,
-      detail: `${c.cycle_id ? "Monthly round" : "First round"} · ${formatDateTimeIST(when)}`,
+      detail: `${round} · ${formatDateTimeIST(when)}`,
+      facts: [
+        ...(isPsych ? [] : [{ label: "With", value: humanize(c.type) }]),
+        { label: "Status", value: status },
+        { label: "When", value: formatDateTimeIST(when) },
+        { label: "Round", value: round },
+        ...(c.completed_at && c.scheduled_at && c.completed_at !== c.scheduled_at
+          ? [{ label: "Booked for", value: formatDateTimeIST(c.scheduled_at) }]
+          : []),
+      ],
     });
   }
 
@@ -130,16 +169,27 @@ export async function MemberTimeline({
       title: `${humanize(r.type)} written`,
       detail: formatDateTimeIST(r.created_at),
       href: `/reports/${r.id}`,
+      action: "Read the report",
+      facts: [
+        { label: "Report", value: humanize(r.type) },
+        { label: "Written", value: formatDateTimeIST(r.created_at) },
+        ...(r.version > 1 ? [{ label: "Version", value: `v${r.version}` }] : []),
+      ],
     });
   }
 
   const today = new Date().toISOString().slice(0, 10);
   for (const cy of cycles ?? []) {
+    const runs = `${formatDateIST(cy.start_date)} → ${formatDateIST(cy.end_date)}`;
     items.push({
       at: `${cy.start_date}T00:00:00+05:30`,
       kind: "cycle",
       title: `Cycle ${cy.number} ${cy.start_date > today ? "starts" : "started"}`,
-      detail: `${formatDateIST(cy.start_date)} → ${formatDateIST(cy.end_date)}`,
+      detail: runs,
+      facts: [
+        { label: "Runs", value: runs },
+        { label: "Status", value: humanize(cy.status) },
+      ],
     });
     if (cy.status === "closed") {
       items.push({
@@ -147,6 +197,7 @@ export async function MemberTimeline({
         kind: "cycle",
         title: `Cycle ${cy.number} closed`,
         detail: formatDateIST(cy.end_date),
+        facts: [{ label: "Ran", value: runs }],
       });
     }
   }
@@ -157,9 +208,24 @@ export async function MemberTimeline({
       kind: "case",
       title: `Started tracking: ${c.title}`,
       detail: `${humanize(c.severity)} concern`,
+      facts: [
+        { label: "Concern", value: humanize(c.severity) },
+        { label: "Status", value: humanize(c.status) },
+        { label: "Opened", value: formatDateTimeIST(c.opened_at) },
+        ...(c.resolved_at ? [{ label: "Resolved", value: formatDateTimeIST(c.resolved_at) }] : []),
+      ],
     });
     if (c.resolved_at) {
-      items.push({ at: c.resolved_at, kind: "case", title: `Resolved: ${c.title}` });
+      items.push({
+        at: c.resolved_at,
+        kind: "case",
+        title: `Resolved: ${c.title}`,
+        detail: formatDateTimeIST(c.resolved_at),
+        facts: [
+          { label: "Concern", value: humanize(c.severity) },
+          { label: "Open for", value: daysBetween(c.opened_at, c.resolved_at) },
+        ],
+      });
     }
   }
 
@@ -169,6 +235,11 @@ export async function MemberTimeline({
       kind: "document",
       title: `${humanize(doc.category)} uploaded`,
       detail: doc.file_name,
+      facts: [
+        { label: "File", value: doc.file_name },
+        { label: "Kind", value: humanize(doc.category) },
+        { label: "Uploaded", value: formatDateTimeIST(doc.created_at) },
+      ],
     });
   }
 
@@ -192,6 +263,8 @@ export async function MemberTimeline({
     if (last && last.month === month) last.items.push(item);
     else groups.push({ month, items: [item] });
   }
+
+  const nowIso = new Date().toISOString();
 
   return (
     <Card>
@@ -222,41 +295,10 @@ export async function MemberTimeline({
             <p className="eyebrow sticky top-0 z-10 mb-2 -mx-1 bg-card/85 px-1 py-1.5 backdrop-blur-sm">
               {g.month}
             </p>
-            <ol className="relative space-y-4 before:absolute before:inset-y-1 before:left-[13px] before:w-px before:bg-gradient-to-b before:from-transparent before:via-border before:to-transparent">
-              {g.items.map((item, i) => {
-                const meta = KIND_META[item.kind];
-                const Icon = meta.icon;
-                const body = (
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium">{item.title}</p>
-                    {item.detail ? (
-                      <p className="font-data text-xs text-muted-foreground">{item.detail}</p>
-                    ) : null}
-                  </div>
-                );
-                return (
-                  <li key={i} className="relative flex gap-3 pl-0.5">
-                    <span
-                      className={cn(
-                        "relative z-10 mt-0.5 inline-flex size-6 shrink-0 items-center justify-center rounded-full ring-4 ring-card",
-                        item.role ? ROLE_TINT[item.role] ?? meta.tint : meta.tint,
-                      )}
-                    >
-                      <Icon className="size-3" aria-hidden />
-                    </span>
-                    {item.href ? (
-                      <Link
-                        href={item.href}
-                        className="min-w-0 rounded-md hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-                      >
-                        {body}
-                      </Link>
-                    ) : (
-                      body
-                    )}
-                  </li>
-                );
-              })}
+            <ol className="relative space-y-1 before:absolute before:inset-y-2 before:left-[13px] before:w-px before:bg-gradient-to-b before:from-transparent before:via-border before:to-transparent">
+              {g.items.map((item, i) => (
+                <Entry key={i} item={item} upcoming={item.at > nowIso} />
+              ))}
             </ol>
           </div>
         ))}
@@ -267,6 +309,89 @@ export async function MemberTimeline({
         ) : null}
       </CardContent>
     </Card>
+  );
+}
+
+function Entry({ item, upcoming }: { item: Item; upcoming: boolean }) {
+  const meta = KIND_META[item.kind];
+  const Icon = meta.icon;
+  const facts = item.facts ?? [];
+  const expandable = facts.length > 0 || Boolean(item.href);
+
+  const dot = (
+    <span
+      className={cn(
+        "relative z-10 mt-0.5 inline-flex size-6 shrink-0 items-center justify-center rounded-full ring-4 ring-card transition-transform duration-150 group-hover/entry:scale-110",
+        item.role ? (ROLE_TINT[item.role] ?? meta.tint) : meta.tint,
+        // A dated-in-the-future entry is a plan, not a record. The dashed ring
+        // says so at a glance, in the one place the eye is already looking.
+        upcoming && "outline-2 outline-offset-2 outline-dashed outline-current",
+      )}
+    >
+      <Icon className="size-3" aria-hidden />
+    </span>
+  );
+
+  const heading = (
+    <span className="min-w-0 flex-1">
+      <span className="flex items-baseline gap-2">
+        <span className="min-w-0 flex-1 text-sm font-medium">{item.title}</span>
+        <span className="font-data shrink-0 text-[11px] whitespace-nowrap text-muted-foreground">
+          {relativeDayIST(item.at)}
+        </span>
+      </span>
+      {item.detail ? (
+        <span className="font-data mt-0.5 block truncate text-xs text-muted-foreground">
+          {item.detail}
+        </span>
+      ) : null}
+    </span>
+  );
+
+  if (!expandable) {
+    return (
+      <li className="group/entry relative flex gap-3 rounded-lg py-2 pr-2 pl-0.5">
+        {dot}
+        {heading}
+      </li>
+    );
+  }
+
+  return (
+    <li className="relative">
+      <details className="group/entry rounded-lg transition-colors open:bg-muted/40 hover:bg-muted/50">
+        <summary className="flex cursor-pointer list-none gap-3 rounded-lg py-2 pr-2 pl-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
+          {dot}
+          {heading}
+          <ChevronRight
+            className="mt-1 size-3.5 shrink-0 text-muted-foreground transition-transform duration-150 group-open/entry:rotate-90"
+            aria-hidden
+          />
+        </summary>
+
+        <div className="space-y-2 pt-1 pr-2 pb-3 pl-9">
+          {facts.length > 0 ? (
+            <dl className="grid gap-1">
+              {facts.map((f) => (
+                <div key={f.label} className="flex gap-3 text-xs">
+                  <dt className="w-20 shrink-0 text-muted-foreground">{f.label}</dt>
+                  <dd className="min-w-0 font-medium">{f.value}</dd>
+                </div>
+              ))}
+            </dl>
+          ) : null}
+          {item.href ? (
+            <Link
+              href={item.href}
+              className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            >
+              {item.action ?? "Open"}
+              <ArrowUpRight className="size-3" aria-hidden />
+            </Link>
+          ) : null}
+        </div>
+      </details>
+    </li>
   );
 }
 
@@ -301,4 +426,13 @@ function FilterLink({
 function monthOf(iso: string): string {
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? "" : monthFmt.format(d);
+}
+
+/** "4 days" — how long a concern stayed open, which two timestamps make you compute. */
+function daysBetween(from: string, to: string): string {
+  const days = Math.max(
+    0,
+    Math.round((new Date(to).getTime() - new Date(from).getTime()) / 86_400_000),
+  );
+  return days === 0 ? "Same day" : `${days} day${days === 1 ? "" : "s"}`;
 }

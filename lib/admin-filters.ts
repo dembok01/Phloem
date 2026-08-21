@@ -10,6 +10,7 @@
  * are in the hundreds — a round trip per keystroke would be slower and buy
  * nothing, and RLS has already decided what is in the array.
  */
+import { istDayNumber } from "@/lib/datetime";
 
 /** Case- and accent-insensitive, so "Menon" finds "Menón" and vice versa. */
 export function normalize(value: string): string {
@@ -63,17 +64,13 @@ export function sortRows<T>(rows: readonly T[], get: (row: T) => unknown, dir: S
     .map((entry) => entry.row);
 }
 
-const DAY_MS = 86_400_000;
-
 /**
  * "in 3 days" / "today" / "expired 2 days ago" — an expiry date is only useful
  * as a distance. Compared on IST calendar days, not elapsed milliseconds, so an
  * invite expiring at 23:00 tonight reads "today" rather than "in 0 days".
  */
 export function relativeDayLabel(iso: string, now: number = Date.now()): string {
-  const dayOf = (t: number) =>
-    Math.floor((t + 5.5 * 3600_000) / DAY_MS); // shift to IST, then truncate
-  const days = dayOf(new Date(iso).getTime()) - dayOf(now);
+  const days = istDayNumber(new Date(iso).getTime()) - istDayNumber(now);
   if (Number.isNaN(days)) return "—";
   if (days === 0) return "today";
   if (days === 1) return "tomorrow";

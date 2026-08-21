@@ -5,10 +5,13 @@ import { PageHeader } from "@/components/page-header";
 import { Sparkline } from "@/components/charts/sparkline";
 import { StageFunnel, type Stage } from "@/components/charts/stage-funnel";
 import { EmptyState } from "@/components/ui/empty-state";
-import { CalendarHeart } from "lucide-react";
+import { Ban, CalendarClock, CalendarHeart, ClipboardCheck, ListChecks, UserMinus } from "lucide-react";
 import { GrowthRings } from "@/components/growth-rings";
 import { TrendLine } from "@/components/charts/trend-line";
 import { createClient } from "@/lib/supabase/server";
+import { actionsFor, nextActions, type NextAction } from "@/lib/next-actions";
+import { Explain, ExplainOn } from "@/components/ui/explain";
+import { List, ListRow, ListSection } from "@/components/ui/list";
 import { formatDateIST } from "@/lib/datetime";
 import { cn } from "@/lib/utils";
 
@@ -39,10 +42,12 @@ async function analytics() {
   const today = new Date().toISOString().slice(0, 10);
   const since = new Date(Date.now() - WEEKS * WEEK_MS).toISOString();
 
-  const [members, consultsWeek, overdue, renewals, renewalList, newMembers, consultRows, reportRows] =
-    await Promise.all([
-      // One read powers both the funnel and the active count.
-      supabase.from("members").select("status"),
+  const [
+    members, consultsWeek, overdue, renewals, renewalList, newMembers, consultRows, reportRows,
+    allConsults, acceptedRenewals, suspendedProfiles, activeAssignments,
+  ] = await Promise.all([
+      // One read powers the funnel, the active count AND the admin action list.
+      supabase.from("members").select("id, full_name, status"),
       supabase
         .from("consultations")
         .select("id", { count: "exact", head: true })
@@ -75,6 +80,21 @@ async function analytics() {
         .eq("meeting_status", "done")
         .gte("completed_at", since),
       supabase.from("reports").select("created_at").gte("created_at", since),
+      // ---- inputs for the admin's own "Needs you" list ----
+      // Consultations power the escalation rows only: coordinator work that has
+      // been stuck for over a week. Everything still moving stays off this desk.
+      supabase
+        .from("consultations")
+        .select(
+          "id, member_id, type, meeting_status, report_status, scheduled_at, completed_at, cycle_id, cycles(number)",
+        ),
+      supabase.from("renewals").select("member_id, status, decided_at").eq("status", "accepted"),
+      supabase
+        .from("profiles")
+        .select("id, full_name, role")
+        .eq("status", "suspended")
+        .in("role", ["doctor", "nutritionist", "trainer", "psychologist"]),
+      supabase.from("assignments").select("care_user_id").eq("active", true),
     ]);
 
   const byStatus = new Map<string, number>();
@@ -97,7 +117,36 @@ async function analytics() {
     status: i < (byStatus.get("active") ?? 0) ? "closed" : "upcoming",
   }));
 
+  // A suspended account only matters while members are stranded behind it, so
+  // the assignment counts decide whether it is a task or just untidiness.
+  const assignedCount = new Map<string, number>();
+  for (const a of activeAssignments.data ?? []) {
+    assignedCount.set(a.care_user_id, (assignedCount.get(a.care_user_id) ?? 0) + 1);
+  }
+
+  const actions = actionsFor(
+    nextActions({
+      members: members.data ?? [],
+      consultations: (allConsults.data ?? []).map((c) => {
+        const cycle = c.cycles as { number: number } | { number: number }[] | null;
+        return {
+          ...c,
+          cycleNumber: (Array.isArray(cycle) ? cycle[0]?.number : cycle?.number) ?? null,
+        };
+      }),
+      renewals: acceptedRenewals.data ?? [],
+      suspended: (suspendedProfiles.data ?? []).map((p) => ({
+        id: p.id,
+        full_name: p.full_name,
+        role: p.role,
+        activeMembers: assignedCount.get(p.id) ?? 0,
+      })),
+    }),
+    "admin",
+  );
+
   return {
+    actions,
     inCare,
     ringCycles,
     active: byStatus.get("active") ?? 0,
@@ -169,12 +218,39 @@ export default async function AdminOverviewPage() {
       href: a.active === 0 && stageHint ? stageHint.href : "/admin/members?status=active",
       tone: "var(--chart-1)",
       hint: stageHint?.text,
+      what: "Members whose 30-day programme has actually been started. Not the same as enrolled — a family can be in care for weeks before their programme is triggered.",
+      next: "It can only start once the doctor, nutritionist and trainer initial reports are all in.",
     },
-    { label: "Consults this week", value: a.consultsWeek, series: a.consultSeries, href: "/admin/members", tone: "var(--chart-2)" },
-    { label: "Overdue reports", value: a.overdue, series: a.reportSeries, href: "/admin/members", tone: "var(--chart-3)", alert: a.overdue > 0 },
+    {
+      label: "Consults this week",
+      value: a.consultsWeek,
+      series: a.consultSeries,
+      href: "/admin/members",
+      tone: "var(--chart-2)",
+      what: "Consultations already booked into the next seven days and not yet held.",
+      next: "The coordinator schedules these. A low number with members waiting means scheduling is behind.",
+    },
+    {
+      label: "Overdue reports",
+      value: a.overdue,
+      series: a.reportSeries,
+      href: "/admin/members",
+      tone: "var(--chart-3)",
+      alert: a.overdue > 0,
+      what: "Meetings that happened but whose clinician has not filed a report yet.",
+      next: "The cycle cannot advance without them. Anything over a week appears in Needs you above.",
+    },
     // No honest 12-week series exists for a forward-looking count, so this tile
     // carries no sparkline rather than borrowing an unrelated one.
-    { label: "Renewals (30 days)", value: a.renewals, series: null, href: "/admin/members?status=renewal_due", tone: "var(--chart-4)" },
+    {
+      label: "Renewals (30 days)",
+      value: a.renewals,
+      series: null,
+      href: "/admin/members?status=renewal_due",
+      tone: "var(--chart-4)",
+      what: "Active packages whose end date falls inside the next 30 days.",
+      next: "The coordinator proposes, the family answers in the portal, and an admin completes it — only the last step is yours.",
+    },
   ];
 
   const throughput = a.consultSeries.map((c, i) => ({
@@ -202,7 +278,14 @@ export default async function AdminOverviewPage() {
               <GrowthRings cycles={a.ringCycles} size={72} title="Programme cycles in flight" once />
             ) : null}
             <div>
-              <p className="eyebrow">In care today</p>
+              <p className="eyebrow flex items-center gap-1.5">
+                In care today
+                <Explain
+                  label="in care today"
+                  what="Everyone past intake: care team assigned, in initial consults, ready to start, running, or up for renewal."
+                  next="This is the honest size of the programme. It is deliberately larger than 'Programmes running', which counts only the ones already started."
+                />
+              </p>
               <p className="stat-figure text-foreground">{a.inCare}</p>
               <p className="text-sm text-muted-foreground">
                 {a.active > 0 ? `${a.active} on an active programme` : "none started yet"}
@@ -225,13 +308,63 @@ export default async function AdminOverviewPage() {
         </CardContent>
       </Card>
 
+      {/* Guidance before analytics. Everything here is work only an admin can do —
+          the RPCs a coordinator cannot call — plus coordinator work that has been
+          stuck long enough to need a second pair of eyes. Deliberately NOT the
+          coordinator's whole queue: duplicating their desk here would bury the
+          three or four things that are genuinely admin-only. */}
+      {a.actions.length > 0 ? (
+        <ListSection
+          label="Needs you"
+          count={a.actions.length}
+          tone={a.actions.some((x) => x.bucket === "overdue") ? "danger" : "none"}
+          icon={<ListChecks className="size-3.5" aria-hidden />}
+        >
+          <List>
+            {a.actions.map((action: NextAction, i: number) => (
+              <ListRow
+                key={`${action.kind}-${action.memberId ?? action.subject}-${i}`}
+                href={action.href}
+                tone={action.bucket === "overdue" ? "danger" : "none"}
+                leading={
+                  action.kind === "clinician_suspended" ? (
+                    <span className="inline-flex size-9 items-center justify-center rounded-full bg-danger-tint text-danger">
+                      <Ban className="size-4" aria-hidden />
+                    </span>
+                  ) : action.kind === "member_inactive" ? (
+                    <span className="inline-flex size-9 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                      <UserMinus className="size-4" aria-hidden />
+                    </span>
+                  ) : action.kind === "renewal_complete" ? (
+                    <span className="inline-flex size-9 items-center justify-center rounded-full bg-secondary text-secondary-foreground">
+                      <ClipboardCheck className="size-4" aria-hidden />
+                    </span>
+                  ) : (
+                    <span className="inline-flex size-9 items-center justify-center rounded-full bg-danger-tint text-danger">
+                      <CalendarClock className="size-4" aria-hidden />
+                    </span>
+                  )
+                }
+                eyebrow={action.verb}
+                title={action.subject}
+                detail={action.why}
+                meta={action.bucket === "overdue" ? "stuck" : undefined}
+              />
+            ))}
+          </List>
+        </ListSection>
+      ) : null}
+
       {/* Secondary strip: the counters keep their trend but stop competing with
           the hero. A zero renders as an em-dash with a hint (M8) — a giant 0 in
           the display face reads as a broken page. */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {tiles.map((t) => (
+          // The tile is already a focusable link, so the explanation attaches to
+          // it rather than adding a nested button — hover and keyboard focus both
+          // reach it, and an anchor never ends up containing a button.
+          <ExplainOn key={t.label} what={t.what} next={t.next}>
           <Link
-            key={t.label}
             href={t.href}
             className={cn(
               "pressable liftable group relative flex flex-col justify-between gap-2 overflow-hidden rounded-xl bg-card p-4 shadow-card ring-1 ring-foreground/10 hover:shadow-pop hover:ring-primary/30",
@@ -271,6 +404,7 @@ export default async function AdminOverviewPage() {
               ) : null}
             </span>
           </Link>
+          </ExplainOn>
         ))}
       </div>
 

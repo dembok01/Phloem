@@ -5,6 +5,7 @@ import { SubmitButton } from "@/components/ui/submit-button";
 import { ElderlyMode } from "@/components/elderly-mode";
 import { NotificationBell } from "@/components/notification-bell";
 import { ToastProvider } from "@/components/ui/toast";
+import { Tooltip } from "@base-ui/react/tooltip";
 import { getSessionProfile } from "@/lib/auth";
 import { getLens, viewRoleFor } from "@/lib/lens";
 import { CareTeamSwitcher, lensLabel } from "@/components/care-team-switcher";
@@ -38,6 +39,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <ToastProvider>
+      {/* One shared open-delay for every <Explain>, and grouping: once one
+          explanation is showing, the next opens without re-waiting. */}
+      <Tooltip.Provider delay={250}>
       {profile.elderly ? <ElderlyMode /> : null}
       <div className="flex min-h-screen flex-col bg-background">
         <a
@@ -98,6 +102,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           {children}
         </main>
       </div>
+      </Tooltip.Provider>
     </ToastProvider>
   );
 }

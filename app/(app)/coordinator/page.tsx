@@ -17,8 +17,10 @@ import { Monogram, toneForRole } from "@/components/monogram";
 import { PageHeader } from "@/components/page-header";
 import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
-import { formatDateTimeIST, isTodayIST } from "@/lib/datetime";
+import { formatDateTimeIST } from "@/lib/datetime";
 import type { CareRole } from "@/lib/member-status";
+import { actionsFor, nextActions, type ActionKind, type NextAction } from "@/lib/next-actions";
+import { Explain } from "@/components/ui/explain";
 import { ScheduleSheet } from "@/components/coordinator/schedule-sheet";
 import type { EngagementRow } from "@/components/engagement";
 
@@ -31,16 +33,10 @@ const ROLE_NAME: Record<CareRole, string> = {
 };
 
 type Bucket = "overdue" | "today" | "week";
-type Kind = "assign" | "start" | "renewal" | "schedule" | "meet" | "markdone" | "report";
-type Task = { bucket: Bucket; kind: Kind; action: string; detail?: string; member: string;
-  memberId: string; role?: CareRole; href: string;
-  /** the action with the care role stripped out — a grouped row already names the
-   *  role in its eyebrow, and printing it twice reads as a bug */
-  short?: string;
-  /** Set only for `schedule` rows, so the queue can act in place. */
-  scheduleFor?: { memberId: string; consultationId: string; role: string } };
 
-const KIND_ICON: Record<Kind, React.ReactNode> = {
+// Icons for the kinds that reach this desk. Admin-only kinds are filtered out
+// upstream by actionsFor(…, "coordinator"), so they never need one.
+const KIND_ICON: Partial<Record<ActionKind, React.ReactNode>> = {
   assign: <UserPlus className="size-4" aria-hidden />,
   start: <PartyPopper className="size-4" aria-hidden />,
   renewal: <CalendarClock className="size-4" aria-hidden />,
@@ -53,51 +49,33 @@ const KIND_ICON: Record<Kind, React.ReactNode> = {
 export default async function CoordinatorTodayPage() {
   const supabase = await createClient();
 
+  // Cycle consultations are included on purpose. This query used to filter to
+  // `cycle_id is null`, which meant the queue fell silent the moment a programme
+  // actually started: a month-2 review could sit unscheduled forever and never
+  // appear as work. The embedded cycle number is what lets a row say
+  // "month-2 doctor review" rather than an anonymous "consultation".
   const [{ data: members }, { data: consults }] = await Promise.all([
     supabase.from("members").select("id, full_name, status"),
     supabase
       .from("consultations")
-      .select("id, member_id, type, meeting_status, report_status, scheduled_at")
-      .is("cycle_id", null),
+      .select(
+        "id, member_id, type, meeting_status, report_status, scheduled_at, completed_at, cycle_id, cycles(number)",
+      ),
   ]);
 
-  const nameById = new Map((members ?? []).map((m) => [m.id, m.full_name]));
-  const tasks: Task[] = [];
-  const push = (
-    bucket: Bucket, kind: Kind, action: string, memberId: string, detail?: string,
-    scheduleFor?: Task["scheduleFor"], role?: CareRole, short?: string,
-  ) => {
-    const member = nameById.get(memberId);
-    if (member) tasks.push({ bucket, kind, action, detail, member, memberId, role, short,
-      href: `/coordinator/members/${memberId}`, scheduleFor });
-  };
-
-  for (const m of members ?? []) {
-    if (m.status === "onboarded") push("today", "assign", "Assign the care team", m.id, "Onboarding is complete");
-    if (m.status === "ready_to_start") push("today", "start", "Start the program", m.id, "All initial reports are in");
-    if (m.status === "renewal_due") push("today", "renewal", "Have the renewal conversation", m.id, "Package ends soon");
-  }
-
-  const now = Date.now();
-  for (const c of consults ?? []) {
-    const role = ROLE_NAME[c.type];
-    if (c.meeting_status === "to_schedule") {
-      push("today", "schedule", `Schedule the ${role} consultation`, c.member_id, undefined, {
-        memberId: c.member_id, consultationId: c.id, role,
-      }, c.type, "Schedule the consultation");
-    } else if (c.meeting_status === "scheduled") {
-      const t = c.scheduled_at ? new Date(c.scheduled_at).getTime() : NaN;
-      if (isTodayIST(c.scheduled_at)) {
-        push("today", "meet", `${capitalize(role)} meeting today`, c.member_id, formatDateTimeIST(c.scheduled_at), undefined, c.type, "Meeting today");
-      } else if (!Number.isNaN(t) && t < now) {
-        push("overdue", "markdone", `Mark the ${role} meeting done`, c.member_id, "The scheduled time has passed", undefined, c.type, "Mark the meeting done");
-      } else {
-        push("week", "meet", `${capitalize(role)} meeting coming up`, c.member_id, formatDateTimeIST(c.scheduled_at), undefined, c.type, "Meeting coming up");
-      }
-    } else if (c.meeting_status === "done" && c.report_status === "pending") {
-      push("week", "report", `Chase the ${role} report`, c.member_id, "Meeting done, report not yet in", undefined, c.type, "Chase the report");
-    }
-  }
+  const tasks = actionsFor(
+    nextActions({
+      members: members ?? [],
+      consultations: (consults ?? []).map((c) => {
+        const cycle = c.cycles as { number: number } | { number: number }[] | null;
+        return {
+          ...c,
+          cycleNumber: (Array.isArray(cycle) ? cycle[0]?.number : cycle?.number) ?? null,
+        };
+      }),
+    }),
+    "coordinator",
+  );
 
   const groups: { bucket: Bucket; title: string; tone: "danger" | "none" }[] = [
     { bucket: "overdue", title: "Overdue", tone: "danger" },
@@ -123,7 +101,14 @@ export default async function CoordinatorTodayPage() {
         <Card variant="hero" className="hero-glow">
           <CardContent className="flex flex-wrap items-end gap-x-10 gap-y-4">
             <div>
-              <p className="eyebrow">On your plate</p>
+              <p className="eyebrow flex items-center gap-1.5">
+                On your plate
+                <Explain
+                  label="on your plate"
+                  what="Everything overdue or due today, across every member — one count for the whole desk."
+                  next="Work top-down: the Overdue group blocks other people's work, since a meeting that is never marked done keeps the clinician's form locked."
+                />
+              </p>
               <p className="stat-figure text-foreground">{todayCount + overdueCount}</p>
               <p className="text-sm text-muted-foreground">
                 {overdueCount > 0 ? (
@@ -161,11 +146,14 @@ export default async function CoordinatorTodayPage() {
 
           // M2/M5 — group by member so one family is one block. Dibesh with three
           // actions used to be three unrelated rows repeating his name.
-          const byMember = new Map<string, Task[]>();
+          const byMember = new Map<string, NextAction[]>();
           for (const t of items) {
-            const arr = byMember.get(t.memberId) ?? [];
+            // Every coordinator action is about a member; the fallback keeps the
+            // grouping total rather than silently dropping a row.
+            const key = t.memberId ?? t.subject;
+            const arr = byMember.get(key) ?? [];
             arr.push(t);
-            byMember.set(t.memberId, arr);
+            byMember.set(key, arr);
           }
 
           return (
@@ -184,8 +172,8 @@ export default async function CoordinatorTodayPage() {
                         href={`/coordinator/members/${memberId}`}
                         className="mb-1.5 inline-flex items-center gap-2 text-sm font-medium hover:underline"
                       >
-                        <Monogram name={rows[0]!.member} size="xs" />
-                        {rows[0]!.member}
+                        <Monogram name={rows[0]!.subject} size="xs" />
+                        {rows[0]!.subject}
                         <span className="font-data text-xs text-muted-foreground">
                           {rows.length} actions
                         </span>
@@ -207,22 +195,25 @@ export default async function CoordinatorTodayPage() {
                                     : "bg-secondary text-secondary-foreground",
                                 )}
                               >
-                                {KIND_ICON[t.kind]}
+                                {KIND_ICON[t.kind] ?? null}
                               </span>
                             ) : (
-                              <Monogram name={t.member} size="sm" tone={toneForRole(t.role)} />
+                              <Monogram name={t.subject} size="sm" tone={toneForRole(t.role)} />
                             )
                           }
                           eyebrow={
-                            rows.length > 1 ? (t.role ? ROLE_NAME[t.role] : t.kind) : t.action
+                            rows.length > 1 ? (t.role ? ROLE_NAME[t.role] : t.kind) : t.verb
                           }
-                          title={rows.length > 1 ? (t.short ?? t.action) : t.member}
-                          detail={rows.length > 1 ? t.detail : t.detail}
+                          title={rows.length > 1 ? (t.short ?? t.verb) : t.subject}
+                          // `why` is authored on the action itself, so the row's
+                          // explanation and the queue's reason are one string.
+                          detail={t.why}
+                          meta={t.at ? formatDateTimeIST(t.at) : undefined}
                           action={
                             t.scheduleFor ? (
                               <ScheduleSheet
                                 memberId={t.scheduleFor.memberId}
-                                memberName={t.member}
+                                memberName={t.subject}
                                 consultationId={t.scheduleFor.consultationId}
                                 role={t.scheduleFor.role}
                               />
@@ -247,11 +238,6 @@ export default async function CoordinatorTodayPage() {
     </section>
   );
 }
-
-function capitalize(s: string): string {
-  return s.charAt(0).toUpperCase() + s.slice(1);
-}
-
 
 /** The "who needs a call today" list, worst first. Renders nothing when every
  *  family is engaged — an empty section would just be noise on a good day. */

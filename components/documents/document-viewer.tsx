@@ -8,18 +8,27 @@
 // showing it. Viewing needs the SAME signed URL without that flag — the stored
 // Content-Type (set at upload by contentTypeFor) then lets the browser render
 // it. No re-upload, no migration; just two different URLs for two intents.
+//
+// The frame is deliberately empty: one slim bar (name, position, download,
+// close) and then the document, edge to edge. A PDF gets PDF_CHROMELESS so the
+// browser's own sidebar and toolbar stay out — you are reading a report, not
+// operating a PDF application. Images scroll at full width rather than being
+// shrunk to fit, because a lab scan that fits the frame is a lab scan you
+// cannot read.
 import * as React from "react";
 import { Download, FileQuestion, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { Sheet } from "@/components/ui/sheet";
-import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
-import { previewKind, unsupportedReason } from "@/lib/document-preview";
+import { previewKind, unsupportedReason, PDF_CHROMELESS } from "@/lib/document-preview";
 import { formatDateIST } from "@/lib/datetime";
 import { CATEGORY_LABEL, formatSize } from "./constants";
 import type { DocumentRow } from "./document-list";
 
 /** Ten minutes: long enough to read a scan, short enough that a copied URL rots. */
 const TTL_SECONDS = 600;
+
+const ICON_BUTTON =
+  "pressable inline-flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
 
 export function DocumentViewer({
   docs,
@@ -87,41 +96,40 @@ export function DocumentViewer({
       }}
       title={doc.file_name}
       description={`${CATEGORY_LABEL[doc.category]} · ${formatDateIST(doc.created_at)} · ${formatSize(doc.size_bytes)}`}
-      className="max-w-5xl"
-      footer={
-        <div className="flex w-full items-center justify-between gap-3">
-          <div className="flex items-center gap-1">
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              disabled={!hasPrev}
-              onClick={() => hasPrev && onIndexChange(index! - 1)}
-              aria-label="Previous document"
-              className="pressable"
-            >
-              <ChevronLeft className="size-4" aria-hidden />
-            </Button>
-            <span className="text-xs tabular-nums text-muted-foreground">
-              {index! + 1} of {docs.length}
-            </span>
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              disabled={!hasNext}
-              onClick={() => hasNext && onIndexChange(index! + 1)}
-              aria-label="Next document"
-              className="pressable"
-            >
-              <ChevronRight className="size-4" aria-hidden />
-            </Button>
-          </div>
+      className="h-[92svh] max-h-[92svh] max-w-5xl overflow-hidden"
+      bodyClassName="p-0"
+      headerActions={
+        <>
+          {docs.length > 1 ? (
+            <div className="mr-1 flex items-center gap-0.5">
+              <button
+                type="button"
+                disabled={!hasPrev}
+                onClick={() => hasPrev && onIndexChange(index! - 1)}
+                aria-label="Previous document"
+                className={ICON_BUTTON}
+              >
+                <ChevronLeft className="size-4" aria-hidden />
+              </button>
+              <span className="font-data text-xs tabular-nums text-muted-foreground">
+                {index! + 1}/{docs.length}
+              </span>
+              <button
+                type="button"
+                disabled={!hasNext}
+                onClick={() => hasNext && onIndexChange(index! + 1)}
+                aria-label="Next document"
+                className={ICON_BUTTON}
+              >
+                <ChevronRight className="size-4" aria-hidden />
+              </button>
+            </div>
+          ) : null}
           <DownloadButton doc={doc} />
-        </div>
+        </>
       }
     >
-      <div className="h-[68svh] overflow-hidden rounded-lg border bg-muted/40">
+      <div className="h-full border-t bg-muted/40">
         {kind === "unsupported" ? (
           <Message
             icon={<FileQuestion className="size-7 text-muted-foreground" aria-hidden />}
@@ -140,19 +148,24 @@ export function DocumentViewer({
             title="Opening…"
           />
         ) : kind === "pdf" ? (
-          // <iframe> rather than <embed>: it is the only one that reliably shows
-          // the browser's own PDF toolbar (page count, zoom, print) on all of
-          // Chrome, Firefox and Safari.
-          <iframe src={url} title={doc.file_name} className="size-full border-0" />
+          // <iframe> rather than <embed>: it is the only one that reliably hands
+          // the file to the browser's built-in renderer everywhere. The fragment
+          // strips that renderer's sidebar and toolbar.
+          <iframe
+            src={`${url}${PDF_CHROMELESS}`}
+            title={doc.file_name}
+            className="size-full border-0"
+          />
         ) : (
-          <div className="size-full overflow-auto p-2">
+          <div className="h-full overflow-auto p-4">
             {/* Not next/image: this is a short-lived signed URL on a private
-                bucket, so there is nothing for the optimizer to cache. */}
+                bucket, so there is nothing for the optimizer to cache. Full
+                width, not fit-to-frame — scrolling beats squinting. */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={url}
               alt={doc.file_name}
-              className="mx-auto max-h-full w-auto object-contain"
+              className="mx-auto w-auto max-w-full rounded-md shadow-card"
               onError={() => setFailed(true)}
             />
           </div>
@@ -184,11 +197,11 @@ function Message({
 function DownloadButton({ doc }: { doc: DocumentRow }) {
   const [busy, setBusy] = React.useState(false);
   return (
-    <Button
+    <button
       type="button"
-      size="sm"
       disabled={busy}
-      className="pressable"
+      aria-label={`Download ${doc.file_name}`}
+      className={ICON_BUTTON}
       onClick={async () => {
         setBusy(true);
         const supabase = createClient();
@@ -204,7 +217,6 @@ function DownloadButton({ doc }: { doc: DocumentRow }) {
       ) : (
         <Download className="size-4" aria-hidden />
       )}
-      Download
-    </Button>
+    </button>
   );
 }

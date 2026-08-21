@@ -1000,3 +1000,98 @@ while a caregiver sees only their own 1 — scoping intact.
 Still no browser pass: the Chrome extension reports "Frame is showing error page"
 for `localhost:3000` and `127.0.0.1:3000` while `curl` returns 200. The iframe
 render itself is the one thing only a browser can confirm.
+
+---
+
+## Guiding dashboards — 2026-08-22, branch `feature/care-continuum`
+
+**Goal (user):** admin + coordinator should say what to do next rather than show
+data, and hovering anything should explain why it is there. Without complicating
+the UI.
+
+### What was already true
+
+**The coordinator dashboard already guides.** Its Today queue is a task list —
+"Assign the care team", "Schedule the doctor consultation", "Mark the meeting
+done", "Chase the report" — bucketed Overdue / Today / This week and grouped per
+family, plus a "Families who have gone quiet" section. It was not rebuilt.
+
+Three real problems were fixed instead.
+
+### 1. "What's next" lived in three places
+
+The Today page's inline `push(...)`, the pipeline's private `nextAction()`, and
+`lib/issues.ts` — only the last followed the codebase's own rule ("must be the
+same answer on all three"). Extracted **`lib/next-actions.ts`**: pure,
+unit-tested, 14 tests.
+
+Two deliberate properties:
+
+- **`why` and `how` are fields on the action**, not copy written elsewhere. The
+  tooltip explaining a row is generated from the object that produced the row, so
+  guidance and explanation cannot drift apart.
+- **Escalation adds, never moves.** Work stuck past 7 days raises an admin row
+  AND keeps the coordinator's. Silently relocating someone's task is how it gets
+  dropped by both people at once. There is a test for exactly this.
+
+### 2. The coordinator's queue went silent once a programme started
+
+`consultations` was queried with `.is("cycle_id", null)` — **initial consultations
+only**. A month-2 doctor review could sit unscheduled forever and never appear as
+work. The filter is gone and the cycle number is embedded, so rows now read
+"Schedule the month-2 nutritionist review". Regression caught while wiring it: the
+old rows carried the meeting *time* in `detail`, which `why` displaced — the
+action now carries `at` and the row renders it in `meta`, so reason and time both
+show.
+
+### 3. Admin had no guidance at all
+
+New **"Needs you"** section, directly under the hero. Strictly admin-only work —
+the RPCs a coordinator cannot call — plus escalations:
+
+| Row | Trigger |
+|---|---|
+| Complete the renewal | family accepted, package not opened (`complete_renewal` is admin-only) |
+| Decide on a deactivated member | `status = 'inactive'` (`reactivate_member` is admin-only) |
+| A suspended clinician | suspended **and** still holding active assignments |
+| Stuck coordinator work | unmarked meeting / unfiled report past 7 days |
+
+**Corrected during design:** "Start the programme" is *not* admin-only —
+`activate_program` accepts both roles — so it stays on the coordinator desk.
+"Share a report with the family" was dropped: sharing is a clinical judgement,
+not a chore, and nudging on it would be wrong. A suspended account with nobody
+assigned is untidiness, not a task, so it only surfaces while members are
+stranded behind it.
+
+### 4. Explanations
+
+`components/ui/explain.tsx` on Base UI Tooltip — opens on hover **and keyboard
+focus**, with a real focusable button so touch works too. Delay and grouping come
+from one `Tooltip.Provider` in the app layout. Two shapes because the host decides
+which is legal: `ExplainOn` attaches to an already-focusable element (the admin
+tiles are links — never a button nested in an anchor), `Explain` is a standalone
+(i) beside non-interactive text. Applied to all four admin tiles, the hero, the
+funnel, and the coordinator hero.
+
+### Narrowed during implementation
+The pipeline board was **not** moved wholesale onto the engine. Its labels answer
+"what stage is this card in", which includes states that are not work at all
+("Awaiting onboarding", "2/4 reports in") — forcing those through a task engine
+would have destroyed the progress the board exists to show. Only the three labels
+that genuinely overlap now come from the engine, at no extra query cost.
+
+### Also
+`istDayNumber()` folded into `lib/datetime.ts` and `lib/admin-filters.ts`
+refactored onto it, so IST calendar-day maths has one home.
+
+### Verification
+`tsc` clean · `eslint .` clean repo-wide · `npm run test:unit` **98/98** (was 84;
++14 for `next-actions`, written failing first) · `npm run build` clean, 17/17.
+
+Live data check via MCP: admin "Needs you" resolves to **exactly 1 row** (a
+meeting scheduled >7 days ago, still unmarked) while the coordinator keeps its 7
+scheduling rows — the no-duplication design behaving as intended on real data.
+
+### Not verified live (environment)
+No browser pass — the Chrome extension still cannot reach the dev server. The
+tooltip open/close behaviour is the part only a browser can confirm.

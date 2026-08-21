@@ -13,6 +13,16 @@
 
 export type PreviewKind = "pdf" | "image" | "unsupported";
 
+/**
+ * Appended to any PDF URL we frame ourselves. Chromium's built-in viewer reads
+ * these Adobe open-parameters and drops its own chrome — the thumbnail sidebar
+ * (`navpanes`) and the zoom/print/download toolbar (`toolbar`) — leaving the
+ * page itself, fitted to the frame's width and still scrollable. Firefox and
+ * Safari ignore the unknown keys, so the fragment is safe everywhere; it is a
+ * fragment, never a query, so it also survives the 302 to a signed URL.
+ */
+export const PDF_CHROMELESS = "#toolbar=0&navpanes=0&view=FitH";
+
 function extensionOf(fileName: string): string {
   const dot = fileName.lastIndexOf(".");
   return dot === -1 ? "" : fileName.slice(dot + 1).toLowerCase();
