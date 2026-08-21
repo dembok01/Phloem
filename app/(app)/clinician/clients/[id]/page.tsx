@@ -647,7 +647,7 @@ async function ReportsPanel({
 async function DocumentsPanel({ supabase, memberId }: { supabase: SB; memberId: string }) {
   const { data: docs } = await supabase
     .from("member_documents")
-    .select("id, category, file_name, storage_path, size_bytes, created_at")
+    .select("id, category, file_name, storage_path, size_bytes, created_at, mime_type")
     .eq("member_id", memberId)
     .order("created_at", { ascending: false });
   return (

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { after } from "next/server";
-import { Download, History } from "lucide-react";
+import { Download, ExternalLink, History } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { ReportView } from "@/components/reports/ReportView";
 import { REPORT_CSS } from "@/lib/reports/styles";
@@ -72,9 +72,21 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
             </div>
 
             <div className="flex flex-col gap-2">
+              {/* Viewing comes first, and downloading stays its own action. The
+                  route signs the same object either way — `?view=1` just omits
+                  the attachment disposition that made the PDF unreadable in the
+                  browser. */}
+              <a
+                href={`/api/reports/${id}/pdf?view=1`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="pressable inline-flex h-10 items-center justify-center gap-1.5 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              >
+                <ExternalLink className="size-4" aria-hidden /> View PDF
+              </a>
               <a
                 href={`/api/reports/${id}/pdf`}
-                className="inline-flex h-10 items-center justify-center gap-1.5 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                className="pressable inline-flex h-10 items-center justify-center gap-1.5 rounded-lg border bg-card px-4 text-sm font-medium hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
               >
                 <Download className="size-4" aria-hidden /> Download PDF
               </a>

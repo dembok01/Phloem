@@ -927,3 +927,76 @@ Still not exercised in a browser: the Chrome extension returns "Frame is showing
 error page" for both `localhost:3000` and `127.0.0.1:3000` while `curl` returns 200
 — an extension site-permission issue, not an app fault. A manual pass over the four
 list pages is the remaining check.
+
+---
+
+## In-dashboard document & report viewing — 2026-08-21, branch `feature/care-continuum`
+
+**Report:** family-uploaded documents and report PDFs could not be viewed in the
+browser; the admin should be able to view them too.
+
+### Root cause
+
+Not a permissions problem, and not a malfunction — **viewing was never built.**
+Both paths explicitly asked the browser to download:
+
+- `components/documents/document-list.tsx:44` — `createSignedUrl(path, 600, { download: file_name })`
+  then `window.open(...)`. Supabase's `download` option sets
+  `Content-Disposition: attachment`, so the browser saved the file and the opened
+  tab closed immediately.
+- `app/api/reports/[id]/pdf/route.ts` — the same `{ download: filename }` on
+  **both** the cached-object branch and the freshly-rendered one.
+
+The only affordance in the list UI was a `Download` icon. There was no view path
+to be broken.
+
+Three findings that made the fix cheap, all verified before writing code:
+
+1. **Content-Type is already stored correctly.** `contentTypeFor()` covers the
+   blank-`file.type` case (notably HEIC), the uploader passes it to `.upload()`,
+   and `mime_type` is persisted on the row — so objects render inline as soon as
+   the flag comes off. **No re-upload, no migration.**
+2. **Admin access already worked at both layers** — `doc_admin ALL` on
+   `member_documents`, and the `documents_read` storage policy names
+   `auth_role() = 'admin'`. `DocumentList` was already rendered on the admin
+   member page. Admin could always *reach* these files; nobody could *view* them.
+3. **No CSP in `next.config.ts`**, so an `<iframe>` to a signed URL is not blocked.
+
+### Built
+
+- **`lib/document-preview.ts` + tests (new).** `previewKind(mime, name)` →
+  `pdf | image | unsupported`. **HEIC/HEIF are refused**, and the filename
+  overrules a mime type the browser guessed wrong: no browser outside Safari
+  draws HEIC, an `<img>` pointed at one shows a silent broken frame, and families
+  upload straight from iPhones — so it is the common case, not the edge case.
+  `unsupportedReason()` names it in plain words.
+- **`components/documents/document-viewer.tsx` (new).** Modal over the list, built
+  on the existing `Sheet` (Base UI Drawer — focus trap, Escape, backdrop dismiss
+  already shipped). PDFs in an `<iframe>` (the only element that reliably shows
+  the browser's own PDF toolbar across Chrome/Firefox/Safari), images in `<img>`,
+  unsupported types in a designed message with a download. Left/right arrows step
+  through the list in **displayed** order. Download keeps the `download` flag,
+  because that is a genuinely different intent.
+- **`document-list.tsx`** — the filename is now a button that opens the viewer,
+  plus an explicit eye icon; download and delete unchanged. Rows show
+  "· no preview" where that is the truth.
+- **`app/api/reports/[id]/pdf/route.ts`** — `?view=1` omits the attachment
+  disposition. Same object, same signature, same RLS gate; **the default stays a
+  download so every existing link behaves as before.**
+- **`app/(app)/reports/[id]/page.tsx`** — "View PDF" (new tab, inline) promoted
+  above "Download PDF".
+- `mime_type` added to the three `member_documents` selects (admin, portal,
+  clinician).
+
+### Verification
+`tsc` clean · `eslint .` clean repo-wide · `npm run test:unit` **84/84** (was 79;
++5 for `document-preview`, written failing first) · `npm run build` clean, 17/17.
+
+Live storage check via MCP (rolled back): 4 documents exist, all `application/pdf`;
+**admin sees 4/4 rows and 4/4 storage objects** (so signing a view URL succeeds),
+while a caregiver sees only their own 1 — scoping intact.
+
+### Not verified live (environment)
+Still no browser pass: the Chrome extension reports "Frame is showing error page"
+for `localhost:3000` and `127.0.0.1:3000` while `curl` returns 200. The iframe
+render itself is the one thing only a browser can confirm.

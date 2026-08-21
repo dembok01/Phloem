@@ -12,8 +12,15 @@ export const dynamic = "force-dynamic";
 // upload to the private `reports/{member_id}/{report_id}.pdf` bucket → cache
 // pdf_path → return a 10-minute signed URL. Access is enforced by the SAME RLS
 // read the web view uses: a report the caller's rep_* policy can't see → 404.
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+//
+// `?view=1` signs the object WITHOUT Supabase's `download` option. That option
+// sets Content-Disposition: attachment, which is why the PDF could only ever be
+// saved and never read in the browser. Same object, same signature, same access
+// check — only the disposition differs, so the default stays a download and
+// every existing link keeps behaving as it did.
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const inline = req.nextUrl.searchParams.get("view") === "1";
   const supabase = await createClient();
 
   const {
@@ -41,13 +48,16 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const admin = createAdminClient();
   const objectPath = report.pdf_path ?? `${report.member_id}/${report.id}.pdf`;
   const filename = `${slugify(content.title)}.pdf`;
+  // Supabase types this as `{ download?: string | boolean }`; omitting the key
+  // entirely is what yields an inline Content-Disposition.
+  const disposition = inline ? undefined : { download: filename };
 
   // Fast path: the PDF was already generated and cached. Reports are immutable, so
   // re-sign the stored object instead of launching a headless Chromium again.
   if (report.pdf_path) {
     const { data: cachedSigned } = await admin.storage
       .from("reports")
-      .createSignedUrl(report.pdf_path, 600, { download: filename });
+      .createSignedUrl(report.pdf_path, 600, disposition);
     if (cachedSigned) return NextResponse.redirect(cachedSigned.signedUrl, 302);
     // Signing the cached object failed (e.g. deleted) — fall through and regenerate.
   }
@@ -72,7 +82,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   const { data: signed, error: signErr } = await admin.storage
     .from("reports")
-    .createSignedUrl(objectPath, 600, { download: filename });
+    .createSignedUrl(objectPath, 600, disposition);
   if (signErr || !signed) {
     return NextResponse.json({ error: "sign_failed" }, { status: 500 });
   }
