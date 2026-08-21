@@ -134,11 +134,42 @@ export default async function AdminOverviewPage() {
     href: `/admin/members?status=${s.key}`,
   }));
 
+  // "Active members: 0" beside a hero reading "4 in care today" looked like a
+  // bug, and the word was the problem: `active` never meant "not deactivated",
+  // it means the 30-day programme has actually been triggered — which needs all
+  // three initial reports in first. Hence "Programmes running", and a zero that
+  // names what is standing in the way rather than leaving you to guess.
+  //
+  // The hint counts EXACTLY what its link lands on: a hint reading "4" that
+  // opens a list of 3 is its own small lie. So walk the lifecycle backwards and
+  // name the furthest-along stage that actually has someone in it.
+  const PRE_ACTIVE = [
+    ["ready_to_start", "ready to start"],
+    ["initial_consults", "in initial consults"],
+    ["assigned", "awaiting first consult"],
+  ] as const;
+
+  let stageHint: { text: string; href: string } | null = null;
+  for (const [key, label] of PRE_ACTIVE) {
+    const n = a.byStatus.get(key) ?? 0;
+    if (n === 0) continue;
+    stageHint = { text: `${n} ${label}`, href: `/admin/members?status=${key}` };
+    break;
+  }
+
   // Each tile carries its own trend, so "0" reads as "0, and here is the shape
   // behind it" rather than a number with no context. Tiles are links: the number
-  // is the way into the list behind it.
+  // is the way into the list behind it — and a zero links to the list that
+  // explains it, not to the empty one it counts.
   const tiles = [
-    { label: "Active members", value: a.active, series: a.memberSeries as number[] | null, href: "/admin/members?status=active", tone: "var(--chart-1)" },
+    {
+      label: "Programmes running",
+      value: a.active,
+      series: a.memberSeries as number[] | null,
+      href: a.active === 0 && stageHint ? stageHint.href : "/admin/members?status=active",
+      tone: "var(--chart-1)",
+      hint: stageHint?.text,
+    },
     { label: "Consults this week", value: a.consultsWeek, series: a.consultSeries, href: "/admin/members", tone: "var(--chart-2)" },
     { label: "Overdue reports", value: a.overdue, series: a.reportSeries, href: "/admin/members", tone: "var(--chart-3)", alert: a.overdue > 0 },
     // No honest 12-week series exists for a forward-looking count, so this tile
@@ -232,8 +263,11 @@ export default async function AdminOverviewPage() {
               >
                 {t.value}
               </span>
-              {t.value === 0 && !(t.series && t.series.some((v) => v > 0)) ? (
-                <span className="text-xs text-muted-foreground">none yet</span>
+              {/* An explanatory hint always wins over the trend-shape argument:
+                  "0 · 3 awaiting initial reports" answers the question a bare
+                  zero provokes. */}
+              {t.value === 0 && (t.hint || !(t.series && t.series.some((v) => v > 0))) ? (
+                <span className="text-xs text-muted-foreground">{t.hint ?? "none yet"}</span>
               ) : null}
             </span>
           </Link>
