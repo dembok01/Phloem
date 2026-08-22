@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,6 +7,7 @@ import { ProgramCard, type ProgramCycle, type ProgramPackage } from "@/component
 import { AdherenceCard } from "@/components/charts/adherence-card";
 import { Who5Card } from "@/components/charts/who5-card";
 import { MemberTimeline } from "@/components/member-timeline";
+import { ReportPeek } from "@/components/reports/report-peek";
 import { ThreadPanel } from "@/components/threads/thread-panel";
 import { RenewalPanel } from "@/components/renewal-panel";
 import { RedFlagBanner } from "@/components/red-flag-banner";
@@ -205,10 +205,13 @@ export default async function AdminMemberPage({
             <ul className="divide-y">
               {(reports ?? []).map((r) => (
                 <li key={r.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-2">
-                  <Link href={`/reports/${r.id}`} className="group flex min-w-0 items-center gap-2 hover:underline">
+                  <ReportPeek
+                    reportId={r.id}
+                    className="group flex min-w-0 items-center gap-2 text-left hover:underline"
+                  >
                     <span className="truncate text-sm font-medium">{humanize(r.type)}</span>
                     <span className="text-xs text-muted-foreground">{formatDateTimeIST(r.created_at)}</span>
-                  </Link>
+                  </ReportPeek>
                   {SHAREABLE_TYPES.has(r.type) ? (
                     <ReportShareToggle reportId={r.id} memberId={member.id} shared={r.share_with_caregiver} />
                   ) : (

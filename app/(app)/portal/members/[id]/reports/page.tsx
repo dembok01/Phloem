@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronRight, FileText } from "lucide-react";
+import { ReportPeek } from "@/components/reports/report-peek";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { createClient } from "@/lib/supabase/server";
@@ -58,9 +58,9 @@ export default async function PortalReportsPage({ params }: { params: Promise<{ 
         <ul className="space-y-2">
           {list.map((r) => (
             <li key={r.id}>
-              <Link
-                href={`/reports/${r.id}`}
-                className="pressable flex items-center gap-3 rounded-xl border bg-card p-4 shadow-card hover:border-primary/40 hover:bg-secondary/40"
+              <ReportPeek
+                reportId={r.id}
+                className="pressable flex w-full items-center gap-3 rounded-xl border bg-card p-4 text-left shadow-card hover:border-primary/40 hover:bg-secondary/40"
               >
                 <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-secondary text-primary">
                   <FileText className="size-4" />
@@ -77,7 +77,7 @@ export default async function PortalReportsPage({ params }: { params: Promise<{ 
                   ) : null}
                 </div>
                 <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
-              </Link>
+              </ReportPeek>
             </li>
           ))}
         </ul>

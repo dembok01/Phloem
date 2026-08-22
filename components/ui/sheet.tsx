@@ -14,6 +14,13 @@ import { Drawer } from "@base-ui/react/drawer";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+/**
+ * The icon-button style for `headerActions`. Lives here because the header bar is
+ * the only place it belongs, and three viewers were about to declare it locally.
+ */
+export const sheetAction =
+  "pressable inline-flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
+
 export function Sheet({
   open,
   onOpenChange,

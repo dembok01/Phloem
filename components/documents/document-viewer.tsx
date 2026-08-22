@@ -17,7 +17,7 @@
 // cannot read.
 import * as React from "react";
 import { Download, FileQuestion, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
-import { Sheet } from "@/components/ui/sheet";
+import { Sheet, sheetAction } from "@/components/ui/sheet";
 import { createClient } from "@/lib/supabase/client";
 import { previewKind, unsupportedReason, PDF_CHROMELESS } from "@/lib/document-preview";
 import { formatDateIST } from "@/lib/datetime";
@@ -26,9 +26,6 @@ import type { DocumentRow } from "./document-list";
 
 /** Ten minutes: long enough to read a scan, short enough that a copied URL rots. */
 const TTL_SECONDS = 600;
-
-const ICON_BUTTON =
-  "pressable inline-flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
 
 export function DocumentViewer({
   docs,
@@ -107,7 +104,7 @@ export function DocumentViewer({
                 disabled={!hasPrev}
                 onClick={() => hasPrev && onIndexChange(index! - 1)}
                 aria-label="Previous document"
-                className={ICON_BUTTON}
+                className={sheetAction}
               >
                 <ChevronLeft className="size-4" aria-hidden />
               </button>
@@ -119,7 +116,7 @@ export function DocumentViewer({
                 disabled={!hasNext}
                 onClick={() => hasNext && onIndexChange(index! + 1)}
                 aria-label="Next document"
-                className={ICON_BUTTON}
+                className={sheetAction}
               >
                 <ChevronRight className="size-4" aria-hidden />
               </button>
@@ -201,7 +198,7 @@ function DownloadButton({ doc }: { doc: DocumentRow }) {
       type="button"
       disabled={busy}
       aria-label={`Download ${doc.file_name}`}
-      className={ICON_BUTTON}
+      className={sheetAction}
       onClick={async () => {
         setBusy(true);
         const supabase = createClient();

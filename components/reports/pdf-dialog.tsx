@@ -11,7 +11,7 @@
 // render nobody asked to see.
 import * as React from "react";
 import { Download, ExternalLink } from "lucide-react";
-import { Sheet } from "@/components/ui/sheet";
+import { Sheet, sheetAction } from "@/components/ui/sheet";
 import { PDF_CHROMELESS } from "@/lib/document-preview";
 
 export function PdfDialog({ reportId, title }: { reportId: string; title: string }) {
@@ -39,7 +39,7 @@ export function PdfDialog({ reportId, title }: { reportId: string; title: string
             <a
               href={`/api/reports/${reportId}/pdf`}
               aria-label="Download this report as a PDF"
-              className="pressable inline-flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              className={sheetAction}
             >
               <Download className="size-4" aria-hidden />
             </a>
