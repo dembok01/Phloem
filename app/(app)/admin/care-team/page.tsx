@@ -2,19 +2,13 @@ import { SubmitButton } from "@/components/ui/submit-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/page-header";
+import { CareTeamTable, type CareTeamRow } from "@/components/admin/care-team-table";
 import { createClient } from "@/lib/supabase/server";
-import { inviteProfessional, setAccountStatus } from "./actions";
+import { ROLE_LABEL } from "@/lib/roles";
+import { inviteProfessional } from "./actions";
 
 const CARE_ROLES = ["doctor", "nutritionist", "trainer", "psychologist"] as const;
-
-const ROLE_LABEL: Record<(typeof CARE_ROLES)[number], string> = {
-  doctor: "Doctor",
-  nutritionist: "Nutritionist",
-  trainer: "Trainer",
-  psychologist: "Psychologist",
-};
 
 const ERRORS: Record<string, string> = {
   invalid: "Please check the form and try again.",
@@ -25,9 +19,9 @@ const ERRORS: Record<string, string> = {
 export default async function CareTeamPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; role?: string }>;
 }) {
-  const { error } = await searchParams;
+  const { error, role } = await searchParams;
   const supabase = await createClient();
 
   const { data: team } = await supabase
@@ -37,89 +31,40 @@ export default async function CareTeamPage({
     .order("role")
     .order("full_name");
 
+  const rows: CareTeamRow[] = (team ?? []).map((p) => ({
+    id: p.id,
+    full_name: p.full_name,
+    email: p.email,
+    phone: p.phone,
+    specialization: p.specialization,
+    role: p.role as CareTeamRow["role"],
+    suspended: p.status === "suspended",
+  }));
+
+  const initialRole = role && (CARE_ROLES as readonly string[]).includes(role) ? role : null;
+
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
-      <section className="space-y-6">
+      <section className="min-w-0 space-y-6">
         <PageHeader
           title="Care team"
           description="Doctors, nutritionists, trainers and psychologists. Suspending an account is an instant lockout everywhere."
         />
 
         {error && ERRORS[error] ? (
-          <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-destructive">
+          <p
+            role="alert"
+            className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-destructive"
+          >
             {ERRORS[error]}
           </p>
         ) : null}
 
-        <Card>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b text-left text-muted-foreground">
-                    <th className="px-4 py-3 font-medium">Name</th>
-                    <th className="px-4 py-3 font-medium">Role</th>
-                    <th className="px-4 py-3 font-medium">Contact</th>
-                    <th className="px-4 py-3 font-medium">Status</th>
-                    <th className="px-4 py-3 text-right font-medium">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(team ?? []).map((p) => (
-                    <tr key={p.id} className="border-b last:border-0">
-                      <td className="px-4 py-3">
-                        <div className="font-medium text-foreground">{p.full_name}</div>
-                        {p.specialization ? (
-                          <div className="text-xs text-muted-foreground">{p.specialization}</div>
-                        ) : null}
-                      </td>
-                      <td className="px-4 py-3 capitalize">{p.role}</td>
-                      <td className="px-4 py-3">
-                        <div>{p.email}</div>
-                        {p.phone ? <div className="text-xs text-muted-foreground">{p.phone}</div> : null}
-                      </td>
-                      <td className="px-4 py-3">
-                        {p.status === "suspended" ? (
-                          <Badge variant="danger">Suspended</Badge>
-                        ) : (
-                          <Badge variant="success">Active</Badge>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <form action={setAccountStatus} className="inline">
-                          <input type="hidden" name="user_id" value={p.id} />
-                          <input
-                            type="hidden"
-                            name="status"
-                            value={p.status === "suspended" ? "active" : "suspended"}
-                          />
-                          <SubmitButton
-                            size="sm"
-                            variant={p.status === "suspended" ? "outline" : "destructive"}
-                            pendingText={p.status === "suspended" ? "Reactivating…" : "Suspending…"}
-                          >
-                            {p.status === "suspended" ? "Reactivate" : "Suspend"}
-                          </SubmitButton>
-                        </form>
-                      </td>
-                    </tr>
-                  ))}
-                  {(team ?? []).length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">
-                        No care-team members yet. Invite one to get started.
-                      </td>
-                    </tr>
-                  ) : null}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
+        <CareTeamTable rows={rows} initialRole={initialRole} />
       </section>
 
       <aside>
-        <Card>
+        <Card className="lg:sticky lg:top-20">
           <CardHeader>
             <CardTitle>Invite a professional</CardTitle>
           </CardHeader>
@@ -136,7 +81,7 @@ export default async function CareTeamPage({
                   name="role"
                   required
                   defaultValue=""
-                  className="h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                  className="h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                 >
                   <option value="" disabled>
                     Select a role…
@@ -148,7 +93,7 @@ export default async function CareTeamPage({
                   ))}
                 </select>
               </div>
-              <SubmitButton className="w-full" pendingText="Sending…">
+              <SubmitButton className="pressable w-full" pendingText="Sending…">
                 Send invite
               </SubmitButton>
               <p className="text-xs text-muted-foreground">

@@ -14,6 +14,11 @@ import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 import { parseRedFlags } from "@/lib/red-flags";
 import { telHref, waMeLink } from "@/lib/wa";
+import { formatDateIST, formatDateTimeIST } from "@/lib/datetime";
+import { CheckinLinkCard } from "@/components/checkin-link-card";
+import { RenewalPanel } from "@/components/renewal-panel";
+import { EngagementBadge, type EngagementRow } from "@/components/engagement";
+import { ThreadPanel } from "@/components/threads/thread-panel";
 import {
   CARE_ROLES,
   MEMBER_STATUS_LABEL,
@@ -97,6 +102,9 @@ export default async function CoordinatorMemberPage({
     { data: pros },
     { data: pkg },
     { data: caregiver },
+    { data: engagementRows },
+    { data: renewalRow },
+    { data: checkinRow },
   ] = await Promise.all([
     supabase.from("member_contacts").select("phone, whatsapp").eq("member_id", id).maybeSingle(),
     supabase
@@ -121,7 +129,29 @@ export default async function CoordinatorMemberPage({
     member.caregiver_id
       ? supabase.from("profiles").select("full_name, phone, whatsapp").eq("id", member.caregiver_id).maybeSingle()
       : Promise.resolve({ data: null }),
+    // W3: engagement is derived on read, so it is always current.
+    supabase.rpc("get_engagement", { p_member: id }),
+    supabase
+      .from("renewals")
+      .select("id, status, proposed_months, decision_note")
+      .eq("member_id", id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("checkin_links")
+      .select("token, expires_at")
+      .eq("member_id", id)
+      .is("revoked_at", null)
+      .gt("expires_at", new Date().toISOString())
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
+
+  const engagement = ((engagementRows ?? []) as unknown as EngagementRow[])[0] ?? null;
+  const checkinToken = checkinRow?.token ?? null;
+  const checkinExpires = checkinRow?.expires_at ?? null;
 
   // Cycles depend on the package id fetched above. Select `id` so the active
   // cycle's review consultations can be filtered from the `consults` list already
@@ -205,6 +235,33 @@ export default async function CoordinatorMemberPage({
       ) : null}
 
       <RedFlagBanner flags={redFlags} />
+
+      {/* W3 — is this family still with us, and how do I reach them if not. */}
+      <Card>
+        <CardHeader className="flex-row items-center justify-between gap-3">
+          <CardTitle>Engagement</CardTitle>
+          {engagement ? (
+            <EngagementBadge state={engagement.state} reason={engagement.reason} />
+          ) : null}
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {engagement ? (
+            <p className="text-sm text-muted-foreground">
+              {engagement.reason}
+              {engagement.last_activity_at
+                ? ` · Last seen ${formatDateTimeIST(engagement.last_activity_at)}`
+                : ""}
+            </p>
+          ) : null}
+          <CheckinLinkCard
+            memberId={member.id}
+            memberFirstName={member.full_name.split(" ")[0]}
+            existingToken={checkinToken}
+            whatsapp={contacts?.whatsapp ?? contacts?.phone ?? caregiver?.whatsapp ?? null}
+            expiresAt={checkinExpires ? formatDateIST(checkinExpires) : null}
+          />
+        </CardContent>
+      </Card>
 
       {/* Contacts (§3: coordinator sees member + caregiver contact identifiers) */}
       <Card>
@@ -369,6 +426,25 @@ export default async function CoordinatorMemberPage({
         psychSubmitted={psychSubmitted}
         redirectTo={redirectTo}
         isAdmin={false}
+      />
+
+      <RenewalPanel
+        memberId={member.id}
+        memberFirstName={member.full_name.split(" ")[0]}
+        isAdmin={false}
+        hasActivePackage={pkg?.status === "active" || pkg?.status === "paused"}
+        endsOn={pkg?.end_date ? formatDateIST(pkg.end_date) : null}
+        renewal={renewalRow ?? null}
+      />
+
+      {/* The coordinator is the hinge between the family and the clinicians, so
+          they see both the family threads and the internal ones — and can start
+          an internal note. */}
+      <ThreadPanel
+        memberId={member.id}
+        memberFirstName={member.full_name.split(" ")[0]}
+        compose="care_team"
+        description="Questions from the family and internal notes with the care team."
       />
     </section>
   );

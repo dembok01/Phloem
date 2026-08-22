@@ -18,6 +18,7 @@ export function GrowthRings({
   dayOfActive,
   daysInCycle = 30,
   paused = false,
+  ending = false,
   size = 96,
   className,
   title,
@@ -28,6 +29,12 @@ export function GrowthRings({
   dayOfActive?: number | null;
   daysInCycle?: number;
   paused?: boolean;
+  /** W4 — the package ends within a fortnight. The signature mark carries the
+   *  message (the live arc turns Honey) rather than the screen growing a new
+   *  badge: the ring already encodes where the programme is, so "nearly over"
+   *  belongs in the same mark. Pause wins if both are true — a paused programme
+   *  is not ending on schedule. */
+  ending?: boolean;
   size?: number;
   className?: string;
   /** Accessible description; defaults to a cycle/day summary. */
@@ -86,7 +93,7 @@ export function GrowthRings({
   const label =
     title ??
     (active
-      ? `Cycle ${active.number} of ${n}, day ${Math.max(dayOfActive ?? 1, 1)} of ${daysInCycle}${paused ? ", paused" : ""}`
+      ? `Cycle ${active.number} of ${n}, day ${Math.max(dayOfActive ?? 1, 1)} of ${daysInCycle}${paused ? ", paused" : ending ? ", ending soon" : ""}`
       : `${cycles.filter((cy) => cy.status === "closed").length} of ${n} cycles complete`);
 
   return (
@@ -135,7 +142,7 @@ export function GrowthRings({
                 cy={c}
                 r={r}
                 fill="none"
-                stroke={paused ? "var(--warning)" : "var(--primary)"}
+                stroke={paused || ending ? "var(--warning)" : "var(--primary)"}
                 strokeWidth={stroke}
                 strokeLinecap="round"
                 strokeDasharray={circumference}

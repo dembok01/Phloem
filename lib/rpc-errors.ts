@@ -24,6 +24,21 @@ export const RPC_ERROR_CODES = [
   "cannot_change_own_status",
   "not_shareable",
   "no_member_login",
+  // 0024 cases + 0026 progress summary
+  "title_required",
+  "bad_severity",
+  "bad_status",
+  "summary_required",
+  "bad_content",
+  // 0027 threads
+  "bad_kind",
+  "subject_required",
+  "body_required",
+  "thread_resolved",
+  // 0031 renewals
+  "bad_intent",
+  "renewal_closed",
+  "no_active_package",
 ] as const;
 
 export type RpcErrorCode = (typeof RPC_ERROR_CODES)[number];
@@ -58,6 +73,18 @@ export const RPC_ERROR_COPY: Record<RpcErrorCode, string> = {
   not_shareable:
     "Only doctor and performance reports can be shared — plans are always visible to the family.",
   no_member_login: "This member doesn't have their own login yet.",
+  title_required: "Give the case a title before saving it.",
+  bad_severity: "Severity must be low, medium or high.",
+  bad_status: "Status must be open, monitoring or resolved.",
+  summary_required: "Write a note before saving it.",
+  bad_content: "The report content was malformed and could not be saved.",
+  bad_kind: "That kind of conversation isn't available here.",
+  subject_required: "Give the conversation a subject so the team can find it.",
+  body_required: "Write a message before sending.",
+  thread_resolved: "This conversation is closed. Reopen it to add a message.",
+  bad_intent: "Choose whether you'd like to continue or talk it through first.",
+  renewal_closed: "This renewal has already been settled — your coordinator can help.",
+  no_active_package: "There is no running programme to renew for this member.",
 };
 
 export function rpcErrorMessage(

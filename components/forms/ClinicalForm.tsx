@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { DynamicForm } from "./DynamicForm";
 import { missingRequiredFields } from "./logic";
-import type { FormTemplateSchema, FormValues } from "./types";
+import type { FieldHint, FormTemplateSchema, FormValues } from "./types";
 import { useAutosaveDraft, type SaveState } from "./useAutosaveDraft";
 import { submitClinicalForm } from "@/app/(app)/clinician/clients/[id]/actions";
 
@@ -24,6 +24,7 @@ export function ClinicalForm({
   initialAnswers,
   locked = false,
   lockedReason,
+  hints,
 }: {
   template: FormTemplateSchema;
   memberId: string;
@@ -32,6 +33,8 @@ export function ClinicalForm({
   initialAnswers: FormValues;
   locked?: boolean;
   lockedReason?: string;
+  /** W5 — per-field reference values from the previous consultation. */
+  hints?: Record<string, FieldHint>;
 }) {
   const router = useRouter();
   const [values, setValues] = React.useState<FormValues>(initialAnswers);
@@ -144,7 +147,7 @@ export function ClinicalForm({
               className="scroll-mt-24 rounded-xl bg-card p-5 shadow-card ring-1 ring-foreground/10"
             >
               <h2 className="mb-4 font-display text-lg font-semibold">{section.title}</h2>
-              <DynamicForm fields={section.fields} values={values} onChange={onChange} errors={errors} />
+              <DynamicForm fields={section.fields} values={values} onChange={onChange} errors={errors} hints={hints} />
             </div>
           ))}
         </fieldset>

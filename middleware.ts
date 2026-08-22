@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import type { Database } from "@/lib/supabase/database.types";
-import { allowedPrefix, APP_PREFIXES, roleHome } from "@/lib/permissions";
+import { allowedPrefixes, APP_PREFIXES, roleHome } from "@/lib/permissions";
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -31,8 +31,16 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
+  // `/c/<token>` is the W3 family check-in link: deliberately reachable with no
+  // session, because the families most worth reaching are the ones who will not log
+  // in. It is safe to leave open because the page itself holds no data — it calls
+  // two `anon`-executable security-definer RPCs that validate the token and return
+  // a first name and nothing else (migration 0029).
   const isPublic =
-    pathname === "/login" || pathname.startsWith("/invite") || pathname.startsWith("/api/cron");
+    pathname === "/login" ||
+    pathname.startsWith("/invite") ||
+    pathname.startsWith("/c/") ||
+    pathname.startsWith("/api/cron");
 
   if (!user) {
     if (isPublic) return response;
@@ -58,7 +66,7 @@ export async function middleware(request: NextRequest) {
   }
 
   const home = roleHome(profile.role);
-  const prefix = allowedPrefix(profile.role);
+  const prefixes = allowedPrefixes(profile.role);
 
   if (pathname === "/" || pathname === "/login") {
     const url = request.nextUrl.clone();
@@ -68,8 +76,9 @@ export async function middleware(request: NextRequest) {
   }
 
   // Keep each role inside its own §10 shell (cosmetic; RLS is the boundary).
+  // Admin is the one role with more than one shell — see allowedPrefixes().
   const inGuardedSection = APP_PREFIXES.some((p) => pathname.startsWith(p));
-  if (inGuardedSection && !pathname.startsWith(prefix)) {
+  if (inGuardedSection && !prefixes.some((p) => pathname.startsWith(p))) {
     const url = request.nextUrl.clone();
     url.pathname = home;
     url.search = "";

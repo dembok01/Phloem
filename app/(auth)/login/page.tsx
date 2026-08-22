@@ -25,8 +25,20 @@ export default async function LoginPage({
   const errorId = message ? "signin-error" : undefined;
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background p-4 text-base">
-      <Card className="w-full max-w-md shadow-pop">
+    // V4 — the first impression. This was a bare white box on a flat ground; it now
+    // sits inside the product's own signature mark, at a size where the rings read
+    // as ground texture rather than decoration.
+    <main className="relative isolate flex min-h-screen items-center justify-center overflow-hidden bg-background p-4 text-base">
+      <svg
+        aria-hidden
+        viewBox="0 0 200 200"
+        className="pointer-events-none absolute -z-10 w-[min(140vw,1100px)] text-primary opacity-[0.045]"
+      >
+        {[92, 74, 56, 38, 20].map((r) => (
+          <circle key={r} cx="100" cy="100" r={r} fill="none" stroke="currentColor" strokeWidth="2.2" />
+        ))}
+      </svg>
+      <Card variant="hero" className="w-full max-w-md">
         <CardHeader className="items-center text-center">
           <Image
             src="/phloem-logo.png"

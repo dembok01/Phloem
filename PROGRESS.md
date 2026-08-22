@@ -618,3 +618,480 @@ The doctor queue could not be seen: `doctor@phloem.local` has zero assignments, 
 the four new groups have nothing to render. Branch creation via MCP is unavailable
 in this tool build (`confirm_cost` is not exposed), so the `SEED_DEMO=1` project
 remains the outstanding prerequisite for verifying doctor and client surfaces.
+
+---
+
+## Care Continuum — W1–W5 (2026-08-19)
+
+**Status:** ✅ complete · branch `feature/care-continuum` · spec
+`docs/superpowers/specs/2026-08-18-care-continuum-design.md`
+
+Five workstreams over the shipped 8-phase system, built in order, each verified
+before the next began. Owner decisions taken at the start: **Focuni integration
+dropped entirely** (not designed, not built, not stubbed); **renewal is workflow
+only, no payments**; family re-engagement uses **tokenised check-in links**.
+
+### Migrations
+`0022_measures` · `0023_doctor_review_v2` · `0024_cases` · `0025_progress_report_enum`
+· `0026_progress_report` · `0027_threads` · `0028_activity` · `0029_checkin_links`
+· `0030_quiet_flags` · `0031_renewals` · `0032_declining_measures`
+· `0033_anon_execute_lockdown`
+
+### W1 — Reports, timeline, improvement tracking
+- `measure_catalog` + `measure_sources` (20 measures, 32 sources) name the
+  longitudinal set the §7 templates were already collecting but nothing tracked.
+- `get_measure_series` is the access boundary (per-role domain filter, §5.3 shape).
+- **Gap found and fixed:** `doctor_review` v1 captured no vitals, so weight/BP/pulse
+  had a single data point forever. v2 adds a Vitals section reusing
+  `doctor_initial`'s exact field ids; derived from v1 in SQL so it is provably
+  "v1 + one section". `seed.ts` now activates only the newest version per key.
+- `member_cases` / `member_case_events`: the doctor's `problem_list` becomes tracked
+  cases at intake, and every review appends to the open ones — same transaction as
+  the report.
+- `progress_summary` report: composed in TypeScript (it stitches measures, timeline
+  and cases into one narrative, and reuses `lib/measures.ts` so a printed PDF can
+  never disagree with the live Trends tab), recorded through an RPC so §12 keeps
+  owning notification rows. Carries **family-safe measures only** — it is the
+  family's monthly artifact; the care team's full-fidelity view is the Trends tab.
+- Three new section kinds (`measure_trend`, `timeline`, `comparison`) render through
+  the existing pure-SVG `Sparkline`, never recharts, because the same components go
+  through `renderToStaticMarkup` into puppeteer.
+
+**Verified:** per-persona series access (doctor 9 rows clinical+training and 0 psych
+even when psych is requested explicitly; psychologist psych-only; caregiver
+family-safe only; coordinator 0; unassigned doctor 0); `"148/84"` parsed to
+systolic/diastolic; direction-aware wording on a fixture (sit-to-stand and balance
+improving, a *rising* timed up-and-go reported as "needs attention", weight reported
+with no verdict); case seeding 3 problem rows → 2 cases with control→severity
+mapping; report RPC idempotent, `force` supersedes rather than mutates.
+
+### W2 — Communication
+`threads` / `thread_messages` / `thread_reads`. Access is **derived from role +
+assignment**, not a participants table that would drift the moment a clinician is
+unassigned. **The psychologist is excluded from `care_team` and `family` threads**
+rather than filtered inside them — those threads carry clinical detail in other
+people's messages, and §3 grants that role only minimal demographics.
+
+**Verified per persona:** caregiver 1 family thread / 1 message and denied opening an
+internal one; the doctor *not* addressed sees only the internal thread while the
+addressed nutritionist sees both (audience filter); psychologist sees their own
+channel and **0 messages** from family/care-team threads; unassigned doctor 0.
+
+### W3 — Patient activity
+- `activity_events` + **derived** engagement (`engaged | quiet | at_risk`). The word
+  is deliberately *engagement*, never "inactive" — `member_status.inactive` already
+  means "package finished", a good outcome.
+- Check-in link: the only unauthenticated write path. `anon` reaches exactly two
+  security-definer functions; the caller never names a member (the token resolves
+  it); the page shows a first name and nothing else; invalid/expired/revoked/
+  already-used all return an identical `{"ok": false}`.
+- Cron job 7 flags quiet families weekly, escalating `at_risk` to admin.
+
+**Verified:** 3 presence calls → 1 row; family cannot read the signal about
+themselves; live REST with the real anon key — every table 401, every other RPC
+404/401; link reuse rather than duplication; concern detection firing both
+notifications; second same-day submit refused; revoke killing the link; weekly
+dedupe (two runs → 3 notifications, not 6).
+
+### W4 — Program lifecycle
+`renewals` + propose / respond / complete. §3 splits it: coordinator proposes and
+records the family's answer, **admin alone completes** (it creates a package, and §3
+gives reactivation to admin). `complete_renewal` wraps `reactivate_member` so one
+code path creates a package and its four consultations. Ending is carried by the
+**signature mark** — `GrowthRings` gains an `ending` state — rather than a new badge.
+
+**Verified:** cron opens exactly 1 offer at T-14 and 0 on a second run; coordinator
+**denied** `complete_renewal`; admin completes → new package, 4 fresh consults,
+member → `assigned`, prior reports intact.
+
+### W5 — Doctor experience
+`lib/issues.ts` is the single answer to "what is wrong with this member", shared by
+the list row and the member page. Two judgements live there: a red flag that **has**
+a clearance decision stops being an outstanding issue, and a `quiet` family is the
+coordinator's call — only `at_risk` reaches the doctor. `my_declining_measures`
+answers the whole list in one query; psych measures never appear on this surface and
+directionless measures (weight) are excluded entirely.
+
+Clinical forms show the previous consultation's value **beside** each field
+("Last time: 128/82") and never prefill it — copy-forward is a known charting hazard.
+
+**Verified:** 12 unit tests; of sit-to-stand 8→11, TUG 14→17 and balance 10→10 only
+the TUG is flagged; psychologist and unassigned doctor get 0 rows.
+
+### Security regression found and fixed (0033)
+0029's `grant usage on schema public to anon` re-activated Postgres's default
+PUBLIC EXECUTE for `anon`, taking anon-callable security-definer functions from 2 to
+8 — including `get_onboarding_scoped`. All eight still **failed closed** (the 0017
+NULL-role hardening), but 0033 snapshots what `authenticated` may execute, revokes
+EXECUTE from PUBLIC/anon schema-wide, and re-grants that snapshot — a blanket grant
+to `authenticated` would have handed it the five service/cron-only functions. The
+migration asserts its own end state.
+
+**Verified:** `has_function_privilege('anon', …)` = exactly `get_checkin_link` and
+`submit_checkin`; the five service-only functions still denied to `authenticated`;
+`get_onboarding_scoped` as anon over REST → **401 permission denied**; Supabase
+advisor `anon_security_definer_function_executable` **8 → 2**, 0 ERROR-level.
+
+### Verification summary
+`npm run build` ✓ (new `/c/[token]` route registered) · `tsc --noEmit` ✓ ·
+`eslint` ✓ 0 problems · `npm run test:unit` **62/62** · Supabase security advisor
+0 ERROR · authenticated route smoke 5/5 render clean (admin overview + member,
+coordinator today + member, clinician list) · public `/c/[token]` verified
+unauthenticated at phone width.
+
+### Assumptions logged
+1. **Psychologist excluded from care-team/family threads** (see W2). Their channel
+   is `psych` (psychologist ↔ admin), mirroring the existing escalation path.
+2. **`progress_summary` carries family-safe measures only.** One artifact serves the
+   family (shared by default, plain-language lead); clinicians get full fidelity
+   live in Trends rather than in a PDF that gets forwarded.
+3. **A `quiet` family is not a clinical issue** — only `at_risk` reaches the doctor.
+4. **Engagement is derived on read**, never stored, so it cannot go stale if a job
+   stops running.
+
+### Not verified live (environment)
+The caregiver portal surfaces (Messages page, renewal card, ending ring) and the
+doctor dashboard's populated state could not be exercised in a browser: this project
+has no caregiver login with a known password, `doctor@phloem.local` still has zero
+assignments, and `seed.ts` refuses demo fixtures without `SEED_DEMO=1` (a guard that
+should not be overridden against real data). Their data paths are verified at the
+database layer per persona, and every route that *could* be reached renders clean.
+This is the same constraint recorded for the portal-elevation phase.
+
+---
+
+## Admin desks ("god mode") — 2026-08-21, branch `feature/care-continuum`
+
+**Goal (user, narrowed twice during design):** the admin should do everything the
+coordinator does, and be able to open the doctor / nutritionist / trainer care-team
+views and see exactly what those clinicians see. Minimal DB and permission change.
+
+### The verification that shaped the build
+
+Before writing anything, every table and RPC the two shells touch was checked
+against the **live** hosted project (`pg_policies` + `pg_get_functiondef`). The
+result changed the plan from "one migration" to **zero migrations**:
+
+- **Coordinator parity was already complete.** Every RPC the coordinator UI calls
+  (`activate_program`, `pause_program`, `resume_program`, `assign_care_team`,
+  `set_consultation_schedule`, `mark_meeting_done`, `set_package_duration`,
+  `propose_renewal`, `create_checkin_link`, `revoke_checkin_link`,
+  `create_member_with_invite`) guards on `auth_role() not in ('admin','coordinator')`.
+  Five more (`deactivate_member`, `reactivate_member`, `complete_renewal`,
+  `set_report_sharing`, `set_account_status`) are **admin-only** — the admin was
+  already a strict superset of the coordinator. The single blocker was
+  `allowedPrefix()` fencing admin into `/admin`.
+- **Clinician read parity was already complete.** `members`, `consultations`,
+  `cycles`, `reports`, `form_responses`, `form_templates`, `assignments`,
+  `member_cases`, `threads`, `thread_messages`, `member_documents`, `packages` each
+  carry an `admin … ALL` policy (policies OR together, so `doc_select` omitting
+  admin is irrelevant). `my_declining_measures`, `get_engagement`, `list_engagement`,
+  `get_report_view_receipts`, `get_measure_series` all name admin;
+  `get_onboarding_scoped` returns admin the *full* answers; `my_unread_threads`
+  gates on `auth_role() is not null`.
+- **The only two RPCs that exclude admin are `submit_clinical_form` and
+  `submit_feedback`** — both writes. Scope is read-only, so both stay untouched.
+
+### What was built (app layer only — no migration, no RLS edit)
+
+| File | Change |
+|---|---|
+| `lib/permissions.ts` | `allowedPrefix(): string` → `allowedPrefixes(): readonly string[]`. Admin gets `/admin`, `/coordinator`, `/clinician`; every other role keeps exactly one. `/portal` deliberately excluded. |
+| `middleware.ts` | prefix check becomes `.some()` |
+| `lib/lens-core.ts` (new) | pure lens vocabulary + cookie parser (`parseLens` rejects any role outside doctor/nutritionist/trainer, and any non-UUID id) |
+| `lib/lens.ts` (new) | `getLens()` — request-cached, returns `null` for every non-admin *whatever the cookie says* |
+| `app/(app)/lens-actions.ts` (new) | `setLens` server action, Zod-validated, re-checks admin before setting an httpOnly cookie (8h) |
+| `components/care-team-switcher{,-menu}.tsx` (new) | admin-only desk picker; each row is its own `<form>`, so it works with JS off |
+| `app/(app)/layout.tsx` | switcher in the header; accent bar takes the **borrowed** desk's hue; "Viewing as … · read-only" banner with an exit |
+| `app/(app)/clinician/clients/page.tsx` | `viewRole` drives the shell; admin's caseload is reconstructed from `assignments` (RLS hands an admin everyone, so the desk's own set has to be rebuilt); consultations filtered to the desk's type |
+| `app/(app)/clinician/clients/[id]/page.tsx` | `viewRole` drives tabs and every `.eq("type", role)`; **`form` and `feedback` tabs are removed for an admin** |
+
+**Why the two tabs are removed rather than disabled:** besides the DB refusing both
+submits, `FormPanel` *inserts a draft `form_response` on render*. Under `fr_admin ALL`
+that insert would succeed — a clinical row authored by someone who never held the
+consultation. Not rendering the panel is the fix.
+
+### Verification
+
+- `npm run typecheck` clean · `npx eslint` clean on all changed files · `npm run build` clean
+- `npm run test:unit` — **69/69** (was 62; `lib/lens-core.test.ts` adds 7 covering
+  cookie forgery: `psychologist`/`admin`/`coordinator`/`caregiver` and malformed
+  UUIDs all rejected; `viewRoleFor` bends for admin only; admin is the only role
+  with >1 shell and never gets `/portal`; every role's `roleHome` lies inside its
+  own `allowedPrefixes`)
+- **§16 suite** — new `admin desks` section, run via MCP `execute_sql` inside a
+  rolled-back transaction. 11/11 PASS:
+  admin sees ≥ the assigned doctor on members / reports / consultations /
+  form_responses / cases / onboarding fields; admin reads `assignments`; admin
+  **REFUSED** `submit_clinical_form` and `submit_feedback` with exactly
+  `not_allowed`; regression — coordinator still sees 0 reports and 0 clinical
+  form responses.
+
+### Assumptions logged
+1. **Psychologist is not a borrowable desk.** The user named doctor/nutritionist/
+   trainer. §3 does grant admin the wellbeing report, so it stays readable from
+   `/admin` — it just has no working shell.
+2. **`/portal` is not a borrowable desk.** It is the family's surface, and it fires
+   `record_activity('portal_visit')` on render — an admin browsing it would forge
+   family engagement and mask the very quiet families W3 exists to surface.
+3. **The onboarding tab shows an admin a superset**, not a byte-identical view:
+   `get_onboarding_scoped` returns admin the full answers where a nutritionist gets
+   the diet subset. §3 grants admin full onboarding, so this is spec-correct.
+4. **The lens is a preference, not a credential.** It is presentation state in the
+   same sense as `lib/permissions.ts`; `getLens()` returns `null` for non-admins,
+   and every write still goes through the §6 RPCs, which do not know it exists.
+
+### Not verified live (environment)
+The four shells were not exercised in a browser: the Chrome extension could not
+reach the dev server (error page on both `localhost:3000` and `127.0.0.1:3000`
+while `curl` returned 200), and entering the admin password is not something the
+assistant does. Every data path is verified at the database layer per persona
+above, and the build renders all routes clean. A manual pass through
+`/coordinator` and a borrowed desk is the remaining check.
+
+---
+
+## Admin shell UI/UX upgrade — 2026-08-21, branch `feature/care-continuum`
+
+**Goal (user):** easier to use, feature-rich, all buttons visible, microinteractions
+evident and usable.
+
+### Diagnosis
+
+`/admin` (Overview) was already strong — hero, sparkline tiles, stage funnel,
+throughput chart, renewal radar. The four **list** pages were the gap: raw `<table>`
+markup that never received the V1 elevation pass, with no search, no filters, no
+sorting, and bare `<td>` grey text where an `EmptyState` belonged.
+
+**Bug found during verification:** `/admin/members` took no `searchParams` and
+ignored `?status=`. The Overview's nine funnel stages and two of its tiles all
+deep-link to `/admin/members?status=…`, so **eleven links looked like features and
+silently did nothing.** Fixed — the page now reads and validates the param against
+the `member_status` enum.
+
+### Decisions
+
+1. **They stay tables.** Moving them onto `List`/`ListRow` was considered and
+   rejected: a queue has one dominant name per row and repeats its verb, whereas
+   admin data is genuinely columnar. What they needed was a sticky header, a real
+   hover state, tabular numerals, sortable columns and designed empty states — not
+   a different component.
+2. **Single-click actions with an Undo toast** (user's call, over an inline
+   two-beat confirm). The audit-noise cost was raised and accepted: an undo writes
+   a second audit row rather than erasing the first.
+3. **Undo is offered only where a true inverse exists.** `set_account_status` is a
+   clean inverse, so Suspend/Reactivate gets one. `revokeInvite` **hard-deletes**
+   the row and `reactivate_member` mints a *fresh package* — neither can be undone,
+   so neither advertises it. An Undo that cannot undo is worse than none.
+4. **Filtering is client-side** over rows the page already fetched (admin lists are
+   in the hundreds), mirrored into the URL with `history.replaceState` so links stay
+   shareable without re-running the server component per keystroke.
+
+### Built
+
+| File | Role |
+|---|---|
+| `lib/admin-filters.ts` (new) | pure search/sort/date helpers — accent-insensitive token search, nulls-last sort, `relativeDayLabel` |
+| `lib/admin-filters.test.ts` (new) | 10 tests over the above |
+| `components/admin/filter-bar.tsx` (new) | search + count-bearing chips, `/` to focus, Esc to clear |
+| `components/admin/table.tsx` (new) | `AdminTable`/`Tr`/`Td`/`Th`/`SortTh`/`useSort` |
+| `components/admin/row-action.tsx` (new) | single-click action → toast → optional honest Undo |
+| `components/admin/{members,care-team,invites,audit}-table.tsx` (new) | the four lists |
+| `components/ui/toast.tsx` | gains optional `action` (Undo); actionable toasts live 9s and pause while firing |
+| `app/globals.css` | new `.liftable` utility |
+| the four `admin/*/page.tsx` | now server-fetch + hand off to their table |
+| `admin/{care-team,invites}/actions.ts` | `ActionResult`-returning twins of the redirect actions |
+
+**Per page:** Members — search, 10 status chips, sortable name/age/city/status,
+"Flagged first" toggle, flagged rows tinted. Care team — search, 4 role chips,
+"Suspended only" toggle, Suspend/Reactivate with Undo. Invites — search, state
+chips, expiry as *"in 3 days"*, copy-link, Revoke (no Undo). Audit — window raised
+100 → 400, search, entity chips, "Show more" 50 at a time.
+
+**Microinteractions**, all from tokens that already existed and were unused here:
+`.pressable` on every row, chip and action; `SortTh` shows its neutral sort glyph
+before you have used it; row dims + spinner while its own action is in flight; the
+result count is `aria-live` and firms up when a filter is on; new `.liftable`
+(a 2px hover lift on the dashboard tiles) deliberately uses `translate` rather than
+`transform`, because `.pressable:active` already owns `transform` and one rule
+setting both would make a press cancel the lift instead of composing with it —
+the same reasoning `stagger-rise` documents. Reduced-motion and `.elderly` drop it.
+
+### Verification
+`npx tsc --noEmit` clean · `npx eslint .` clean across the whole repo ·
+`npm run test:unit` **79/79** (was 69; +10 for `admin-filters`) ·
+`npm run build` compiled, 17/17 pages.
+
+### Not verified live (environment)
+Still not exercised in a browser: the Chrome extension returns "Frame is showing
+error page" for both `localhost:3000` and `127.0.0.1:3000` while `curl` returns 200
+— an extension site-permission issue, not an app fault. A manual pass over the four
+list pages is the remaining check.
+
+---
+
+## In-dashboard document & report viewing — 2026-08-21, branch `feature/care-continuum`
+
+**Report:** family-uploaded documents and report PDFs could not be viewed in the
+browser; the admin should be able to view them too.
+
+### Root cause
+
+Not a permissions problem, and not a malfunction — **viewing was never built.**
+Both paths explicitly asked the browser to download:
+
+- `components/documents/document-list.tsx:44` — `createSignedUrl(path, 600, { download: file_name })`
+  then `window.open(...)`. Supabase's `download` option sets
+  `Content-Disposition: attachment`, so the browser saved the file and the opened
+  tab closed immediately.
+- `app/api/reports/[id]/pdf/route.ts` — the same `{ download: filename }` on
+  **both** the cached-object branch and the freshly-rendered one.
+
+The only affordance in the list UI was a `Download` icon. There was no view path
+to be broken.
+
+Three findings that made the fix cheap, all verified before writing code:
+
+1. **Content-Type is already stored correctly.** `contentTypeFor()` covers the
+   blank-`file.type` case (notably HEIC), the uploader passes it to `.upload()`,
+   and `mime_type` is persisted on the row — so objects render inline as soon as
+   the flag comes off. **No re-upload, no migration.**
+2. **Admin access already worked at both layers** — `doc_admin ALL` on
+   `member_documents`, and the `documents_read` storage policy names
+   `auth_role() = 'admin'`. `DocumentList` was already rendered on the admin
+   member page. Admin could always *reach* these files; nobody could *view* them.
+3. **No CSP in `next.config.ts`**, so an `<iframe>` to a signed URL is not blocked.
+
+### Built
+
+- **`lib/document-preview.ts` + tests (new).** `previewKind(mime, name)` →
+  `pdf | image | unsupported`. **HEIC/HEIF are refused**, and the filename
+  overrules a mime type the browser guessed wrong: no browser outside Safari
+  draws HEIC, an `<img>` pointed at one shows a silent broken frame, and families
+  upload straight from iPhones — so it is the common case, not the edge case.
+  `unsupportedReason()` names it in plain words.
+- **`components/documents/document-viewer.tsx` (new).** Modal over the list, built
+  on the existing `Sheet` (Base UI Drawer — focus trap, Escape, backdrop dismiss
+  already shipped). PDFs in an `<iframe>` (the only element that reliably shows
+  the browser's own PDF toolbar across Chrome/Firefox/Safari), images in `<img>`,
+  unsupported types in a designed message with a download. Left/right arrows step
+  through the list in **displayed** order. Download keeps the `download` flag,
+  because that is a genuinely different intent.
+- **`document-list.tsx`** — the filename is now a button that opens the viewer,
+  plus an explicit eye icon; download and delete unchanged. Rows show
+  "· no preview" where that is the truth.
+- **`app/api/reports/[id]/pdf/route.ts`** — `?view=1` omits the attachment
+  disposition. Same object, same signature, same RLS gate; **the default stays a
+  download so every existing link behaves as before.**
+- **`app/(app)/reports/[id]/page.tsx`** — "View PDF" (new tab, inline) promoted
+  above "Download PDF".
+- `mime_type` added to the three `member_documents` selects (admin, portal,
+  clinician).
+
+### Verification
+`tsc` clean · `eslint .` clean repo-wide · `npm run test:unit` **84/84** (was 79;
++5 for `document-preview`, written failing first) · `npm run build` clean, 17/17.
+
+Live storage check via MCP (rolled back): 4 documents exist, all `application/pdf`;
+**admin sees 4/4 rows and 4/4 storage objects** (so signing a view URL succeeds),
+while a caregiver sees only their own 1 — scoping intact.
+
+### Not verified live (environment)
+Still no browser pass: the Chrome extension reports "Frame is showing error page"
+for `localhost:3000` and `127.0.0.1:3000` while `curl` returns 200. The iframe
+render itself is the one thing only a browser can confirm.
+
+---
+
+## Guiding dashboards — 2026-08-22, branch `feature/care-continuum`
+
+**Goal (user):** admin + coordinator should say what to do next rather than show
+data, and hovering anything should explain why it is there. Without complicating
+the UI.
+
+### What was already true
+
+**The coordinator dashboard already guides.** Its Today queue is a task list —
+"Assign the care team", "Schedule the doctor consultation", "Mark the meeting
+done", "Chase the report" — bucketed Overdue / Today / This week and grouped per
+family, plus a "Families who have gone quiet" section. It was not rebuilt.
+
+Three real problems were fixed instead.
+
+### 1. "What's next" lived in three places
+
+The Today page's inline `push(...)`, the pipeline's private `nextAction()`, and
+`lib/issues.ts` — only the last followed the codebase's own rule ("must be the
+same answer on all three"). Extracted **`lib/next-actions.ts`**: pure,
+unit-tested, 14 tests.
+
+Two deliberate properties:
+
+- **`why` and `how` are fields on the action**, not copy written elsewhere. The
+  tooltip explaining a row is generated from the object that produced the row, so
+  guidance and explanation cannot drift apart.
+- **Escalation adds, never moves.** Work stuck past 7 days raises an admin row
+  AND keeps the coordinator's. Silently relocating someone's task is how it gets
+  dropped by both people at once. There is a test for exactly this.
+
+### 2. The coordinator's queue went silent once a programme started
+
+`consultations` was queried with `.is("cycle_id", null)` — **initial consultations
+only**. A month-2 doctor review could sit unscheduled forever and never appear as
+work. The filter is gone and the cycle number is embedded, so rows now read
+"Schedule the month-2 nutritionist review". Regression caught while wiring it: the
+old rows carried the meeting *time* in `detail`, which `why` displaced — the
+action now carries `at` and the row renders it in `meta`, so reason and time both
+show.
+
+### 3. Admin had no guidance at all
+
+New **"Needs you"** section, directly under the hero. Strictly admin-only work —
+the RPCs a coordinator cannot call — plus escalations:
+
+| Row | Trigger |
+|---|---|
+| Complete the renewal | family accepted, package not opened (`complete_renewal` is admin-only) |
+| Decide on a deactivated member | `status = 'inactive'` (`reactivate_member` is admin-only) |
+| A suspended clinician | suspended **and** still holding active assignments |
+| Stuck coordinator work | unmarked meeting / unfiled report past 7 days |
+
+**Corrected during design:** "Start the programme" is *not* admin-only —
+`activate_program` accepts both roles — so it stays on the coordinator desk.
+"Share a report with the family" was dropped: sharing is a clinical judgement,
+not a chore, and nudging on it would be wrong. A suspended account with nobody
+assigned is untidiness, not a task, so it only surfaces while members are
+stranded behind it.
+
+### 4. Explanations
+
+`components/ui/explain.tsx` on Base UI Tooltip — opens on hover **and keyboard
+focus**, with a real focusable button so touch works too. Delay and grouping come
+from one `Tooltip.Provider` in the app layout. Two shapes because the host decides
+which is legal: `ExplainOn` attaches to an already-focusable element (the admin
+tiles are links — never a button nested in an anchor), `Explain` is a standalone
+(i) beside non-interactive text. Applied to all four admin tiles, the hero, the
+funnel, and the coordinator hero.
+
+### Narrowed during implementation
+The pipeline board was **not** moved wholesale onto the engine. Its labels answer
+"what stage is this card in", which includes states that are not work at all
+("Awaiting onboarding", "2/4 reports in") — forcing those through a task engine
+would have destroyed the progress the board exists to show. Only the three labels
+that genuinely overlap now come from the engine, at no extra query cost.
+
+### Also
+`istDayNumber()` folded into `lib/datetime.ts` and `lib/admin-filters.ts`
+refactored onto it, so IST calendar-day maths has one home.
+
+### Verification
+`tsc` clean · `eslint .` clean repo-wide · `npm run test:unit` **98/98** (was 84;
++14 for `next-actions`, written failing first) · `npm run build` clean, 17/17.
+
+Live data check via MCP: admin "Needs you" resolves to **exactly 1 row** (a
+meeting scheduled >7 days ago, still unmarked) while the coordinator keeps its 7
+scheduling rows — the no-duplication design behaving as intended on real data.
+
+### Not verified live (environment)
+No browser pass — the Chrome extension still cannot reach the dev server. The
+tooltip open/close behaviour is the part only a browser can confirm.

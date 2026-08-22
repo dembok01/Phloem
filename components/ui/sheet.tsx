@@ -22,6 +22,8 @@ export function Sheet({
   children,
   footer,
   className,
+  bodyClassName,
+  headerActions,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -30,6 +32,10 @@ export function Sheet({
   children: React.ReactNode;
   footer?: React.ReactNode;
   className?: string;
+  /** Overrides the body's default padding — pass `p-0` for a flush surface. */
+  bodyClassName?: string;
+  /** Sits beside the close button, for viewers whose only actions are chrome. */
+  headerActions?: React.ReactNode;
 }) {
   return (
     <Drawer.Root open={open} onOpenChange={onOpenChange}>
@@ -52,15 +58,20 @@ export function Sheet({
                 </Drawer.Description>
               ) : null}
             </div>
-            <Drawer.Close
-              aria-label="Close"
-              className="-m-1 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-            >
-              <X className="size-4" aria-hidden />
-            </Drawer.Close>
+            <div className="flex shrink-0 items-center gap-1">
+              {headerActions}
+              <Drawer.Close
+                aria-label="Close"
+                className="-m-1 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+              >
+                <X className="size-4" aria-hidden />
+              </Drawer.Close>
+            </div>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6">{children}</div>
+          <div className={cn("min-h-0 flex-1 overflow-y-auto px-6 pb-6", bodyClassName)}>
+            {children}
+          </div>
 
           {footer ? (
             <div className="flex items-center justify-end gap-2 border-t bg-muted/40 px-6 py-4">

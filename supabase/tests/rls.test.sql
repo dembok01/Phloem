@@ -404,6 +404,137 @@ reset role;
 insert into results select pg_temp.assert_true('share: set_report_sharing NOT executable by anon',
   not has_function_privilege('anon', 'public.set_report_sharing(uuid, boolean)', 'execute'));
 
+-- ============ admin desks (god mode): reads widen, writes do NOT ============
+-- The admin shell borrows a clinician's desk in the UI (lib/lens.ts). That is a
+-- presentation change only, and this section is what makes the claim true: an
+-- admin must already SEE at least everything the assigned doctor sees, and must
+-- still be REFUSED the two clinical writes. If a migration ever flips either
+-- half, this fails loudly.
+--
+-- Unlike the sections above, this one resolves its own doctor/member pair from
+-- whatever assignments exist rather than hard-coding M1, so it stays meaningful
+-- on a project whose data has drifted from the §14 seed.
+reset role;
+create temp table desk_ctx(doctor_id uuid, member_id uuid, cons_id uuid, fb_id uuid);
+insert into desk_ctx(doctor_id, member_id)
+select a.care_user_id, a.member_id
+  from assignments a join profiles p on p.id = a.care_user_id
+ where p.role = 'doctor' and p.status = 'active' and a.active
+ limit 1;
+
+do $$
+declare v_doc uuid; v_mem uuid; v_cons uuid; v_fb uuid; v_nutri uuid;
+begin
+  select doctor_id, member_id into v_doc, v_mem from desk_ctx;
+  if v_doc is null then
+    raise exception 'RLS TEST FAILED: no active doctor assignment to borrow a desk from';
+  end if;
+
+  select id into v_cons from consultations where member_id = v_mem and type = 'doctor' limit 1;
+  if v_cons is null then
+    insert into consultations(member_id, cycle_id, type) values (v_mem, null, 'doctor')
+    returning id into v_cons;
+  end if;
+
+  select fr.id into v_fb from form_responses fr join form_templates t on t.id = fr.template_id
+   where t.key = 'feedback_nutrition' limit 1;
+  if v_fb is null then
+    select id into v_nutri from profiles where role = 'nutritionist' and status = 'active' limit 1;
+    insert into form_responses(member_id, template_id, respondent_id, answers, submitted_at)
+    values (v_mem, (select id from form_templates where key = 'feedback_nutrition' and active
+                     order by version desc limit 1),
+            v_nutri, '{"adherence":"4"}', now())
+    returning id into v_fb;
+  end if;
+
+  update desk_ctx set cons_id = v_cons, fb_id = v_fb;
+end $$;
+
+grant select on desk_ctx to authenticated;
+create temp table desk(members bigint, reports bigint, consults bigint,
+                       responses bigint, cases bigint, onboarding_keys bigint);
+grant insert, select on desk to authenticated;
+
+-- what the ASSIGNED DOCTOR can see
+select set_config('request.jwt.claims',
+  json_build_object('sub', (select doctor_id from desk_ctx), 'role', 'authenticated')::text, true);
+set local role authenticated;
+insert into desk select
+  (select count(*) from members),
+  (select count(*) from reports        where member_id = (select member_id from desk_ctx)),
+  (select count(*) from consultations  where member_id = (select member_id from desk_ctx)),
+  (select count(*) from form_responses where member_id = (select member_id from desk_ctx)),
+  (select count(*) from member_cases   where member_id = (select member_id from desk_ctx)),
+  (select count(*) from jsonb_object_keys(
+     coalesce(get_onboarding_scoped((select member_id from desk_ctx)), '{}'::jsonb)));
+
+-- what the ADMIN can see, standing at that desk
+reset role;
+select set_config('request.jwt.claims',
+  json_build_object('sub', (select id from ids where role = 'admin' limit 1),
+                    'role', 'authenticated')::text, true);
+set local role authenticated;
+
+insert into results select pg_temp.assert_true('desk: admin sees >= doctor (members)',
+  (select count(*) from members) >= (select members from desk));
+insert into results select pg_temp.assert_true('desk: admin sees >= doctor (reports)',
+  (select count(*) from reports where member_id = (select member_id from desk_ctx))
+    >= (select reports from desk));
+insert into results select pg_temp.assert_true('desk: admin sees >= doctor (consultations)',
+  (select count(*) from consultations where member_id = (select member_id from desk_ctx))
+    >= (select consults from desk));
+insert into results select pg_temp.assert_true('desk: admin sees >= doctor (form_responses)',
+  (select count(*) from form_responses where member_id = (select member_id from desk_ctx))
+    >= (select responses from desk));
+insert into results select pg_temp.assert_true('desk: admin sees >= doctor (cases)',
+  (select count(*) from member_cases where member_id = (select member_id from desk_ctx))
+    >= (select cases from desk));
+insert into results select pg_temp.assert_true('desk: admin sees >= doctor (onboarding fields)',
+  (select count(*) from jsonb_object_keys(
+     coalesce(get_onboarding_scoped((select member_id from desk_ctx)), '{}'::jsonb)))
+    >= (select onboarding_keys from desk));
+insert into results select pg_temp.assert_true('desk: admin reads assignments (caseload reconstruction)',
+  (select count(*) from assignments where active) > 0);
+
+-- The read-only half. Both must refuse with exactly `not_allowed` — the identity
+-- gate — not a sequencing error that a fixture change could later mask.
+do $$
+declare msg text;
+begin
+  begin
+    perform submit_clinical_form((select cons_id from desk_ctx), '{}'::jsonb);
+    msg := 'no error';
+  exception when others then msg := SQLERRM;
+  end;
+  if msg <> 'not_allowed' then
+    raise exception 'RLS TEST FAILED: admin must be refused submit_clinical_form — got %', msg;
+  end if;
+  insert into results values ('PASS  desk: admin REFUSED submit_clinical_form');
+
+  begin
+    perform submit_feedback((select fb_id from desk_ctx));
+    msg := 'no error';
+  exception when others then msg := SQLERRM;
+  end;
+  if msg <> 'not_allowed' then
+    raise exception 'RLS TEST FAILED: admin must be refused submit_feedback — got %', msg;
+  end if;
+  insert into results values ('PASS  desk: admin REFUSED submit_feedback');
+end $$;
+
+-- Regression: widening the admin's shells must not have widened anyone else's.
+reset role;
+select set_config('request.jwt.claims',
+  json_build_object('sub', (select id from ids where role = 'coordinator' limit 1),
+                    'role', 'authenticated')::text, true);
+set local role authenticated;
+insert into results select pg_temp.assert_eq('desk: coordinator still sees 0 reports',
+  (select count(*) from reports), 0);
+insert into results select pg_temp.assert_eq('desk: coordinator still sees 0 clinical form responses',
+  (select count(*) from form_responses), 0);
+
+reset role;
+
 select line from results;
 
 rollback;

@@ -1,0 +1,46 @@
+{
+ "key": "family_checkin",
+ "version": 1,
+ "title": "Quick check-in",
+ "sections": [
+  {
+   "id": "s1",
+   "title": "How are things going?",
+   "fields": [
+    {
+     "id": "how_is_feeling",
+     "type": "scale_1_5",
+     "label": "Overall, how has the last week been?",
+     "required": true
+    },
+    {
+     "id": "following_plan",
+     "type": "select",
+     "label": "How is the plan going?",
+     "required": true,
+     "options": [
+      { "value": "well", "label": "Going well" },
+      { "value": "mostly", "label": "Mostly, with some gaps" },
+      { "value": "struggling", "label": "Struggling to keep up" }
+     ]
+    },
+    {
+     "id": "concerns",
+     "type": "textarea",
+     "label": "Anything worrying you?",
+     "hint": "Symptoms, side effects, anything that has changed"
+    },
+    {
+     "id": "question",
+     "type": "textarea",
+     "label": "Any question for the care team?"
+    },
+    {
+     "id": "needs_call",
+     "type": "boolean",
+     "label": "Would you like someone to call you?"
+    }
+   ]
+  }
+ ]
+}

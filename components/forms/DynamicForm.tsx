@@ -111,6 +111,11 @@ function FieldBlock({
         {field.required ? <span className="text-destructive"> *</span> : null}
       </Label>
       {field.hint ? <p className="text-sm text-muted-foreground">{field.hint}</p> : null}
+      {hint?.previous ? (
+        <p className="font-data text-xs text-muted-foreground">
+          Last time: <span className="text-foreground">{hint.previous}</span>
+        </p>
+      ) : null}
 
       {field.type === "repeat_group" ? (
         <RepeatGroup field={field} value={values[field.id]} onChange={(v) => onChange(field.id, v)} invalid={invalid} idPrefix={id} />

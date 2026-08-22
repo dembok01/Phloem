@@ -39,6 +39,88 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_events: {
+        Row: {
+          actor_id: string | null
+          at: string
+          day_key: string
+          id: string
+          kind: string
+          member_id: string
+          meta: Json
+        }
+        Insert: {
+          actor_id?: string | null
+          at?: string
+          day_key?: string
+          id?: string
+          kind: string
+          member_id: string
+          meta?: Json
+        }
+        Update: {
+          actor_id?: string | null
+          at?: string
+          day_key?: string
+          id?: string
+          kind?: string
+          member_id?: string
+          meta?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_events_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      checkin_links: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          expires_at: string
+          id: string
+          last_used_at: string | null
+          member_id: string
+          revoked_at: string | null
+          token: string
+          uses: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string
+          id?: string
+          last_used_at?: string | null
+          member_id: string
+          revoked_at?: string | null
+          token?: string
+          uses?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string
+          id?: string
+          last_used_at?: string | null
+          member_id?: string
+          revoked_at?: string | null
+          token?: string
+          uses?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checkin_links_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       assignments: {
         Row: {
           active: boolean
@@ -376,6 +458,190 @@ export type Database = {
           },
         ]
       }
+      measure_catalog: {
+        Row: {
+          domain: string
+          family_safe: boolean
+          higher_is_better: boolean | null
+          label: string
+          measure_key: string
+          sort: number
+          unit: string | null
+        }
+        Insert: {
+          domain: string
+          family_safe?: boolean
+          higher_is_better?: boolean | null
+          label: string
+          measure_key: string
+          sort?: number
+          unit?: string | null
+        }
+        Update: {
+          domain?: string
+          family_safe?: boolean
+          higher_is_better?: boolean | null
+          label?: string
+          measure_key?: string
+          sort?: number
+          unit?: string | null
+        }
+        Relationships: []
+      }
+      measure_sources: {
+        Row: {
+          field_id: string
+          measure_key: string
+          parse: string
+          template_key: string
+        }
+        Insert: {
+          field_id: string
+          measure_key: string
+          parse?: string
+          template_key: string
+        }
+        Update: {
+          field_id?: string
+          measure_key?: string
+          parse?: string
+          template_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "measure_sources_measure_key_fkey"
+            columns: ["measure_key"]
+            isOneToOne: false
+            referencedRelation: "measure_catalog"
+            referencedColumns: ["measure_key"]
+          },
+        ]
+      }
+      member_case_events: {
+        Row: {
+          actor_id: string | null
+          at: string
+          case_id: string
+          id: string
+          kind: string
+          ref_id: string | null
+          ref_type: string | null
+          summary: string
+        }
+        Insert: {
+          actor_id?: string | null
+          at?: string
+          case_id: string
+          id?: string
+          kind: string
+          ref_id?: string | null
+          ref_type?: string | null
+          summary: string
+        }
+        Update: {
+          actor_id?: string | null
+          at?: string
+          case_id?: string
+          id?: string
+          kind?: string
+          ref_id?: string | null
+          ref_type?: string | null
+          summary?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_case_events_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_case_events_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "member_cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      member_cases: {
+        Row: {
+          created_at: string
+          detail: string | null
+          id: string
+          member_id: string
+          opened_at: string
+          opened_by: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string
+          share_with_caregiver: boolean
+          source_report: string | null
+          status: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          detail?: string | null
+          id?: string
+          member_id: string
+          opened_at?: string
+          opened_by?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          share_with_caregiver?: boolean
+          source_report?: string | null
+          status?: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          detail?: string | null
+          id?: string
+          member_id?: string
+          opened_at?: string
+          opened_by?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          share_with_caregiver?: boolean
+          source_report?: string | null
+          status?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_cases_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_cases_opened_by_fkey"
+            columns: ["opened_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_cases_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_cases_source_report_fkey"
+            columns: ["source_report"]
+            isOneToOne: false
+            referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       member_contacts: {
         Row: {
           address: string | null
@@ -634,6 +900,139 @@ export type Database = {
           },
         ]
       }
+      thread_messages: {
+        Row: {
+          author_id: string | null
+          body: string
+          created_at: string
+          id: string
+          thread_id: string
+        }
+        Insert: {
+          author_id?: string | null
+          body: string
+          created_at?: string
+          id?: string
+          thread_id: string
+        }
+        Update: {
+          author_id?: string | null
+          body?: string
+          created_at?: string
+          id?: string
+          thread_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "thread_messages_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "thread_messages_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      thread_reads: {
+        Row: {
+          last_read_at: string
+          thread_id: string
+          user_id: string
+        }
+        Insert: {
+          last_read_at?: string
+          thread_id: string
+          user_id: string
+        }
+        Update: {
+          last_read_at?: string
+          thread_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "thread_reads_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "threads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "thread_reads_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      threads: {
+        Row: {
+          audience: Database["public"]["Enums"]["care_role"][] | null
+          case_id: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          kind: string
+          last_message_at: string
+          member_id: string
+          status: string
+          subject: string
+        }
+        Insert: {
+          audience?: Database["public"]["Enums"]["care_role"][] | null
+          case_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          kind: string
+          last_message_at?: string
+          member_id: string
+          status?: string
+          subject: string
+        }
+        Update: {
+          audience?: Database["public"]["Enums"]["care_role"][] | null
+          case_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          kind?: string
+          last_message_at?: string
+          member_id?: string
+          status?: string
+          subject?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "threads_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "member_cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "threads_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "threads_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -672,6 +1071,69 @@ export type Database = {
           whatsapp?: string | null
         }
         Relationships: []
+      }
+      renewals: {
+        Row: {
+          completed_package: string | null
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
+          id: string
+          member_id: string
+          note: string | null
+          package_id: string
+          proposed_at: string
+          proposed_by: string | null
+          proposed_months: number
+          status: string
+        }
+        Insert: {
+          completed_package?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          id?: string
+          member_id: string
+          note?: string | null
+          package_id: string
+          proposed_at?: string
+          proposed_by?: string | null
+          proposed_months: number
+          status?: string
+        }
+        Update: {
+          completed_package?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          id?: string
+          member_id?: string
+          note?: string | null
+          package_id?: string
+          proposed_at?: string
+          proposed_by?: string | null
+          proposed_months?: number
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "renewals_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "renewals_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "packages"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       reports: {
         Row: {
@@ -799,6 +1261,163 @@ export type Database = {
         Args: { p_cycle: number; p_extra?: Json; p_title: string }
         Returns: Json
       }
+      _append_review_to_cases: {
+        Args: {
+          p_actor: string
+          p_answers: Json
+          p_cycle_no: number
+          p_member: string
+          p_report: string
+        }
+        Returns: number
+      }
+      _measure_domains: { Args: { m: string }; Returns: string[] }
+      _measure_value: {
+        Args: { a: Json; p_field: string; p_parse: string }
+        Returns: number
+      }
+      _seed_cases_from_problem_list: {
+        Args: {
+          p_actor: string
+          p_answers: Json
+          p_member: string
+          p_report: string
+        }
+        Returns: number
+      }
+      add_case_note: {
+        Args: { p_case: string; p_summary: string }
+        Returns: string
+      }
+      get_measure_series: {
+        Args: { m: string; p_domain?: string }
+        Returns: {
+          at: string
+          cycle_number: number
+          domain: string
+          higher_is_better: boolean
+          label: string
+          measure_key: string
+          source: string
+          unit: string
+          value: number
+        }[]
+      }
+      open_case: {
+        Args: {
+          p_detail?: string
+          p_member: string
+          p_severity?: string
+          p_title: string
+        }
+        Returns: string
+      }
+      record_progress_summary: {
+        Args: {
+          p_content: Json
+          p_cycle: string
+          p_force?: boolean
+          p_member: string
+        }
+        Returns: string
+      }
+      set_case_sharing: {
+        Args: { p_case: string; p_shared: boolean }
+        Returns: undefined
+      }
+      set_case_status: {
+        Args: { p_case: string; p_note?: string; p_status: string }
+        Returns: undefined
+      }
+      can_access_thread: { Args: { p_thread: string }; Returns: boolean }
+      my_declining_measures: {
+        Args: never
+        Returns: {
+          label: string
+          latest: number
+          measure_key: string
+          member_id: string
+          previous: number
+        }[]
+      }
+      mark_thread_read: { Args: { p_thread: string }; Returns: undefined }
+      my_unread_threads: {
+        Args: never
+        Returns: {
+          kind: string
+          last_message_at: string
+          member_id: string
+          subject: string
+          thread_id: string
+          unread: number
+        }[]
+      }
+      post_message: { Args: { p_body: string; p_thread: string }; Returns: string }
+      resolve_thread: {
+        Args: { p_resolved?: boolean; p_thread: string }
+        Returns: undefined
+      }
+      start_thread: {
+        Args: {
+          p_audience?: Database["public"]["Enums"]["care_role"][]
+          p_case?: string
+          p_kind: string
+          p_member: string
+          p_subject: string
+        }
+        Returns: string
+      }
+      create_checkin_link: {
+        Args: { p_days?: number; p_member: string }
+        Returns: string
+      }
+      get_checkin_link: { Args: { p_token: string }; Returns: Json }
+      get_engagement: {
+        Args: { p_member: string }
+        Returns: {
+          days_quiet: number
+          last_activity_at: string
+          member_id: string
+          missed_consults: number
+          reason: string
+          state: string
+        }[]
+      }
+      list_engagement: {
+        Args: never
+        Returns: {
+          days_quiet: number
+          full_name: string
+          last_activity_at: string
+          member_id: string
+          missed_consults: number
+          reason: string
+          state: string
+          status: Database["public"]["Enums"]["member_status"]
+        }[]
+      }
+      record_activity: {
+        Args: { p_kind: string; p_member: string; p_meta?: Json }
+        Returns: undefined
+      }
+      revoke_checkin_link: { Args: { p_token: string }; Returns: undefined }
+      submit_checkin: {
+        Args: { p_answers: Json; p_token: string }
+        Returns: Json
+      }
+      complete_renewal: {
+        Args: { p_months?: number; p_renewal: string }
+        Returns: string
+      }
+      open_due_renewals: { Args: { p_today?: string }; Returns: Json }
+      propose_renewal: {
+        Args: { p_member: string; p_months?: number; p_note?: string }
+        Returns: string
+      }
+      respond_to_renewal: {
+        Args: { p_intent: string; p_note?: string; p_renewal: string }
+        Returns: undefined
+      }
       accept_invite: {
         Args: {
           p_full_name: string
@@ -846,6 +1465,7 @@ export type Database = {
         Returns: string
       }
       deactivate_member: { Args: { p_member: string }; Returns: undefined }
+      flag_quiet_families: { Args: { p_today?: string }; Returns: Json }
       get_care_team: { Args: { p_member: string }; Returns: Json }
       get_member_elderly_mode: { Args: { p_member: string }; Returns: boolean }
       get_onboarding_scoped: { Args: { m: string }; Returns: Json }
@@ -952,6 +1572,7 @@ export type Database = {
         | "training_review"
         | "wellbeing"
         | "performance"
+        | "progress_summary"
       submit_status: "pending" | "submitted"
       user_role:
         | "admin"
@@ -1128,6 +1749,7 @@ export const Constants = {
         "training_review",
         "wellbeing",
         "performance",
+        "progress_summary",
       ],
       submit_status: ["pending", "submitted"],
       user_role: [

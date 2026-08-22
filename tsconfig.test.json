@@ -1,0 +1,14 @@
+{
+  // Unit-test tsconfig. Identical to tsconfig.json except for the JSX runtime.
+  //
+  // tsconfig.json sets `jsx: "preserve"` because Next's compiler handles JSX
+  // itself. Under `tsx --test`, that makes esbuild fall back to the CLASSIC
+  // transform, which needs `React` in scope — so rendering any .tsx component from
+  // a test throws "React is not defined". Selecting the automatic runtime here lets
+  // tests render real components (lib/reports/report-view.test.ts renders the report
+  // exactly as the PDF pipeline does) without changing how Next builds the app.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "jsx": "react-jsx"
+  }
+}

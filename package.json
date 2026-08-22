@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit",
     "seed": "tsx scripts/seed.ts",
     "cron:dev": "tsx scripts/cron-dev.ts",
-    "test:unit": "tsx --test lib/red-flags.test.ts lib/clearance.test.ts lib/rpc-errors.test.ts lib/action-result.test.ts lib/observe.test.ts components/forms/schema.test.ts components/forms/video-embed.test.ts lib/ai/context.test.ts",
+    "test:unit": "tsx --tsconfig tsconfig.test.json --test lib/red-flags.test.ts lib/clearance.test.ts lib/rpc-errors.test.ts lib/action-result.test.ts lib/observe.test.ts lib/measures.test.ts lib/issues.test.ts lib/lens-core.test.ts lib/admin-filters.test.ts lib/document-preview.test.ts lib/next-actions.test.ts lib/reports/report-view.test.ts components/forms/schema.test.ts components/forms/video-embed.test.ts lib/ai/context.test.ts",
     "test:rls": "tsx scripts/test-rls.ts",
     "test:lifecycle": "tsx scripts/test-lifecycle.ts"
   },

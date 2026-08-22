@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { actionFail, actionFromError, actionOk, type ActionResult } from "@/lib/action-result";
 
 const inviteSchema = z.object({
   email: z.string().email(),
@@ -61,4 +62,32 @@ export async function setAccountStatus(formData: FormData): Promise<void> {
 
   revalidatePath("/admin/care-team");
   redirect("/admin/care-team");
+}
+
+/**
+ * Result-returning twin of setAccountStatus, for the table's single-click row
+ * action. Same audited RPC and the same Zod gate — it differs only in speaking
+ * ActionResult instead of redirecting, so the caller can toast and offer Undo.
+ *
+ * Suspend and reactivate are true inverses, which is why this one action is
+ * allowed to advertise an Undo.
+ */
+export async function setAccountStatusAction(
+  userId: string,
+  status: "active" | "suspended",
+): Promise<ActionResult> {
+  const parsed = statusSchema.safeParse({ user_id: userId, status });
+  if (!parsed.success) return actionFail("Invalid request.");
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_account_status", {
+    p_user_id: parsed.data.user_id,
+    p_status: parsed.data.status,
+  });
+  if (error) {
+    return actionFromError(error, "Could not update the account status. Please try again.");
+  }
+
+  revalidatePath("/admin/care-team");
+  return actionOk(undefined);
 }

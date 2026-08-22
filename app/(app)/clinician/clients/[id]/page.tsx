@@ -5,12 +5,13 @@ import { CheckCircle2, Eye, FileCheck2, Lock, ShieldAlert } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CardSkeleton } from "@/components/ui/skeleton";
 import { Who5Card } from "@/components/charts/who5-card";
-import { Monogram } from "@/components/monogram";
+import { Monogram, toneForRole } from "@/components/monogram";
 import { PageHeader } from "@/components/page-header";
 import { RedFlagBanner } from "@/components/red-flag-banner";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionProfile } from "@/lib/auth";
+import { getLens, viewRoleFor } from "@/lib/lens";
 import type { Database, Json } from "@/lib/supabase/database.types";
 import { formatDateTimeIST } from "@/lib/datetime";
 import { hasHighFlag, parseRedFlags } from "@/lib/red-flags";
@@ -19,6 +20,13 @@ import { CLEARED, resolveClearance } from "@/lib/clearance";
 import { ClinicalForm } from "@/components/forms/ClinicalForm";
 import { FeedbackForm } from "@/components/forms/FeedbackForm";
 import { DocumentList, type DocumentRow } from "@/components/documents/document-list";
+import { MeasureTrends } from "@/components/charts/measure-trends";
+import { CasePanel } from "@/components/cases/case-panel";
+import { MemberTimeline } from "@/components/member-timeline";
+import { CompileProgressButton } from "@/components/reports/compile-progress-button";
+import { ThreadPanel } from "@/components/threads/thread-panel";
+import { IssueChips } from "@/components/issue-chips";
+import { computeIssues, type Issue } from "@/lib/issues";
 import type { FormValues } from "@/components/forms/types";
 import { parseFormTemplate } from "@/components/forms/schema";
 
@@ -28,6 +36,10 @@ const TABS: Record<CareRole, [string, string][]> = {
   doctor: [
     ["overview", "Overview"],
     ["onboarding", "Onboarding"],
+    ["trends", "Trends"],
+    ["cases", "Health matters"],
+    ["timeline", "Timeline"],
+    ["messages", "Messages"],
     ["form", "Consult form"],
     ["reports", "Reports"],
   ],
@@ -35,6 +47,9 @@ const TABS: Record<CareRole, [string, string][]> = {
     ["overview", "Overview"],
     ["onboarding", "Onboarding (diet)"],
     ["directives", "Doctor's directives"],
+    ["trends", "Trends"],
+    ["cases", "Health matters"],
+    ["messages", "Messages"],
     ["form", "Consult form"],
     ["feedback", "Monthly feedback"],
     ["reports", "Reports"],
@@ -43,12 +58,17 @@ const TABS: Record<CareRole, [string, string][]> = {
     ["overview", "Overview"],
     ["onboarding", "Onboarding (activity)"],
     ["clearance", "Doctor's clearance"],
+    ["trends", "Trends"],
+    ["cases", "Health matters"],
+    ["messages", "Messages"],
     ["form", "Consult form"],
     ["feedback", "Monthly feedback"],
     ["reports", "Reports"],
   ],
   psychologist: [
     ["context", "Context"],
+    ["trends", "Wellbeing trend"],
+    ["messages", "Messages"],
     ["form", "Check-in"],
     ["reports", "Wellbeing reports"],
   ],
@@ -64,15 +84,23 @@ export default async function ClinicianClientPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; tl?: string }>;
 }) {
   const { id } = await params;
-  const { tab } = await searchParams;
+  const { tab, tl } = await searchParams;
   const supabase = await createClient();
 
   const session = await getSessionProfile();
   if (!session) notFound();
-  const role = session.role as CareRole;
+
+  // An admin lands here by borrowing a care-team desk (lib/lens.ts); everyone
+  // else is simply themselves. `role` from here down is the desk's role, so the
+  // whole page — every .eq("type", role), every panel — follows the lens without
+  // knowing it exists.
+  const lens = await getLens();
+  const isAdminView = session.role === "admin";
+  if (isAdminView && !lens) notFound();
+  const role = viewRoleFor(session.role, lens) as CareRole;
   if (!(role in TABS)) notFound();
 
   // RLS mem_clinician: visible only if assigned to this member.
@@ -83,7 +111,12 @@ export default async function ClinicianClientPage({
     .maybeSingle();
   if (!member) notFound();
 
-  const tabs = TABS[role];
+  // A borrowed desk is read-only. The consult form and monthly feedback are the
+  // two surfaces the database refuses an admin (submit_clinical_form and
+  // submit_feedback both require the assigned clinician), and FormPanel would
+  // additionally INSERT a draft response on render — a clinical row authored by
+  // someone who never held the consultation. So those tabs are simply not there.
+  const tabs = isAdminView ? TABS[role].filter(([k]) => k !== "form" && k !== "feedback") : TABS[role];
   const activeTab = tabs.some(([k]) => k === tab) ? tab! : tabs[0][0];
   const flags = parseRedFlags(member.red_flags);
 
@@ -91,26 +124,48 @@ export default async function ClinicianClientPage({
     <section className="mx-auto max-w-3xl space-y-6">
       <PageHeader
         crumbs={[{ label: "My members", href: "/clinician/clients" }, { label: member.full_name }]}
-        title={
-          <span className="flex items-center gap-3">
-            <Monogram name={member.full_name} size="md" />
-            <span className="flex items-center gap-2">
-              {member.full_name}
-              {hasHighFlag(flags) ? (
-                <span
-                  className="inline-flex items-center gap-1 rounded-full bg-danger-tint px-2.5 py-1 text-xs font-semibold text-danger"
-                  title="High red flag on file"
-                >
-                  <ShieldAlert className="size-3.5" aria-hidden /> Flagged
-                </span>
-              ) : null}
-            </span>
-          </span>
-        }
-        description={[member.age ? `${member.age} yrs` : null, member.gender, member.city]
-          .filter(Boolean)
-          .join(" · ")}
+        title={member.full_name}
+        className="sr-only"
       />
+
+      {/* V3/M3 — the identity band. A clinician arriving here needs to know WHO,
+          how old, where in the programme, and whether anything is flagged, before
+          they read a single tab. That used to be a 24px title and a grey line. */}
+      <Card variant="hero" className="hero-glow">
+        <CardContent className="flex flex-wrap items-center gap-x-6 gap-y-4">
+          <Monogram name={member.full_name} size="xl" tone={toneForRole(role)} ring />
+          <div className="min-w-0 flex-1">
+            <p className="eyebrow">
+              <Link href="/clinician/clients" className="hover:text-foreground hover:underline">
+                My members
+              </Link>
+            </p>
+            <h1 className="font-display text-3xl font-semibold tracking-tight text-balance">
+              {member.full_name}
+            </h1>
+            <p className="text-[15px] text-muted-foreground">
+              {[member.age ? `${member.age} yrs` : null, member.gender, member.city]
+                .filter(Boolean)
+                .join(" · ")}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {hasHighFlag(flags) ? (
+              <span
+                className="inline-flex items-center gap-1.5 rounded-full bg-danger-tint px-3 py-1.5 text-sm font-semibold text-danger"
+                title="High red flag on file"
+              >
+                <ShieldAlert className="size-4" aria-hidden /> Flagged
+              </span>
+            ) : flags.length > 0 ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-warning-tint px-3 py-1.5 text-sm font-medium text-warning">
+                <ShieldAlert className="size-4" aria-hidden /> {flags.length} red flag
+                {flags.length === 1 ? "" : "s"}
+              </span>
+            ) : null}
+          </div>
+        </CardContent>
+      </Card>
 
       <nav
         className="-mx-4 overflow-x-auto px-4 sm:-mx-6 sm:px-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
@@ -140,13 +195,62 @@ export default async function ClinicianClientPage({
           is non-null per request, so one Suspense boundary is active. */}
       <Suspense key={activeTab} fallback={<CardSkeleton />}>
         {activeTab === "overview" || activeTab === "context" ? (
-          <OverviewPanel role={role} flags={flags} member={member} supabase={supabase} memberId={id} />
+          <OverviewPanel
+            role={role}
+            flags={flags}
+            member={member}
+            supabase={supabase}
+            memberId={id}
+            readOnly={isAdminView}
+          />
         ) : null}
         {activeTab === "onboarding" ? <ScopedOnboardingPanel supabase={supabase} memberId={id} /> : null}
         {activeTab === "directives" ? <DirectivesPanel supabase={supabase} memberId={id} /> : null}
         {activeTab === "clearance" ? <ClearancePanel supabase={supabase} memberId={id} /> : null}
         {activeTab === "form" ? (
           <FormPanel supabase={supabase} role={role} memberId={id} userId={session.user.id} />
+        ) : null}
+        {activeTab === "trends" ? (
+          <MeasureTrends
+            memberId={id}
+            title={role === "psychologist" ? "Wellbeing trend" : "Trends"}
+            description={
+              role === "psychologist"
+                ? "Your check-in scales over time. Confidential to you and the admin."
+                : "Every measurement recorded for this member, with the direction of travel. Whether a change is good is per-measure — a faster timed up-and-go is an improvement, a slower one is not."
+            }
+          />
+        ) : null}
+        {activeTab === "cases" ? (
+          <CasePanel
+            memberId={id}
+            canEdit={role === "doctor"}
+            description={
+              role === "doctor"
+                ? "Each problem you list at intake becomes a tracked matter with its own history. Reviews append to the open ones automatically."
+                : "Long-running health matters the doctor is tracking."
+            }
+          />
+        ) : null}
+        {activeTab === "timeline" ? (
+          <MemberTimeline
+            memberId={id}
+            filter={tl}
+            basePath={`/clinician/clients/${id}?tab=timeline`}
+            limit={60}
+          />
+        ) : null}
+        {activeTab === "messages" ? (
+          <ThreadPanel
+            memberId={id}
+            memberFirstName={member.full_name.split(" ")[0]}
+            compose={role === "psychologist" ? "none" : "care_team"}
+            description={
+              role === "psychologist"
+                ? "Your confidential channel with the admin. Care-team and family conversations are not visible here."
+                : "Questions from the family, and internal notes with the rest of the care team."
+            }
+          />
         ) : null}
         {activeTab === "feedback" ? (
           <FeedbackPanel supabase={supabase} role={role} memberId={id} userId={session.user.id} />
@@ -155,7 +259,7 @@ export default async function ClinicianClientPage({
           <div className="space-y-4">
             {/* §3: WHO-5 renders only where psych responses are readable (psychologist/admin). */}
             {role === "psychologist" ? <Who5Card memberId={id} /> : null}
-            <ReportsPanel supabase={supabase} memberId={id} />
+            <ReportsPanel supabase={supabase} memberId={id} canCompile={role === "doctor"} />
             {role === "doctor" ? <DocumentsPanel supabase={supabase} memberId={id} /> : null}
           </div>
         ) : null}
@@ -172,12 +276,15 @@ async function OverviewPanel({
   member,
   supabase,
   memberId,
+  readOnly,
 }: {
   role: CareRole;
   flags: ReturnType<typeof parseRedFlags>;
   member: { status: string };
   supabase: SB;
   memberId: string;
+  /** True when an admin is borrowing this desk — no write CTAs. */
+  readOnly: boolean;
 }) {
   // Psychologist "context" = the minimal scoped RPC; others show the red-flag callout.
   const context = role === "psychologist" ? await scoped(supabase, memberId) : null;
@@ -185,7 +292,7 @@ async function OverviewPanel({
   // What needs this clinician right now — makes Overview a launchpad, not a label.
   const { data: ownConsults } = await supabase
     .from("consultations")
-    .select("meeting_status, report_status, scheduled_at")
+    .select("meeting_status, report_status, scheduled_at, completed_at")
     .eq("member_id", memberId)
     .eq("type", role);
   const formDue = (ownConsults ?? []).some((c) => c.meeting_status === "done" && c.report_status === "pending");
@@ -193,10 +300,55 @@ async function OverviewPanel({
     .filter((c) => c.meeting_status === "scheduled" && c.scheduled_at)
     .sort((a, b) => (a.scheduled_at! < b.scheduled_at! ? -1 : 1))[0];
 
+  // W5 — the same computed issues the doctor's list row showed, so the two
+  // surfaces never disagree about what is outstanding. Only the doctor sees this:
+  // the other roles' work is already expressed by the form-due banner below.
+  let issues: Issue[] = [];
+  if (role === "doctor") {
+    const [{ data: clearanceReports }, { data: declining }, { data: unread }, { data: engagement }] =
+      await Promise.all([
+        supabase
+          .from("reports")
+          .select("content")
+          .eq("member_id", memberId)
+          .in("type", ["doctor_initial", "doctor_review"])
+          .order("created_at", { ascending: false }),
+        supabase.rpc("my_declining_measures"),
+        supabase.rpc("my_unread_threads"),
+        supabase.rpc("get_engagement", { p_member: memberId }),
+      ]);
+
+    const overdue = (ownConsults ?? [])
+      .filter((c) => c.meeting_status === "done" && c.report_status === "pending" && c.completed_at)
+      .map((c) => (Date.now() - new Date(c.completed_at!).getTime()) / 3_600_000);
+
+    issues = computeIssues({
+      flags,
+      clearance: resolveClearance((clearanceReports ?? []) as { content: unknown }[]),
+      adverseEvent: false,
+      reportOverdueHours: overdue.length > 0 ? Math.max(...overdue) : null,
+      decliningMeasures: ((declining ?? []) as { member_id: string; label: string }[])
+        .filter((d) => d.member_id === memberId)
+        .map((d) => d.label),
+      engagement:
+        ((engagement ?? []) as { state: string }[])[0]?.state ?? "engaged",
+      daysUntilProgrammeEnds: null,
+      unreadMessages: ((unread ?? []) as { member_id: string; unread: number }[])
+        .filter((t) => t.member_id === memberId)
+        .reduce((n, t) => n + Number(t.unread), 0),
+    });
+  }
+
   return (
     <div className="space-y-4">
       {role !== "psychologist" ? <RedFlagBanner flags={flags} /> : null}
-      {formDue ? (
+      {issues.length > 0 ? (
+        <div className="rounded-xl border bg-card p-4 shadow-card">
+          <p className="eyebrow mb-2">Needs your attention</p>
+          <IssueChips issues={issues} showDetail />
+        </div>
+      ) : null}
+      {formDue && !readOnly ? (
         <Link
           href={`/clinician/clients/${memberId}?tab=form`}
           className="flex items-center gap-3 rounded-xl border border-warning/50 bg-warning-tint p-4 font-medium transition-colors hover:border-warning"
@@ -204,6 +356,11 @@ async function OverviewPanel({
           <FileCheck2 className="size-5 shrink-0 text-warning" aria-hidden />
           Your consultation form is due — open it
         </Link>
+      ) : formDue ? (
+        <div className="flex items-center gap-3 rounded-xl border border-warning/50 bg-warning-tint p-4 font-medium">
+          <FileCheck2 className="size-5 shrink-0 text-warning" aria-hidden />
+          Their consultation form is due.
+        </div>
       ) : null}
       <Card>
         <CardHeader>
@@ -412,7 +569,16 @@ function ReadonlySection({ section }: { section: { heading: string; kind: string
   );
 }
 
-async function ReportsPanel({ supabase, memberId }: { supabase: SB; memberId: string }) {
+async function ReportsPanel({
+  supabase,
+  memberId,
+  canCompile,
+}: {
+  supabase: SB;
+  memberId: string;
+  /** only the doctor compiles the progress summary on demand (the RPC agrees) */
+  canCompile: boolean;
+}) {
   // P-5 read receipts: fetch family (caregiver/member) opens of the reports THIS
   // clinician authored, so each row can say whether the plan was actually read.
   const [{ data: reports }, { data: receipts }] = await Promise.all([
@@ -424,14 +590,28 @@ async function ReportsPanel({ supabase, memberId }: { supabase: SB; memberId: st
     supabase.rpc("get_report_view_receipts", { p_member: memberId }),
   ]);
   const list = reports ?? [];
+
+  // The active cycle is what a fresh summary would cover; null means "all time",
+  // which is the right scope before the first cycle starts.
+  const { data: activeCycle } = await supabase
+    .from("cycles")
+    .select("id, packages!inner(member_id)")
+    .eq("packages.member_id", memberId)
+    .eq("status", "active")
+    .maybeSingle();
+  const cycleId = activeCycle?.id ?? null;
+  const hasSummary = list.some((r) => r.type === "progress_summary");
   const receiptByReport = new Map<string, { last_viewed_at: string; viewer_name: string }>();
   for (const v of receipts ?? []) {
     receiptByReport.set(v.report_id, { last_viewed_at: v.last_viewed_at, viewer_name: v.viewer_name });
   }
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex-row items-center justify-between gap-3">
         <CardTitle>Reports</CardTitle>
+        {canCompile ? (
+          <CompileProgressButton memberId={memberId} cycleId={cycleId} exists={hasSummary} />
+        ) : null}
       </CardHeader>
       <CardContent>
         {list.length === 0 ? (
@@ -467,7 +647,7 @@ async function ReportsPanel({ supabase, memberId }: { supabase: SB; memberId: st
 async function DocumentsPanel({ supabase, memberId }: { supabase: SB; memberId: string }) {
   const { data: docs } = await supabase
     .from("member_documents")
-    .select("id, category, file_name, storage_path, size_bytes, created_at")
+    .select("id, category, file_name, storage_path, size_bytes, created_at, mime_type")
     .eq("member_id", memberId)
     .order("created_at", { ascending: false });
   return (
@@ -562,6 +742,22 @@ async function FormPanel({
   }
   const schema = parseFormTemplate(template.schema);
 
+  // W5 — the previous consultation's answers, shown BESIDE each field as reference
+  // ("Last time: 128/82"). Never prefilled: copy-forward is a known charting
+  // hazard, where last month's reading silently becomes this month's record. This
+  // gives a doctor the speed of seeing the trend without that risk.
+  const { data: lastSubmitted } = await supabase
+    .from("form_responses")
+    .select("answers, submitted_at")
+    .eq("member_id", memberId)
+    .eq("respondent_id", userId)
+    .not("submitted_at", "is", null)
+    .order("submitted_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const hints = previousValueHints(schema, lastSubmitted?.answers as Record<string, unknown> | null);
+
   // Ensure a draft (fr_own_clinical: respondent_id = self).
   const { data: existing } = await supabase
     .from("form_responses")
@@ -613,6 +809,7 @@ async function FormPanel({
       consultationId={submittable.id}
       responseId={responseId}
       initialAnswers={initialAnswers}
+      hints={hints}
       locked={locked}
       lockedReason={lockedReason}
     />
@@ -684,4 +881,28 @@ async function FeedbackPanel({
       initialAnswers={(draft.answers as unknown as FormValues | null) ?? {}}
     />
   );
+}
+
+
+/** Reference values from the last submission, for the fields that can carry one.
+ *  Free text and long-form answers are skipped: a paragraph of last month's
+ *  assessment beside the box invites copying it, which is the exact thing the
+ *  reference-instead-of-prefill decision is avoiding. */
+function previousValueHints(
+  schema: ReturnType<typeof parseFormTemplate>,
+  answers: Record<string, unknown> | null,
+): Record<string, { previous: string }> {
+  if (!answers) return {};
+  const out: Record<string, { previous: string }> = {};
+  for (const section of schema.sections) {
+    for (const field of section.fields) {
+      if (field.type === "textarea" || field.type === "repeat_group" || field.type === "info") continue;
+      const raw = answers[field.id];
+      if (raw === null || raw === undefined || raw === "") continue;
+      const text = humanize(raw);
+      if (text === "—") continue;
+      out[field.id] = { previous: text };
+    }
+  }
+  return out;
 }

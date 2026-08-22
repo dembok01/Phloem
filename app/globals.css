@@ -236,6 +236,15 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* M6 — one light source. A 2% lift at the top of the canvas is enough to stop
+       the page reading as a single flat fill; it is deliberately below the
+       threshold where anyone would call it "a gradient". */
+    background-image: linear-gradient(
+      to bottom,
+      color-mix(in oklab, var(--primary) 3.5%, var(--background)) 0%,
+      var(--background) 420px
+    );
+    background-attachment: fixed;
   }
   /* Always-visible focus (audit G-5). */
   :focus-visible {
@@ -297,6 +306,29 @@
     transform: none;
   }
 
+  /* Hover lift for the dashboard tiles, which are links you aim at rather than
+     rows you scan past. Deliberately uses `translate` and not `transform`:
+     `.pressable:active` already owns `transform`, and one rule setting both
+     would make a press cancel the lift instead of composing with it. Different
+     property, no cascade race — the same reasoning `stagger-rise` uses.
+
+     Reduced motion and elderly mode drop it: a lift is a position change, and
+     the ring these tiles already grow on hover carries the affordance alone. */
+  .liftable {
+    transition: translate var(--motion-press) var(--motion-ease-out);
+  }
+  .liftable:hover {
+    translate: 0 -2px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .liftable:hover {
+      translate: none;
+    }
+  }
+  .elderly .liftable:hover {
+    translate: none;
+  }
+
   /* Group entrance for the portal's tile row. CSS-only, no JS, no hydration cost,
      and it cannot block interaction. Occasional-tier surface only; never use this
      on anything seen many times a day.
@@ -321,14 +353,46 @@
   .stagger-in > * {
     animation: stagger-rise var(--motion-card) var(--motion-ease-out) backwards;
   }
-  .stagger-in > *:nth-child(2) {
-    animation-delay: 40ms;
+  .stagger-in > *:nth-child(2) { animation-delay: 30ms; }
+  .stagger-in > *:nth-child(3) { animation-delay: 60ms; }
+  .stagger-in > *:nth-child(4) { animation-delay: 90ms; }
+  .stagger-in > *:nth-child(5) { animation-delay: 120ms; }
+  .stagger-in > *:nth-child(6) { animation-delay: 150ms; }
+  .stagger-in > *:nth-child(7) { animation-delay: 180ms; }
+  .stagger-in > *:nth-child(8) { animation-delay: 210ms; }
+  /* Past the eighth row the delay would out-run the reader; everything after
+     arrives with the eighth. */
+  .stagger-in > *:nth-child(n + 9) { animation-delay: 210ms; }
+
+  /* M6 — the hero glow. One soft brand-tinted bloom behind the single most
+     important element on a screen. Sits on ::before at -1 so it never intercepts
+     a click, and is invisible in elderly mode where flat is the point. */
+  .hero-glow { position: relative; isolation: isolate; }
+  .hero-glow::before {
+    content: "";
+    position: absolute;
+    inset: -10% -6% auto -6%;
+    height: 70%;
+    z-index: -1;
+    border-radius: 999px;
+    background: radial-gradient(
+      60% 100% at 50% 0%,
+      color-mix(in oklab, var(--primary) 16%, transparent) 0%,
+      transparent 70%
+    );
+    filter: blur(28px);
   }
-  .stagger-in > *:nth-child(3) {
-    animation-delay: 80ms;
-  }
-  .stagger-in > *:nth-child(4) {
-    animation-delay: 120ms;
+  .elderly .hero-glow::before { display: none; }
+
+  /* M9 — the display step the system documents but nothing used. Tabular by
+     default: these are figures that sit in columns and must not jitter. */
+  .stat-figure {
+    font-family: var(--font-brand-display), ui-sans-serif, system-ui, sans-serif;
+    font-size: clamp(2rem, 1.4rem + 2vw, 2.75rem);
+    font-weight: 650;
+    line-height: 1.02;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
   }
 
   /* Crossfade for a small element whose whole content swaps between states (the

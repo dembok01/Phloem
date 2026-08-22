@@ -8,12 +8,14 @@ import { ProgramCard, type ProgramCycle, type ProgramPackage } from "@/component
 import { AdherenceCard } from "@/components/charts/adherence-card";
 import { Who5Card } from "@/components/charts/who5-card";
 import { MemberTimeline } from "@/components/member-timeline";
+import { ThreadPanel } from "@/components/threads/thread-panel";
+import { RenewalPanel } from "@/components/renewal-panel";
 import { RedFlagBanner } from "@/components/red-flag-banner";
 import { ReportShareToggle } from "@/components/admin/report-share-toggle";
 import { DocumentList, type DocumentRow } from "@/components/documents/document-list";
 import { FlashToast } from "@/components/ui/toast";
 import { createClient } from "@/lib/supabase/server";
-import { formatDateTimeIST } from "@/lib/datetime";
+import { formatDateIST, formatDateTimeIST } from "@/lib/datetime";
 import { parseRedFlags } from "@/lib/red-flags";
 import { humanize } from "@/lib/reports/build/helpers";
 import {
@@ -75,7 +77,13 @@ export default async function AdminMemberPage({
     .maybeSingle();
   if (!member) notFound();
 
-  const [{ data: consults }, { data: assignments }, { data: pkg }, { data: reports }] = await Promise.all([
+  const [
+    { data: consults },
+    { data: assignments },
+    { data: pkg },
+    { data: reports },
+    { data: renewalRow },
+  ] = await Promise.all([
     supabase.from("consultations").select("type, cycle_id, report_status").eq("member_id", id).is("cycle_id", null),
     supabase
       .from("assignments")
@@ -94,6 +102,13 @@ export default async function AdminMemberPage({
       .select("id, type, created_at, share_with_caregiver")
       .eq("member_id", id)
       .order("created_at", { ascending: false }),
+    supabase
+      .from("renewals")
+      .select("id, status, proposed_months, decision_note")
+      .eq("member_id", id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
 
   const { data: cycles } = pkg
@@ -209,7 +224,22 @@ export default async function AdminMemberPage({
       <AdminDocumentsCard memberId={member.id} />
 
       {/* C6: the member's whole story in one stream. */}
+      <RenewalPanel
+        memberId={member.id}
+        memberFirstName={member.full_name.split(" ")[0]}
+        isAdmin
+        hasActivePackage={pkg?.status === "active" || pkg?.status === "paused"}
+        endsOn={pkg?.end_date ? formatDateIST(pkg.end_date) : null}
+        renewal={renewalRow ?? null}
+      />
+
       <MemberTimeline memberId={member.id} />
+      <ThreadPanel
+        memberId={member.id}
+        memberFirstName={member.full_name.split(" ")[0]}
+        compose="care_team"
+        description="Every conversation about this member, including the psychologist's confidential channel."
+      />
     </section>
   );
 }
@@ -219,7 +249,7 @@ async function AdminDocumentsCard({ memberId }: { memberId: string }) {
   const supabase = await createClient();
   const { data: docs } = await supabase
     .from("member_documents")
-    .select("id, category, file_name, storage_path, size_bytes, created_at")
+    .select("id, category, file_name, storage_path, size_bytes, created_at, mime_type")
     .eq("member_id", memberId)
     .order("created_at", { ascending: false });
   return (

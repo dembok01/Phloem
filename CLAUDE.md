@@ -63,6 +63,16 @@ Legend: ✅ full · 👁 view · 🔸 partial · ❌ none. "Assigned" = active a
 
 Anyone who cannot see the wellbeing report sees only *"Wellbeing check-in completed — {date}"* (from the consultation row). Clinicians never see contact identifiers (mechanism: `member_contacts` is a separate table their RLS policies do not cover).
 
+**Admin desks (god mode, 2026-08-21).** Admin may browse `/admin`, `/coordinator` and
+`/clinician` (`allowedPrefixes()` in `lib/permissions.ts`), and can borrow a doctor /
+nutritionist / trainer desk to see that clinician's caseload as they see it
+(`lib/lens.ts`). This granted **no new permission** — the matrix above already gave
+admin everything those shells read, and every coordinator RPC already accepted
+`'admin'`. There is no migration behind it. Borrowed desks are **read-only**:
+`submit_clinical_form` and `submit_feedback` still refuse an admin, and the two write
+tabs are not rendered. `/portal` and the psychologist shell are deliberately not
+borrowable.
+
 ## Current phase
 
 **All 8 phases complete** (see `PROGRESS.md` for the per-phase record). Phases (§15): 1 Scaffold & DB → 2 Invites & Admin → 3 DynamicForm & Onboarding → 4 Reports & PDF → 5 Coordinator & Consultations → 6 Clinician Shell & Clinical Forms → 7 Cycle Engine → 8 Portal & Polish — all ✅.
