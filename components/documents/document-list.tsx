@@ -41,6 +41,7 @@ export function DocumentList({
   const router = useRouter();
   const { toast } = useToast();
   const [busyId, setBusyId] = React.useState<string | null>(null);
+  const [confirmId, setConfirmId] = React.useState<string | null>(null);
   const [openIndex, setOpenIndex] = React.useState<number | null>(null);
 
   const groups = React.useMemo(
@@ -72,8 +73,13 @@ export function DocumentList({
     window.location.href = data.signedUrl;
   }
 
+  // Deleting removes the stored object, so there is nothing to undo afterwards —
+  // the confirmation has to come first. It is an inline step on the row rather
+  // than window.confirm: the native dialog blocks the tab, is the only browser
+  // chrome left in the app, and names the file in a box that looks nothing like
+  // the thing it is about to delete.
   async function remove(doc: DocumentRow) {
-    if (!window.confirm(`Delete "${doc.file_name}"? This can't be undone.`)) return;
+    setConfirmId(null);
     setBusyId(doc.id);
     const supabase = createClient();
     await supabase.storage.from("documents").remove([doc.storage_path]);
@@ -140,19 +146,41 @@ export function DocumentList({
                       <Download className="size-4" aria-hidden />
                     </button>
                     {canDelete ? (
-                      <button
-                        type="button"
-                        onClick={() => remove(doc)}
-                        disabled={busyId === doc.id}
-                        aria-label={`Delete ${doc.file_name}`}
-                        className="pressable inline-flex size-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-danger disabled:opacity-50"
-                      >
-                        {busyId === doc.id ? (
-                          <Loader2 className="size-4 animate-spin" aria-hidden />
-                        ) : (
-                          <Trash2 className="size-4" aria-hidden />
-                        )}
-                      </button>
+                      confirmId === doc.id ? (
+                        <span className="flex shrink-0 items-center gap-1">
+                          <span className="hidden text-xs text-muted-foreground sm:inline">
+                            Delete for good?
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => remove(doc)}
+                            className="pressable rounded-lg bg-danger px-2.5 py-1.5 text-xs font-medium text-white"
+                          >
+                            Delete
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setConfirmId(null)}
+                            className="pressable rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+                          >
+                            Keep
+                          </button>
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setConfirmId(doc.id)}
+                          disabled={busyId === doc.id}
+                          aria-label={`Delete ${doc.file_name}`}
+                          className="pressable inline-flex size-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-danger disabled:opacity-50"
+                        >
+                          {busyId === doc.id ? (
+                            <Loader2 className="size-4 animate-spin" aria-hidden />
+                          ) : (
+                            <Trash2 className="size-4" aria-hidden />
+                          )}
+                        </button>
+                      )
                     ) : null}
                   </li>
                 );
