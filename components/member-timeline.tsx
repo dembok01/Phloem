@@ -33,6 +33,7 @@ import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
 import { formatDateIST, formatDateTimeIST, relativeDayIST } from "@/lib/datetime";
 import { humanize } from "@/lib/reports/build/helpers";
+import { ReportPeek } from "@/components/reports/report-peek";
 
 type Kind = "consult" | "report" | "cycle" | "case" | "document";
 
@@ -46,6 +47,8 @@ type Item = {
   title: string;
   detail?: string;
   href?: string;
+  /** a report the expansion can open in place, rather than navigating away */
+  reportId?: string;
   /** what the expansion shows; the row is only expandable when this is non-empty */
   facts?: Fact[];
   /** call to action on the expansion, when `href` is set */
@@ -75,6 +78,9 @@ const MEETING_STATUS: Record<string, string> = {
   scheduled: "Scheduled",
   no_show: "Missed",
 };
+
+const ENTRY_ACTION =
+  "inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
 
 const monthFmt = new Intl.DateTimeFormat("en-IN", {
   month: "long",
@@ -168,7 +174,7 @@ export async function MemberTimeline({
       kind: "report",
       title: `${humanize(r.type)} written`,
       detail: formatDateTimeIST(r.created_at),
-      href: `/reports/${r.id}`,
+      reportId: r.id,
       action: "Read the report",
       facts: [
         { label: "Report", value: humanize(r.type) },
@@ -316,7 +322,7 @@ function Entry({ item, upcoming }: { item: Item; upcoming: boolean }) {
   const meta = KIND_META[item.kind];
   const Icon = meta.icon;
   const facts = item.facts ?? [];
-  const expandable = facts.length > 0 || Boolean(item.href);
+  const expandable = facts.length > 0 || Boolean(item.href) || Boolean(item.reportId);
 
   const dot = (
     <span
@@ -380,11 +386,13 @@ function Entry({ item, upcoming }: { item: Item; upcoming: boolean }) {
               ))}
             </dl>
           ) : null}
-          {item.href ? (
-            <Link
-              href={item.href}
-              className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-            >
+          {item.reportId ? (
+            <ReportPeek reportId={item.reportId} className={ENTRY_ACTION}>
+              {item.action ?? "Open"}
+              <ArrowUpRight className="size-3" aria-hidden />
+            </ReportPeek>
+          ) : item.href ? (
+            <Link href={item.href} className={ENTRY_ACTION}>
               {item.action ?? "Open"}
               <ArrowUpRight className="size-3" aria-hidden />
             </Link>
