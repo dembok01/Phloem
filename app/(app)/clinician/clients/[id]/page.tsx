@@ -24,6 +24,7 @@ import { MeasureTrends } from "@/components/charts/measure-trends";
 import { CasePanel } from "@/components/cases/case-panel";
 import { MemberTimeline } from "@/components/member-timeline";
 import { CompileProgressButton } from "@/components/reports/compile-progress-button";
+import { ReportPeek } from "@/components/reports/report-peek";
 import { ThreadPanel } from "@/components/threads/thread-panel";
 import { IssueChips } from "@/components/issue-chips";
 import { computeIssues, type Issue } from "@/lib/issues";
@@ -472,9 +473,9 @@ async function DirectivesPanel({ memberId }: { supabase: SB; memberId: string })
             {sections.map((s, i) => (
               <ReadonlySection key={i} section={s} />
             ))}
-            <Link href={`/reports/${report.id}`} className="text-sm text-primary hover:underline">
-              Open the full doctor report →
-            </Link>
+            <ReportPeek reportId={report.id} className="text-sm text-primary hover:underline">
+              Read the full doctor report →
+            </ReportPeek>
           </>
         )}
       </CardContent>
@@ -622,10 +623,13 @@ async function ReportsPanel({
               const receipt = receiptByReport.get(r.id);
               return (
                 <li key={r.id} className="py-2">
-                  <Link href={`/reports/${r.id}`} className="flex items-center justify-between hover:underline">
+                  <ReportPeek
+                    reportId={r.id}
+                    className="flex w-full items-center justify-between hover:underline"
+                  >
                     <span className="text-sm font-medium">{humanize(r.type)}</span>
                     <span className="text-xs text-muted-foreground">{formatDateTimeIST(r.created_at)}</span>
-                  </Link>
+                  </ReportPeek>
                   {receipt ? (
                     <p className="mt-0.5 inline-flex items-center gap-1.5 text-xs text-success">
                       <Eye className="size-3.5" aria-hidden />
@@ -715,12 +719,12 @@ async function FormPanel({
           {submitted ? <CheckCircle2 className="size-6 text-success" aria-hidden /> : null}
           <p className="text-sm text-muted-foreground">{message}</p>
           {lastOwnReport ? (
-            <Link
-              href={`/reports/${lastOwnReport.id}`}
+            <ReportPeek
+              reportId={lastOwnReport.id}
               className="inline-flex min-h-10 items-center rounded-full border bg-card px-4 text-sm font-medium hover:border-primary/40 hover:bg-secondary/40"
             >
               View {humanize(lastOwnReport.type).toLowerCase()} →
-            </Link>
+            </ReportPeek>
           ) : null}
         </CardContent>
       </Card>

@@ -1,11 +1,16 @@
 "use client";
 
-// ⌘K command palette (C3): jump to any member or coordinator surface from the
-// keyboard. Members load once per open via the browser client — RLS scopes the
-// rows to what the signed-in coordinator may see.
+// ⌘K command palette (C3): jump to any member or desk surface from the keyboard.
+// Members load once per open via the browser client — RLS scopes the rows to what
+// the signed-in user may see, which is also why the same component serves the
+// clinician desk: a doctor's search returns their caseload and nobody else's.
+//
+// It renders its own visible trigger. A keyboard-only feature with no affordance
+// is a feature almost nobody finds — the shortcut stays, the pill just tells
+// people it is there.
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { CalendarDays, KanbanSquare, Loader2, Search, UserRound } from "lucide-react";
+import { CalendarDays, KanbanSquare, Loader2, Search, UserRound, UsersRound } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -17,12 +22,26 @@ type Item = {
   icon: React.ReactNode;
 };
 
-const PAGES: Item[] = [
-  { id: "page-today", label: "Today queue", href: "/coordinator", icon: <CalendarDays className="size-4" /> },
-  { id: "page-pipeline", label: "Pipeline board", href: "/coordinator/pipeline", icon: <KanbanSquare className="size-4" /> },
-];
+// Where each desk's search lands. Kept inside the client component so a layout
+// passes a plain string rather than a table of JSX across the boundary.
+const DESKS = {
+  coordinator: {
+    memberBase: "/coordinator/members",
+    pages: [
+      { id: "page-today", label: "Today queue", href: "/coordinator", icon: <CalendarDays className="size-4" /> },
+      { id: "page-pipeline", label: "Pipeline board", href: "/coordinator/pipeline", icon: <KanbanSquare className="size-4" /> },
+    ] as Item[],
+  },
+  clinician: {
+    memberBase: "/clinician/clients",
+    pages: [
+      { id: "page-clients", label: "My clients", href: "/clinician/clients", icon: <UsersRound className="size-4" /> },
+    ] as Item[],
+  },
+};
 
-export function CommandPalette() {
+export function CommandPalette({ desk = "coordinator" }: { desk?: keyof typeof DESKS }) {
+  const { memberBase, pages } = DESKS[desk];
   const router = useRouter();
   const supabase = React.useMemo(() => createClient(), []);
   const [open, setOpen] = React.useState(false);
@@ -33,6 +52,11 @@ export function CommandPalette() {
   const [navHref, setNavHref] = React.useState<string | null>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
   const listRef = React.useRef<HTMLUListElement>(null);
+  // Resolved after mount so the server render and the first client render agree.
+  const [modKey, setModKey] = React.useState("Ctrl");
+  React.useEffect(() => {
+    if (/Mac|iPhone|iPad/.test(navigator.userAgent)) setModKey("⌘");
+  }, []);
 
   React.useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -61,17 +85,17 @@ export function CommandPalette() {
           id: m.id,
           label: m.full_name,
           hint: [m.status.replace(/_/g, " "), m.city].filter(Boolean).join(" · "),
-          href: `/coordinator/members/${m.id}`,
+          href: `${memberBase}/${m.id}`,
           icon: <UserRound className="size-4" />,
         })),
       );
     })();
-  }, [open, supabase]);
+  }, [open, supabase, memberBase]);
 
   const q = query.trim().toLowerCase();
   const results = [
     ...members.filter((m) => !q || m.label.toLowerCase().includes(q)),
-    ...PAGES.filter((p) => !q || p.label.toLowerCase().includes(q)),
+    ...pages.filter((p) => !q || p.label.toLowerCase().includes(q)),
   ];
 
   // Keep the palette open with a spinner on the chosen row until the destination
@@ -111,9 +135,19 @@ export function CommandPalette() {
       ?.scrollIntoView({ block: "nearest" });
   }, [cursor]);
 
-  if (!open) return null;
-
   return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="pressable inline-flex h-9 items-center gap-2 rounded-full border bg-card pl-3 pr-1.5 text-sm text-muted-foreground hover:border-primary/40 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+      >
+        <Search className="size-4" aria-hidden />
+        <span>Search</span>
+        <kbd className="rounded border bg-muted px-1.5 py-0.5 font-data text-[11px]">{modKey}K</kbd>
+      </button>
+
+      {!open ? null : (
     <div
       className="fixed inset-0 z-50 flex items-start justify-center bg-foreground/20 p-4 pt-[12vh] backdrop-blur-[2px]"
       onClick={() => setOpen(false)}
@@ -179,9 +213,11 @@ export function CommandPalette() {
           )}
         </ul>
         <p className="border-t px-4 py-2 font-data text-[11px] text-muted-foreground">
-          ↑↓ to choose · Enter to open · ⌘K to close
+          ↑↓ to choose · Enter to open · esc to close
         </p>
       </div>
     </div>
+      )}
+    </>
   );
 }

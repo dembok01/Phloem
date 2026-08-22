@@ -12,10 +12,12 @@ const ADMIN_TABS: NavItem[] = [
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="space-y-6">
-      <NavTabs items={ADMIN_TABS} />
+      {/* ⌘K everywhere, and now visibly so. */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <NavTabs items={ADMIN_TABS} />
+        <CommandPalette />
+      </div>
       {children}
-      {/* ⌘K everywhere, not just for coordinators. */}
-      <CommandPalette />
     </div>
   );
 }
