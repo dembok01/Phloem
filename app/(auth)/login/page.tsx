@@ -1,8 +1,8 @@
-import Image from "next/image";
+import Link from "next/link";
 import { SubmitButton } from "@/components/ui/submit-button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { AuthNotice, AuthShell } from "../auth-shell";
 import { login } from "./actions";
 
 const MESSAGES: Record<string, string> = {
@@ -11,13 +11,18 @@ const MESSAGES: Record<string, string> = {
   suspended: "This account is suspended. Please contact PHLOEM support.",
 };
 
+const NOTICES: Record<string, string> = {
+  password_updated: "Your password has been changed. Sign in with your new one.",
+};
+
 export default async function LoginPage({
   searchParams,
 }: {
   searchParams: Promise<{ error?: string; notice?: string }>;
 }) {
   const params = await searchParams;
-  const message = MESSAGES[params.error ?? params.notice ?? ""] ?? null;
+  const notice = params.notice ? (NOTICES[params.notice] ?? null) : null;
+  const message = notice ? null : (MESSAGES[params.error ?? params.notice ?? ""] ?? null);
 
   // One id, referenced by both fields: neither error the server returns is
   // field-specific, so pointing a screen reader at the real message beats
@@ -25,79 +30,54 @@ export default async function LoginPage({
   const errorId = message ? "signin-error" : undefined;
 
   return (
-    // V4 — the first impression. This was a bare white box on a flat ground; it now
-    // sits inside the product's own signature mark, at a size where the rings read
-    // as ground texture rather than decoration.
-    <main className="relative isolate flex min-h-screen items-center justify-center overflow-hidden bg-background p-4 text-base">
-      <svg
-        aria-hidden
-        viewBox="0 0 200 200"
-        className="pointer-events-none absolute -z-10 w-[min(140vw,1100px)] text-primary opacity-[0.045]"
-      >
-        {[92, 74, 56, 38, 20].map((r) => (
-          <circle key={r} cx="100" cy="100" r={r} fill="none" stroke="currentColor" strokeWidth="2.2" />
-        ))}
-      </svg>
-      <Card variant="hero" className="w-full max-w-md">
-        <CardHeader className="items-center text-center">
-          <Image
-            src="/phloem-logo.png"
-            alt="PHLOEM"
-            width={180}
-            height={60}
-            priority
-            className="mx-auto h-14 w-auto"
+    <AuthShell title="Sign in" subtitle="Your family's care, in one place.">
+      {notice ? <AuthNotice tone="info">{notice}</AuthNotice> : null}
+      {message ? <AuthNotice id={errorId}>{message}</AuthNotice> : null}
+      <form action={login} className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="email" className="text-base">
+            Email
+          </Label>
+          <Input
+            id="email"
+            name="email"
+            type="email"
+            autoComplete="email"
+            required
+            aria-describedby={errorId}
+            aria-invalid={message ? true : undefined}
+            className="h-11 text-base"
           />
-          <h1 className="font-display text-2xl font-semibold tracking-tight">Sign in</h1>
-          <p className="text-muted-foreground">Your family&apos;s care, in one place.</p>
-        </CardHeader>
-        <CardContent>
-          {message ? (
-            <p
-              id={errorId}
-              role="alert"
-              className="mb-4 rounded-md border border-danger/30 bg-danger-tint p-3 text-foreground"
+        </div>
+        <div className="space-y-2">
+          {/* The way out sits with the field it rescues, not buried under the
+              button — someone who is already stuck shouldn't have to hunt. */}
+          <div className="flex items-baseline justify-between gap-3">
+            <Label htmlFor="password" className="text-base">
+              Password
+            </Label>
+            <Link
+              href="/forgot-password"
+              className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
             >
-              {message}
-            </p>
-          ) : null}
-          <form action={login} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-base">
-                Email
-              </Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                aria-describedby={errorId}
-                aria-invalid={message ? true : undefined}
-                className="h-11 text-base"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-base">
-                Password
-              </Label>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                required
-                aria-describedby={errorId}
-                aria-invalid={message ? true : undefined}
-                className="h-11 text-base"
-              />
-            </div>
-            <SubmitButton className="h-11 w-full text-base" pendingText="Signing in…">
-              Sign in
-            </SubmitButton>
-          </form>
-        </CardContent>
-      </Card>
-    </main>
+              Forgot password?
+            </Link>
+          </div>
+          <Input
+            id="password"
+            name="password"
+            type="password"
+            autoComplete="current-password"
+            required
+            aria-describedby={errorId}
+            aria-invalid={message ? true : undefined}
+            className="h-11 text-base"
+          />
+        </div>
+        <SubmitButton className="h-11 w-full text-base" pendingText="Signing in…">
+          Sign in
+        </SubmitButton>
+      </form>
+    </AuthShell>
   );
 }
