@@ -38,6 +38,9 @@ export async function middleware(request: NextRequest) {
   // a first name and nothing else (migration 0029).
   const isPublic =
     pathname === "/login" ||
+    pathname === "/forgot-password" ||
+    pathname === "/reset-password" ||
+    pathname.startsWith("/auth/") ||
     pathname.startsWith("/invite") ||
     pathname.startsWith("/c/") ||
     pathname.startsWith("/api/cron");

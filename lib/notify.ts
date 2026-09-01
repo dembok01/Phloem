@@ -12,7 +12,7 @@ type Admin = SupabaseClient<Database>;
 
 const APP_URL = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(/\/$/, "");
 
-async function sendEmail(to: string, subject: string, text: string): Promise<boolean> {
+export async function sendEmail(to: string, subject: string, text: string): Promise<boolean> {
   const key = process.env.RESEND_API_KEY;
   const from = process.env.EMAIL_FROM || "care@phloem.example";
   if (!key) {
