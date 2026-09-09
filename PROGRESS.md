@@ -1167,3 +1167,21 @@ Supabase MCP server is not connected in this session and `.env.local` has no
 3. Delete the 5 junk rows — `68d67032`, `e66f489a`, `3fe060c2`, `50b9d0cd`,
    `b9c27174` — keeping `13702270`, `6d7970a9`, `8c833b6b`, which are the copies
    whose invite was used and whose onboarding was submitted.
+
+### Follow-on fix: a member "missing" from the admin list (2026-09-09)
+
+Reported as a new client who had onboarded but was not visible in the admin view.
+She was not missing. Verified against the hosted project: the admin's own session
+returned all 14 members with none withheld by RLS, search matched her, and her
+detail page, reports, care team, contacts and `get_onboarding_scoped` (40 keys)
+all resolved. She was at **row 1**.
+
+Her name is `.Maya.k` — typed by the family into the onboarding form's name field,
+which `submit_onboarding` copies onto `members.full_name`. `compareValues` sorted
+the raw string, and punctuation sorts before every letter, so she filed above
+"Amal Manoj" rather than under M. She is the only member in the database whose
+name does not begin with a letter, which is why this had never surfaced.
+
+Fix: one `Intl.Collator` with `ignorePunctuation`, built once instead of per
+comparison. Numeric ordering is preserved and every admin table inherits it.
+Two tests written failing first — `test:unit` 114/114.
