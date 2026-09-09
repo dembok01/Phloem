@@ -67,7 +67,14 @@ export async function deleteMemberAction(
 
   revalidatePath("/admin/members");
   revalidatePath("/admin/invites");
-  return result;
+
+  // Redirect from the action, not from an effect in the component. A server
+  // action re-renders the route the caller is standing on — which is this
+  // member's page, whose first statement is now `notFound()`. A client-side
+  // replace runs after that render and loses the race every time, so the admin
+  // saw the 404 page instead of their member list. redirect() navigates as part
+  // of the action's own response, so the deleted page is never rendered.
+  redirect("/admin/members?ok=deleted");
 }
 
 async function removeMemberObjects(memberId: string): Promise<void> {

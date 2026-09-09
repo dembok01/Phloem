@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { useActionState } from "react";
-import { useRouter } from "next/navigation";
 import { AlertTriangle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -33,17 +32,13 @@ export function MemberDangerZone({
   blastRadius: readonly (readonly [string, number])[];
   action: (state: MemberDeletionState, formData: FormData) => Promise<MemberDeletionState>;
 }) {
-  const router = useRouter();
   const [state, formAction] = useActionState<MemberDeletionState, FormData>(action, null);
   const [typed, setTyped] = React.useState("");
 
   const matches = normalizeMemberName(typed) === normalizeMemberName(memberName);
 
-  React.useEffect(() => {
-    if (state?.ok) {
-      router.replace("/admin/members?ok=deleted");
-    }
-  }, [state, router]);
+  // No success branch here on purpose: the action redirects to the member list
+  // itself, so `state` only ever carries a failure worth showing inline.
 
   return (
     <Card className="border-destructive/40">
