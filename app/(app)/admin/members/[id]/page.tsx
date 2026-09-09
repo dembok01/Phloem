@@ -12,8 +12,10 @@ import { ThreadPanel } from "@/components/threads/thread-panel";
 import { RenewalPanel } from "@/components/renewal-panel";
 import { RedFlagBanner } from "@/components/red-flag-banner";
 import { ReportShareToggle } from "@/components/admin/report-share-toggle";
+import { MemberDangerZone } from "@/components/admin/member-danger-zone";
 import { DocumentList, type DocumentRow } from "@/components/documents/document-list";
 import { FlashToast } from "@/components/ui/toast";
+import { deleteMemberAction } from "./actions";
 import { createClient } from "@/lib/supabase/server";
 import { formatDateIST, formatDateTimeIST } from "@/lib/datetime";
 import { parseRedFlags } from "@/lib/red-flags";
@@ -226,6 +228,15 @@ export default async function AdminMemberPage({
 
       <AdminDocumentsCard memberId={member.id} />
 
+      {/* 0034 — the admin's undo for a mis-enrolment. Last on the page by
+          intent: destruction is never the first thing in reach. */}
+      <MemberDangerZone
+        memberId={member.id}
+        memberName={member.full_name}
+        blastRadius={await blastRadius(member.id)}
+        action={deleteMemberAction}
+      />
+
       {/* C6: the member's whole story in one stream. */}
       <RenewalPanel
         memberId={member.id}
@@ -269,4 +280,38 @@ async function AdminDocumentsCard({ memberId }: { memberId: string }) {
       </CardContent>
     </Card>
   );
+}
+
+/**
+ * What deleting this member would take with it — counted here so the danger zone
+ * states the cost before the admin commits, not after.
+ *
+ * Head-only counts (one round trip each, no rows transferred). The labels are the
+ * admin's words, not the table names; `delete_member` recounts everything in the
+ * same transaction as the delete, so this is a preview, never the authority.
+ */
+async function blastRadius(memberId: string): Promise<[string, number][]> {
+  const supabase = await createClient();
+  const tables = [
+    ["Reports", "reports"],
+    ["Clinical forms", "form_responses"],
+    ["Consultations", "consultations"],
+    ["Care-team assignments", "assignments"],
+    ["Documents", "member_documents"],
+    ["Cases", "member_cases"],
+    ["Conversations", "threads"],
+    ["Pending invites", "invites"],
+  ] as const;
+
+  const counts = await Promise.all(
+    tables.map(async ([label, table]) => {
+      const { count } = await supabase
+        .from(table)
+        .select("*", { count: "exact", head: true })
+        .eq("member_id", memberId);
+      return [label, count ?? 0] as [string, number];
+    }),
+  );
+
+  return counts.filter(([, count]) => count > 0);
 }

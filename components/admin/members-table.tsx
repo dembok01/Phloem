@@ -2,13 +2,14 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ShieldAlert, UsersRound } from "lucide-react";
+import { CopyCheck, ShieldAlert, UsersRound } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Monogram } from "@/components/monogram";
 import { FilterBar, syncUrl, type Chip } from "./filter-bar";
 import { AdminTable, SortTh, Td, Th, Tr, useSort } from "./table";
 import { matchesQuery, sortRows } from "@/lib/admin-filters";
+import { duplicateNameIds } from "@/lib/member-duplicates";
 import { MEMBER_STATUS_LABEL, memberStatusVariant, type MemberStatus } from "@/lib/member-status";
 import { cn } from "@/lib/utils";
 
@@ -79,6 +80,10 @@ export function MembersTable({
   }, [rows, status, query, sort, flaggedFirst]);
 
   const flaggedCount = rows.filter((r) => r.high).length;
+
+  // A re-typed enrolment is the way duplicates got in (0034), so the marker keys
+  // on the normalised name — case and spacing differ between the copies.
+  const duplicates = React.useMemo(() => duplicateNameIds(rows), [rows]);
 
   function selectStatus(next: string | null) {
     setStatus(next);
@@ -153,6 +158,12 @@ export function MembersTable({
                     <ShieldAlert
                       className="size-4 shrink-0 text-danger"
                       aria-label="High red flag"
+                    />
+                  ) : null}
+                  {duplicates.has(m.id) ? (
+                    <CopyCheck
+                      className="size-4 shrink-0 text-warning"
+                      aria-label="Another member shares this name"
                     />
                   ) : null}
                 </Link>

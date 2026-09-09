@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header";
+import { FlashToast } from "@/components/ui/toast";
 import { MembersTable, type MemberRow } from "@/components/admin/members-table";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
@@ -15,10 +16,15 @@ import { MEMBER_STATUS_LABEL, type MemberStatus } from "@/lib/member-status";
  * page read the param those links quietly did nothing. The value is validated
  * against the enum so a hand-typed status cannot blank the page.
  */
+// Toast copy repeats the verb of the button that caused it (C1).
+const OKS: Record<string, string> = {
+  deleted: "Member deleted permanently",
+};
+
 export default async function MembersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; ok?: string }>;
 }) {
   const { status } = await searchParams;
   const supabase = await createClient();
@@ -45,6 +51,8 @@ export default async function MembersPage({
 
   return (
     <section className="space-y-6">
+      <FlashToast ok={OKS} />
+
       <PageHeader
         title="Members"
         description="Everyone enrolled, and where each of them is in the programme."

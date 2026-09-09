@@ -1465,6 +1465,10 @@ export type Database = {
         Returns: string
       }
       deactivate_member: { Args: { p_member: string }; Returns: undefined }
+      delete_member: {
+        Args: { p_confirm_name: string; p_member: string }
+        Returns: Json
+      }
       flag_quiet_families: { Args: { p_today?: string }; Returns: Json }
       get_care_team: { Args: { p_member: string }; Returns: Json }
       get_member_elderly_mode: { Args: { p_member: string }; Returns: boolean }
@@ -1493,6 +1497,7 @@ export type Database = {
         Returns: string
       }
       resume_program: { Args: { p_package: string }; Returns: undefined }
+      revoke_invite: { Args: { p_invite: string }; Returns: Json }
       run_daily_jobs: { Args: { p_today?: string }; Returns: Json }
       set_account_status: {
         Args: {

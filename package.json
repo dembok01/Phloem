@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit",
     "seed": "tsx scripts/seed.ts",
     "cron:dev": "tsx scripts/cron-dev.ts",
-    "test:unit": "tsx --tsconfig tsconfig.test.json --test lib/red-flags.test.ts lib/clearance.test.ts lib/rpc-errors.test.ts lib/action-result.test.ts lib/observe.test.ts lib/measures.test.ts lib/issues.test.ts lib/lens-core.test.ts lib/admin-filters.test.ts lib/document-preview.test.ts lib/next-actions.test.ts lib/reports/report-view.test.ts lib/member-enrollment.test.ts components/admin/member-invite-success.test.tsx components/forms/schema.test.ts components/forms/video-embed.test.ts lib/ai/context.test.ts",
+    "test:unit": "tsx --tsconfig tsconfig.test.json --test lib/red-flags.test.ts lib/clearance.test.ts lib/rpc-errors.test.ts lib/action-result.test.ts lib/observe.test.ts lib/measures.test.ts lib/issues.test.ts lib/lens-core.test.ts lib/admin-filters.test.ts lib/document-preview.test.ts lib/next-actions.test.ts lib/reports/report-view.test.ts lib/member-enrollment.test.ts lib/member-deletion.test.ts lib/member-duplicates.test.ts components/admin/member-invite-success.test.tsx components/forms/schema.test.ts components/forms/video-embed.test.ts lib/ai/context.test.ts",
     "test:rls": "tsx scripts/test-rls.ts",
     "test:lifecycle": "tsx scripts/test-lifecycle.ts"
   },
@@ -21,7 +21,6 @@
     "@supabase/supabase-js": "^2.110.0",
     "ai": "^7.0.37",
     "class-variance-authority": "^0.7.1",
-    "claude": "^0.1.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.23.0",
     "motion": "^13.1.0",

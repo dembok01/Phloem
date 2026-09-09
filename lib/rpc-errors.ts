@@ -39,6 +39,9 @@ export const RPC_ERROR_CODES = [
   "bad_intent",
   "renewal_closed",
   "no_active_package",
+  // 0034 member deletion + duplicate guard
+  "name_mismatch",
+  "duplicate_member",
 ] as const;
 
 export type RpcErrorCode = (typeof RPC_ERROR_CODES)[number];
@@ -85,6 +88,10 @@ export const RPC_ERROR_COPY: Record<RpcErrorCode, string> = {
   bad_intent: "Choose whether you'd like to continue or talk it through first.",
   renewal_closed: "This renewal has already been settled — your coordinator can help.",
   no_active_package: "There is no running programme to renew for this member.",
+  name_mismatch:
+    "The name you typed doesn't match this member. Deletion is cancelled — check you are on the right profile.",
+  duplicate_member:
+    "A member with this name is already enrolled under this caregiver and hasn't finished onboarding. Open the existing profile instead of enrolling again.",
 };
 
 export function rpcErrorMessage(
