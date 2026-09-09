@@ -1095,3 +1095,75 @@ scheduling rows — the no-duplication design behaving as intended on real data.
 ### Not verified live (environment)
 No browser pass — the Chrome extension still cannot reach the dev server. The
 tooltip open/close behaviour is the part only a browser can confirm.
+
+---
+
+## Member deletion + duplicate prevention (2026-09-09) — code ✅, DB apply pending
+
+**Trigger.** The dashboard showed duplicate client profiles: 5 junk rows across 3
+names out of 14 members.
+
+### Diagnosis (audit_log, hosted dev project)
+
+No duplicate insert path exists. Every duplicate is a deliberate second
+`member.created` by the admin, minutes after the first:
+
+| Member | Rows | Why |
+|---|---|---|
+| Haseena Haja | `68d67032`, `13702270` | first enrolment carried `alisufya@gmail.com` — the caregiver of the member enrolled 8 minutes earlier |
+| Deepak Chandramohan | `e66f489a`, `6d7970a9`, `3fe060c2` | wrong caregiver email, then a third row purely to change `duration_months` 3 → 1 |
+| Anjana shine | `50b9d0cd`, `b9c27174`, `8c833b6b` | three enrolments to one address; first two invites never used, one revoked yet its member remained |
+
+**Root cause:** enrolment was a one-way door. No delete; no way to change the
+caregiver email or the duration; and `revokeInvite` deleted only the invite while
+`invites.member_id` is the one FK to `members` **without** `on delete cascade`, so
+revoking orphaned the member instead of removing it. Every correction became a new
+row — and the coordinator then assigned care teams to the wrong copies
+(`68d67032` carries 3 assignments + 3 consultations, `e66f489a` carries 2).
+
+### Built
+
+Migration `0034_member_deletion.sql`:
+
+- **`delete_member(uuid, text)`** — admin only, `auth_role() is null` fails closed
+  first (0017 discipline). Requires the caller to retype the member's name
+  (`_norm_name`, mirrored by `normalizeMemberName()` in `lib/member-duplicates.ts`).
+  Counts the blast radius, deletes children in explicit dependency order, audits
+  the snapshot. Children are ordered by hand rather than left to the cascade
+  because several FKs inside a member's own subtree are NO ACTION
+  (`consultations.cycle_id`, `form_responses.consultation_id`, `reports.cycle_id`,
+  `member_cases.source_report`, `renewals.completed_package`) — a delete that works
+  on a shell member would otherwise be able to fail on one with history.
+  `audit_log.entity_id` has no FK to `members`, so `member.deleted` outlives the row.
+- **`create_member_with_invite`** — raises `duplicate_member` for a matching
+  normalised name under the same caregiver email while the existing member is still
+  `invited`/`signed_up`/`onboarding`. Body otherwise verbatim from 0017.
+- **`revoke_invite(uuid)`** — replaces the raw table delete; removes a shell member
+  (still `invited`, nobody attached, nothing recorded, no other invite) along with
+  the invite, and audits both.
+
+App: danger zone at the foot of `/admin/members/[id]` (typed-name confirmation, no
+modal — this design system has no dialog primitive, and a typed name asks *which*
+member rather than merely *are you sure*); duplicate marker on member-list rows
+sharing a normalised name; storage sweep of `member-photos` / `documents` /
+`reports` in the server action, since no SQL cascade reaches a bucket.
+
+### Verification
+
+`tsc --noEmit` clean · `eslint` clean · `npm run test:unit` **112/112** (was 98;
++14 across `member-deletion` and `member-duplicates`, written failing first).
+`lib/rpc-errors.test.ts` — which asserts every `raise exception` code in the
+migrations is registered — passes with `name_mismatch` and `duplicate_member`.
+
+### Pending
+
+The migration is **written but not yet applied** to the hosted project: the
+Supabase MCP server is not connected in this session and `.env.local` has no
+`SUPABASE_DB_URL`. Still to do once a DB channel exists:
+
+1. `apply_migration` for 0034.
+2. §16 check: coordinator and clinician callers both get `not_allowed` from
+   `delete_member`; a suspended admin does too.
+3. Delete the 5 junk rows — `68d67032`, `e66f489a`, `3fe060c2`, `50b9d0cd`,
+   `b9c27174` — keeping `13702270`, `6d7970a9`, `8c833b6b`, which are the copies
+   whose invite was used and whose onboarding was submitted.
