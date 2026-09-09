@@ -39,10 +39,20 @@ export function matchesQuery(
 
 export type SortDir = "asc" | "desc";
 
+/** Built once — constructing a Collator per comparison is the expensive way. */
+const NAME_COLLATOR = new Intl.Collator("en", { numeric: true, ignorePunctuation: true });
+
 /**
  * Nulls always sort last, in BOTH directions — a missing city is not "smaller
  * than Kochi", it is absent, and flipping the arrow should not march every empty
  * row to the top. Numbers compare numerically, everything else by locale.
+ *
+ * `ignorePunctuation` is what keeps a name findable. Families type their own name
+ * into the onboarding form and it is copied onto the member, so a stray dot or
+ * quote reaches this list — and punctuation sorts before every letter, filing
+ * ".Maya.k" at row 1 above "Amal Manoj". The member was reported missing while
+ * sitting on screen. Sorted on letters alone she lands under M, where she is
+ * looked for. Numeric ordering ("Cycle 2" before "Cycle 10") is unaffected.
  */
 export function compareValues(a: unknown, b: unknown, dir: SortDir = "asc"): number {
   const aMissing = a === null || a === undefined || a === "";
@@ -53,7 +63,7 @@ export function compareValues(a: unknown, b: unknown, dir: SortDir = "asc"): num
 
   const sign = dir === "asc" ? 1 : -1;
   if (typeof a === "number" && typeof b === "number") return (a - b) * sign;
-  return String(a).localeCompare(String(b), "en", { numeric: true }) * sign;
+  return NAME_COLLATOR.compare(String(a), String(b)) * sign;
 }
 
 /** Stable sort by one derived key. Does not mutate the input. */

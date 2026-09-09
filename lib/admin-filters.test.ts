@@ -65,6 +65,32 @@ test("sort is stable and does not mutate its input", () => {
   assert.deepEqual(rows, copy);
 });
 
+test("a name with leading punctuation sorts by its letters, not to the top", () => {
+  // A caregiver typed ".Maya.k" into the onboarding form's name field, which
+  // `submit_onboarding` copies onto the member. Sorting the raw string filed her
+  // above "Amal Manoj" at row 1 of the admin list, where nobody scanning for M
+  // looks — the member was reported missing while sitting on screen.
+  const rows = [
+    { name: "Amal Manoj" },
+    { name: "Sunitha Suresh" },
+    { name: ".Maya.k" },
+    { name: "Mohammed Haja" },
+  ];
+
+  assert.deepEqual(
+    sortRows(rows, (r) => r.name, "asc").map((r) => r.name),
+    ["Amal Manoj", ".Maya.k", "Mohammed Haja", "Sunitha Suresh"],
+  );
+});
+
+test("ignoring punctuation does not cost numeric ordering", () => {
+  const rows = [{ name: "Cycle 10" }, { name: "Cycle 2" }];
+  assert.deepEqual(
+    sortRows(rows, (r) => r.name, "asc").map((r) => r.name),
+    ["Cycle 2", "Cycle 10"],
+  );
+});
+
 test("relativeDayLabel reads as a distance, on IST calendar days", () => {
   const now = Date.parse("2026-08-21T04:00:00Z"); // 09:30 IST
   // 23:00 IST the same evening is still "today", not "in 0 days".
