@@ -42,6 +42,11 @@ export const RPC_ERROR_CODES = [
   // 0034 member deletion + duplicate guard
   "name_mismatch",
   "duplicate_member",
+  // 0035 record correction
+  "field_not_allowed",
+  "name_required",
+  "bad_age",
+  "no_changes",
 ] as const;
 
 export type RpcErrorCode = (typeof RPC_ERROR_CODES)[number];
@@ -92,6 +97,10 @@ export const RPC_ERROR_COPY: Record<RpcErrorCode, string> = {
     "The name you typed doesn't match this member. Deletion is cancelled — check you are on the right profile.",
   duplicate_member:
     "A member with this name is already enrolled under this caregiver and hasn't finished onboarding. Open the existing profile instead of enrolling again.",
+  field_not_allowed: "You can't change that field. Ask your coordinator if it needs correcting.",
+  name_required: "A name is required.",
+  bad_age: "Age must be between 1 and 120.",
+  no_changes: "Nothing changed, so there was nothing to save.",
 };
 
 export function rpcErrorMessage(
