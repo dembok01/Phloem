@@ -26,6 +26,7 @@ declare
   v_cg      uuid;
   v_resp    uuid;
   v_age     int;
+  v_mirror  jsonb;
 begin
   if v_role is null then raise exception 'not_allowed'; end if;
 
@@ -115,7 +116,15 @@ begin
    where fr.member_id = p_member and t.key = 'onboarding' and fr.submitted_at is not null
    order by fr.submitted_at desc limit 1;
   if v_resp is not null then
-    update form_responses set answers = answers || p_patch where id = v_resp;
+    v_mirror := p_patch;
+    if p_patch ? 'age' then
+      v_mirror := jsonb_set(v_mirror, '{age}',
+        case when btrim(coalesce(p_patch->>'age','')) = ''
+             then 'null'::jsonb
+             else to_jsonb(nullif(btrim(coalesce(p_patch->>'age','')), '')::int)
+        end);
+    end if;
+    update form_responses set answers = answers || v_mirror where id = v_resp;
   end if;
 
   perform _audit(auth.uid(), 'member.updated', 'member', p_member,
@@ -131,6 +140,8 @@ declare
   v_role    user_role := auth_role();
   v_allowed text[];
   v_key     text;
+  v_before  jsonb;
+  v_after   jsonb;
 begin
   if v_role is null then raise exception 'not_allowed'; end if;
   if not (v_role = 'admin' or is_caregiver_of(p_member)) then raise exception 'not_allowed'; end if;
@@ -154,6 +165,8 @@ begin
   insert into member_contacts(member_id) values (p_member)
   on conflict (member_id) do nothing;
 
+  select to_jsonb(mc) into v_before from member_contacts mc where member_id = p_member;
+
   update member_contacts set
     phone   = case when p_patch ? 'phone'
                    then nullif(btrim(coalesce(p_patch->>'phone','')), '') else phone end,
@@ -173,6 +186,15 @@ begin
                    else emergency_contact_phone end
   where member_id = p_member;
 
+  select to_jsonb(mc) into v_after from member_contacts mc where member_id = p_member;
+
+  -- Nothing actually moved: fail rather than write a meaningless audit row. The
+  -- UPDATE above rolls back with the exception.
+  if (select jsonb_object_agg(k, v_before->k) from jsonb_object_keys(p_patch) k)
+   = (select jsonb_object_agg(k, v_after->k)  from jsonb_object_keys(p_patch) k) then
+    raise exception 'no_changes';
+  end if;
+
   -- FIELD NAMES ONLY, never values. member_contacts being a table clinicians'
   -- policies do not cover is the structural mechanism behind the §3 rule that
   -- they never see contact identifiers; copying phone numbers into audit_log
@@ -189,6 +211,8 @@ declare
   v_role    user_role := auth_role();
   v_allowed text[];
   v_key     text;
+  v_before  jsonb;
+  v_after   jsonb;
 begin
   if v_role is null then raise exception 'not_allowed'; end if;
 
@@ -207,6 +231,8 @@ begin
     raise exception 'name_required';
   end if;
 
+  select to_jsonb(p) into v_before from profiles p where id = auth.uid();
+
   update profiles set
     full_name = case when p_patch ? 'full_name'
                      then btrim(p_patch->>'full_name') else full_name end,
@@ -216,6 +242,15 @@ begin
                      then nullif(btrim(coalesce(p_patch->>'whatsapp','')), '') else whatsapp end
   where id = auth.uid();
   if not found then raise exception 'not_found'; end if;
+
+  select to_jsonb(p) into v_after from profiles p where id = auth.uid();
+
+  -- Nothing actually moved: fail rather than write a meaningless audit row. The
+  -- UPDATE above rolls back with the exception.
+  if (select jsonb_object_agg(k, v_before->k) from jsonb_object_keys(p_patch) k)
+   = (select jsonb_object_agg(k, v_after->k)  from jsonb_object_keys(p_patch) k) then
+    raise exception 'no_changes';
+  end if;
 
   perform _audit(auth.uid(), 'profile.updated', 'profile', auth.uid(),
     jsonb_build_object('fields',
@@ -229,6 +264,8 @@ declare
   v_role    user_role := auth_role();
   v_allowed text[];
   v_key     text;
+  v_before  jsonb;
+  v_after   jsonb;
 begin
   if v_role is null then raise exception 'not_allowed'; end if;
   if v_role <> 'admin' then raise exception 'not_allowed'; end if;
@@ -248,6 +285,8 @@ begin
     raise exception 'name_required';
   end if;
 
+  select to_jsonb(p) into v_before from profiles p where id = p_user;
+
   update profiles set
     full_name = case when p_patch ? 'full_name'
                      then btrim(p_patch->>'full_name') else full_name end,
@@ -260,6 +299,15 @@ begin
                      else specialization end
   where id = p_user;
   if not found then raise exception 'not_found'; end if;
+
+  select to_jsonb(p) into v_after from profiles p where id = p_user;
+
+  -- Nothing actually moved: fail rather than write a meaningless audit row. The
+  -- UPDATE above rolls back with the exception.
+  if (select jsonb_object_agg(k, v_before->k) from jsonb_object_keys(p_patch) k)
+   = (select jsonb_object_agg(k, v_after->k)  from jsonb_object_keys(p_patch) k) then
+    raise exception 'no_changes';
+  end if;
 
   perform _audit(auth.uid(), 'profile.updated', 'profile', p_user,
     jsonb_build_object('fields',
