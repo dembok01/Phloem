@@ -1185,3 +1185,48 @@ name does not begin with a letter, which is why this had never surfaced.
 Fix: one `Intl.Collator` with `ignorePunctuation`, built once instead of per
 comparison. Numeric ordering is preserved and every admin table inherits it.
 Two tests written failing first — `test:unit` 114/114.
+
+### Record correction — §16 additions (0035)
+
+Ten new assertions cover the four edit RPCs from `0035_record_correction.sql`. Run:
+
+```
+supabase db query --linked -f supabase/tests/rls.test.sql
+```
+
+`npm run test:rls` is not usable here — it needs `SUPABASE_DB_URL`, which `.env.local` does not
+carry. The CLI is logged in and linked, so `--linked` is the runner.
+
+```
+PASS  edit: doctor REFUSED update_member
+PASS  edit: coordinator REFUSED update_member_contacts
+PASS  edit: caregiver CAN change city on their own member
+PASS  edit: caregiver REFUSED full_name (field_not_allowed)
+PASS  edit: caregiver REFUSED a member that is not theirs
+PASS  edit: rename onto an existing member REFUSED (duplicate_member)
+PASS  edit: suspended admin REFUSED update_member
+PASS  edit: suspended admin REFUSED update_member_contacts
+PASS  edit: suspended admin REFUSED update_my_profile
+PASS  edit: suspended admin REFUSED admin_update_profile
+```
+
+The last four are the `0017_rpc_fail_closed` regression net: `auth_role()` returns NULL for a
+suspended profile, and `NULL not in (...)` evaluates to NULL, so a guard written that way is
+skipped and the function proceeds. Four new write RPCs were four new chances to reintroduce that.
+
+Verified the suite leaves the database as it found it: 0 suspended admins, 0 `RLS Twin%` members,
+0 `%-RLSTEST` cities after the run.
+
+**Pre-existing blocker, not introduced here.** The blocks ABOVE this one cannot run against the
+current hosted database, for two reasons that have nothing to do with 0035:
+
+1. They hardcode the §14 seed UUIDs (`11111111-…`, `22222222-…`). Those members no longer exist —
+   the dev project now holds real pilot data instead of the seed fixtures.
+2. `profiles` now has two doctors, two nutritionists and two trainers, so the fixture
+   `insert into assignments … select … from profiles where role in (…)` produces two rows per
+   `(member_id, care_role)` and self-conflicts on the `one_active_per_role` unique index.
+
+The 0035 block is therefore written id-agnostically: it resolves a member, its caregiver, a
+second caregiver's member and one clinician per role at runtime, and creates both sides of the
+duplicate-name fixture itself. Making the older blocks id-agnostic the same way is the fix, and
+is its own piece of work — re-seeding is not an option while the project holds real data.

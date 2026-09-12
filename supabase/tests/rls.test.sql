@@ -533,6 +533,167 @@ insert into results select pg_temp.assert_eq('desk: coordinator still sees 0 rep
 insert into results select pg_temp.assert_eq('desk: coordinator still sees 0 clinical form responses',
   (select count(*) from form_responses), 0);
 
+-- ============ 0035 record correction ============
+-- Self-fixturing and id-agnostic on purpose. The blocks above this one hardcode
+-- the §14 seed UUIDs; this one resolves a real member and caregiver at runtime so
+-- it keeps working on a database that has moved on from the seed baseline.
+reset role;
+create temp table t35 as
+with cg1 as (
+  select m.id as member_id, m.caregiver_id
+    from members m join profiles p on p.id = m.caregiver_id
+   where p.role = 'caregiver' and p.status = 'active'
+   order by m.created_at limit 1
+)
+select
+  (select member_id    from cg1)                                            as m1,
+  (select caregiver_id from cg1)                                            as cg,
+  (select m.id from members m join profiles p on p.id = m.caregiver_id
+    where p.role = 'caregiver' and p.status = 'active'
+      and m.caregiver_id <> (select caregiver_id from cg1)
+    order by m.created_at limit 1)                                          as m_other,
+  (select id from profiles where role = 'doctor'      and status = 'active' limit 1) as doc,
+  (select id from profiles where role = 'coordinator' and status = 'active' limit 1) as coord,
+  (select id from profiles where role = 'admin'       and status = 'active' limit 1) as adm;
+grant select on t35 to authenticated;
+
+-- A clinician may not edit a member at all.
+select set_config('request.jwt.claims',
+  json_build_object('sub', (select doc from t35), 'role', 'authenticated')::text, true);
+set local role authenticated;
+do $$
+declare msg text;
+begin
+  begin
+    perform update_member((select m1 from t35), '{"city":"Chennai"}'::jsonb);
+    msg := 'no error';
+  exception when others then msg := SQLERRM;
+  end;
+  if msg <> 'not_allowed' then
+    raise exception 'RLS TEST FAILED: doctor must be refused update_member — got %', msg;
+  end if;
+  insert into results values ('PASS  edit: doctor REFUSED update_member');
+end $$;
+
+-- A coordinator may VIEW contacts (§3 gives them 👁) but never write them.
+reset role;
+select set_config('request.jwt.claims',
+  json_build_object('sub', (select coord from t35), 'role', 'authenticated')::text, true);
+set local role authenticated;
+do $$
+declare msg text;
+begin
+  begin
+    perform update_member_contacts((select m1 from t35), '{"phone":"+910000000001"}'::jsonb);
+    msg := 'no error';
+  exception when others then msg := SQLERRM;
+  end;
+  if msg <> 'not_allowed' then
+    raise exception 'RLS TEST FAILED: coordinator must be refused update_member_contacts — got %', msg;
+  end if;
+  insert into results values ('PASS  edit: coordinator REFUSED update_member_contacts');
+end $$;
+
+-- The caregiver half of the field split: soft fields yes, identity no, and only
+-- ever on their own member.
+reset role;
+select set_config('request.jwt.claims',
+  json_build_object('sub', (select cg from t35), 'role', 'authenticated')::text, true);
+set local role authenticated;
+do $$
+declare msg text; v_m uuid; v_old text;
+begin
+  select m1 into v_m from t35;
+
+  -- Derived from the stored value so it is guaranteed to differ; an edit to the
+  -- value already there raises no_changes and would fail this for the wrong reason.
+  select city into v_old from members where id = v_m;
+  perform update_member(v_m, jsonb_build_object('city', coalesce(v_old, '') || '-RLSTEST'));
+  insert into results values ('PASS  edit: caregiver CAN change city on their own member');
+
+  begin
+    perform update_member(v_m, '{"full_name":"Someone Else"}'::jsonb);
+    msg := 'no error';
+  exception when others then msg := SQLERRM;
+  end;
+  if msg <> 'field_not_allowed' then
+    raise exception 'RLS TEST FAILED: caregiver must not rename a member — got %', msg;
+  end if;
+  insert into results values ('PASS  edit: caregiver REFUSED full_name (field_not_allowed)');
+
+  begin
+    perform update_member((select m_other from t35), '{"city":"Chennai"}'::jsonb);
+    msg := 'no error';
+  exception when others then msg := SQLERRM;
+  end;
+  if msg <> 'not_allowed' then
+    raise exception 'RLS TEST FAILED: caregiver must not edit another member — got %', msg;
+  end if;
+  insert into results values ('PASS  edit: caregiver REFUSED a member that is not theirs');
+end $$;
+
+-- A rename must not become a back door into the duplicate state 0034 closed.
+-- Both sides are created here, so the assertion does not depend on any existing
+-- member's name or status.
+reset role;
+select set_config('request.jwt.claims',
+  json_build_object('sub', (select adm from t35), 'role', 'authenticated')::text, true);
+set local role authenticated;
+do $$
+declare msg text; v_cg uuid; v_a uuid; v_b uuid;
+begin
+  select cg into v_cg from t35;
+  insert into members(full_name, caregiver_id, status)
+  values ('RLS Twin A', v_cg, 'onboarding') returning id into v_a;
+  insert into members(full_name, caregiver_id, status)
+  values ('RLS Twin B', v_cg, 'onboarding') returning id into v_b;
+
+  begin
+    perform update_member(v_b, '{"full_name":"RLS Twin A"}'::jsonb);
+    msg := 'no error';
+  exception when others then msg := SQLERRM;
+  end;
+  if msg <> 'duplicate_member' then
+    raise exception 'RLS TEST FAILED: rename onto an existing member must raise duplicate_member — got %', msg;
+  end if;
+  insert into results values ('PASS  edit: rename onto an existing member REFUSED (duplicate_member)');
+end $$;
+
+-- The 0017 regression that matters most: auth_role() is NULL for a suspended
+-- profile, and `NULL not in (...)` is NULL — so a guard written that way is
+-- SKIPPED and the function proceeds. All four must refuse.
+reset role;
+update profiles set status = 'suspended' where role = 'admin';
+select set_config('request.jwt.claims',
+  json_build_object('sub', (select adm from t35), 'role', 'authenticated')::text, true);
+set local role authenticated;
+do $$
+declare msg text; fn text;
+begin
+  foreach fn in array array['update_member','update_member_contacts',
+                            'update_my_profile','admin_update_profile'] loop
+    begin
+      if fn = 'update_member' then
+        perform update_member((select m1 from t35), '{"city":"X"}'::jsonb);
+      elsif fn = 'update_member_contacts' then
+        perform update_member_contacts((select m1 from t35), '{"phone":"1"}'::jsonb);
+      elsif fn = 'update_my_profile' then
+        perform update_my_profile('{"full_name":"X"}'::jsonb);
+      else
+        perform admin_update_profile((select doc from t35), '{"full_name":"X"}'::jsonb);
+      end if;
+      msg := 'no error';
+    exception when others then msg := SQLERRM;
+    end;
+    if msg <> 'not_allowed' then
+      raise exception 'RLS TEST FAILED: suspended admin must be refused % — got %', fn, msg;
+    end if;
+    insert into results values ('PASS  edit: suspended admin REFUSED ' || fn);
+  end loop;
+end $$;
+reset role;
+update profiles set status = 'active' where role = 'admin';
+
 reset role;
 
 select line from results;
