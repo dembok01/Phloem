@@ -1428,6 +1428,10 @@ export type Database = {
         Returns: Json
       }
       activate_program: { Args: { p_member: string }; Returns: undefined }
+      admin_update_profile: {
+        Args: { p_patch: Json; p_user: string }
+        Returns: undefined
+      }
       assign_care_team: {
         Args: {
           p_member: string
@@ -1541,6 +1545,15 @@ export type Database = {
         Args: { p_member: string; p_report_content?: Json; p_response: string }
         Returns: undefined
       }
+      update_member: {
+        Args: { p_member: string; p_patch: Json }
+        Returns: undefined
+      }
+      update_member_contacts: {
+        Args: { p_member: string; p_patch: Json }
+        Returns: undefined
+      }
+      update_my_profile: { Args: { p_patch: Json }; Returns: undefined }
     }
     Enums: {
       account_status: "active" | "suspended"
