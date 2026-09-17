@@ -12,6 +12,9 @@ import { ThreadPanel } from "@/components/threads/thread-panel";
 import { RenewalPanel } from "@/components/renewal-panel";
 import { RedFlagBanner } from "@/components/red-flag-banner";
 import { ReportShareToggle } from "@/components/admin/report-share-toggle";
+import { EditRecordSheet } from "@/components/edit-record-sheet";
+import { MEMBER_DEMOGRAPHICS, MEMBER_CONTACTS } from "@/lib/member-fields";
+import { updateMemberAction, updateMemberContactsAction } from "@/app/(app)/record-actions";
 import { MemberDangerZone } from "@/components/admin/member-danger-zone";
 import { DocumentList, type DocumentRow } from "@/components/documents/document-list";
 import { FlashToast } from "@/components/ui/toast";
@@ -74,7 +77,7 @@ export default async function AdminMemberPage({
 
   const { data: member } = await supabase
     .from("members")
-    .select("id, full_name, status, red_flags, age, city, gender, photo_path")
+    .select("id, full_name, status, red_flags, age, city, gender, photo_path, language, occupation, country, relationship_to_caregiver, caregiver_id")
     .eq("id", id)
     .maybeSingle();
   if (!member) notFound();
@@ -85,6 +88,8 @@ export default async function AdminMemberPage({
     { data: pkg },
     { data: reports },
     { data: renewalRow },
+    { data: contacts },
+    { data: caregiver },
   ] = await Promise.all([
     supabase.from("consultations").select("type, cycle_id, report_status").eq("member_id", id).is("cycle_id", null),
     supabase
@@ -111,6 +116,17 @@ export default async function AdminMemberPage({
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
+    // §3 gives admin full access to contact identifiers, but this page never
+    // read them — when a family telephoned the office there was no screen
+    // showing their number.
+    supabase
+      .from("member_contacts")
+      .select("phone, whatsapp, email, address, pin_code, emergency_contact_name, emergency_contact_phone")
+      .eq("member_id", id)
+      .maybeSingle(),
+    member.caregiver_id
+      ? supabase.from("profiles").select("full_name, phone, email").eq("id", member.caregiver_id).maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
 
   const { data: cycles } = pkg
@@ -150,9 +166,21 @@ export default async function AdminMemberPage({
           .filter(Boolean)
           .join(" · ")}
         actions={
-          <Badge variant={memberStatusVariant(member.status as MemberStatus)}>
-            {MEMBER_STATUS_LABEL[member.status as MemberStatus]}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant={memberStatusVariant(member.status as MemberStatus)}>
+              {MEMBER_STATUS_LABEL[member.status as MemberStatus]}
+            </Badge>
+            <EditRecordSheet
+              group={MEMBER_DEMOGRAPHICS}
+              role="admin"
+              values={member}
+              title="Edit member details"
+              description="Corrections apply everywhere, including the onboarding answers the doctor reads."
+              triggerLabel="Edit details"
+              successText="Member details updated"
+              onSave={async (patch) => updateMemberAction(member.id, patch)}
+            />
+          </div>
         }
       />
 
@@ -177,6 +205,39 @@ export default async function AdminMemberPage({
         redirectTo={redirectTo}
         isAdmin
       />
+
+      {/* Contact details. Admin is ✅ full on contact identifiers in §3, but this
+          page rendered none of them until now. */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between gap-3">
+          <CardTitle>Contact details</CardTitle>
+          <EditRecordSheet
+            group={MEMBER_CONTACTS}
+            role="admin"
+            values={contacts ?? {}}
+            title="Edit contact details"
+            description="Only the family, the coordinator and you can see these."
+            successText="Contact details updated"
+            onSave={async (patch) => updateMemberContactsAction(member.id, patch)}
+          />
+        </CardHeader>
+        <CardContent className="grid gap-2 sm:grid-cols-2">
+          {MEMBER_CONTACTS.fields.map((f) => (
+            <div key={f.key} className="flex items-center justify-between gap-3 rounded-lg border p-2.5 text-sm">
+              <span className="text-muted-foreground">{f.label}</span>
+              <span className="truncate font-medium">
+                {(contacts as Record<string, string | null> | null)?.[f.key] ?? "—"}
+              </span>
+            </div>
+          ))}
+          <div className="flex items-center justify-between gap-3 rounded-lg border p-2.5 text-sm sm:col-span-2">
+            <span className="text-muted-foreground">Family login</span>
+            <span className="truncate font-medium">
+              {caregiver ? `${caregiver.full_name} · ${caregiver.phone ?? caregiver.email}` : "Not linked yet"}
+            </span>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Care team (read-only summary) */}
       <Card>
