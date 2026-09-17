@@ -7,6 +7,7 @@ import { AccountMenu } from "@/components/account-menu";
 import { ToastProvider } from "@/components/ui/toast";
 import { Tooltip } from "@base-ui/react/tooltip";
 import { getSessionProfile } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
 import { getLens, viewRoleFor } from "@/lib/lens";
 import { CareTeamSwitcher, lensLabel } from "@/components/care-team-switcher";
 import { LensChrome } from "@/components/lens-chrome";
@@ -27,6 +28,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const profile = await getSessionProfile();
   if (!profile) redirect("/login");
   if (profile.status === "suspended") redirect("/login?notice=suspended");
+
+  // profiles.email is where notification mail goes (lib/notify.ts), not a display
+  // copy. An address change can complete with no session to sync from (a link
+  // opened on another device), so heal it here, on the person's next page view
+  // anywhere. A string compare on every request; the RPC runs only on a mismatch.
+  const authEmail = profile.user.email?.toLowerCase();
+  if (authEmail && profile.profileEmail && authEmail !== profile.profileEmail.toLowerCase()) {
+    const supabase = await createClient();
+    await supabase.rpc("sync_my_email");
+  }
 
   const role = profile.role;
   // An admin may stand at another desk (lib/lens.ts). The lens tints the shell

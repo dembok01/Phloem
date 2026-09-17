@@ -17,6 +17,10 @@ import {
 
 export function EmailForm({ current, pending }: { current: string; pending: string | null }) {
   const [busy, start] = React.useTransition();
+  // A pending change is not a dead end: GoTrue keeps email_change until it is
+  // confirmed, so someone who mistyped the new address must be able to start over.
+  // requestEmailChangeAction replaces the pending change.
+  const [startingOver, setStartingOver] = React.useState(false);
   const { toast } = useToast();
   const router = useRouter();
 
@@ -31,6 +35,7 @@ export function EmailForm({ current, pending }: { current: string; pending: stri
         return;
       }
       form.reset();
+      setStartingOver(false);
       router.refresh();
       toast("success", "Check both inboxes to finish the change");
     });
@@ -57,7 +62,7 @@ export function EmailForm({ current, pending }: { current: string; pending: stri
     });
   }
 
-  if (pending) {
+  if (pending && !startingOver) {
     return (
       <form onSubmit={confirm} className="space-y-4">
         <p className="text-sm text-muted-foreground">
@@ -79,9 +84,14 @@ export function EmailForm({ current, pending }: { current: string; pending: stri
             className="h-11 max-w-[10rem] tracking-widest"
           />
         </div>
-        <Button type="submit" disabled={busy}>
-          {busy ? "Confirming…" : "Confirm code"}
-        </Button>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button type="submit" loading={busy}>
+            {busy ? "Confirming…" : "Confirm code"}
+          </Button>
+          <Button type="button" variant="ghost" onClick={() => setStartingOver(true)}>
+            Use a different address
+          </Button>
+        </div>
       </form>
     );
   }
@@ -97,9 +107,16 @@ export function EmailForm({ current, pending }: { current: string; pending: stri
         <Label htmlFor="email-next">New sign-in address</Label>
         <Input id="email-next" name="email" type="email" required autoComplete="email" className="h-11" />
       </div>
-      <Button type="submit" disabled={busy}>
-        {busy ? "Sending…" : "Send confirmations"}
-      </Button>
+      <div className="flex flex-wrap items-center gap-3">
+        <Button type="submit" loading={busy}>
+          {busy ? "Sending…" : "Send confirmations"}
+        </Button>
+        {pending ? (
+          <Button type="button" variant="ghost" onClick={() => setStartingOver(false)}>
+            Back to the code
+          </Button>
+        ) : null}
+      </div>
     </form>
   );
 }

@@ -46,5 +46,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return NextResponse.redirect(new URL(LANDING[type].failed, origin));
   }
 
+  // If this browser is signed in, sync the profile copy now; otherwise the shell
+  // heals it on the next page view. Idempotent, and never blocks the redirect.
+  if (type === "email_change") {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (user) await supabase.rpc("sync_my_email");
+  }
+
   return NextResponse.redirect(new URL(LANDING[type].ok, origin));
 }
