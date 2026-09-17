@@ -13,7 +13,6 @@ import { useRouter } from "next/navigation";
 import { Pencil } from "lucide-react";
 import { Sheet } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { SubmitButton } from "@/components/ui/submit-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/toast";
@@ -106,9 +105,11 @@ export function EditRecordSheet({
             <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <SubmitButton form={formId} pendingText="Saving…" disabled={pending}>
-              Save changes
-            </SubmitButton>
+            {/* A plain Button: outside the <form>, SubmitButton's useFormStatus
+                never sees the pending state. */}
+            <Button type="submit" form={formId} loading={pending}>
+              {pending ? "Saving…" : "Save changes"}
+            </Button>
           </>
         }
       >
@@ -146,7 +147,13 @@ function FieldRow({
       {field.type === "select" ? (
         <select id={id} name={field.key} defaultValue={defaultValue} disabled={!editable} className={CONTROL}>
           <option value="">Not set</option>
-          {(field.options ?? []).map((o) => (
+          {/* Enrolment stored some of these as free text ("femaile", "male"). A value
+              missing from the options would show "Not set" and be erased on the
+              next save, so the stored value is always offered as-is. */}
+          {(defaultValue && !(field.options ?? []).includes(defaultValue)
+            ? [defaultValue, ...(field.options ?? [])]
+            : (field.options ?? [])
+          ).map((o) => (
             <option key={o} value={o}>{o}</option>
           ))}
         </select>

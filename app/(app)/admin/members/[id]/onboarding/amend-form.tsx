@@ -13,6 +13,16 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/toast";
 import { amendOnboardingAction } from "./actions";
 
+/** Stable form of an answer: object keys sorted, undefined as null — so reordering
+ *  keys is not a "change", and a cleared value is not dropped in transit. */
+function canonical(value: unknown): string {
+  return JSON.stringify(value ?? null, (_key, v: unknown) =>
+    v && typeof v === "object" && !Array.isArray(v)
+      ? Object.fromEntries(Object.entries(v as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b)))
+      : v,
+  );
+}
+
 export function AmendForm({
   memberId,
   sections,
@@ -31,7 +41,7 @@ export function AmendForm({
   const patch = React.useMemo(() => {
     const out: Record<string, unknown> = {};
     for (const key of Object.keys(values)) {
-      if (JSON.stringify(values[key]) !== JSON.stringify(answers[key])) out[key] = values[key];
+      if (canonical(values[key]) !== canonical(answers[key])) out[key] = values[key] ?? null;
     }
     return out;
   }, [values, answers]);

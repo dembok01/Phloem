@@ -66,6 +66,11 @@ test("buildPatch trims, treats blank as a cleared value, and ignores unknown key
   });
 });
 
+test("buildPatch never clears a field the form did not send", () => {
+  const current = { city: "Kochi", occupation: "Teacher" };
+  assert.deepEqual(buildPatch(MEMBER_DEMOGRAPHICS, "admin", { city: "Pune" }, current), { city: "Pune" });
+});
+
 test("buildPatch returns an empty object when nothing moved", () => {
   const current = { city: "Kochi" };
   assert.deepEqual(buildPatch(MEMBER_DEMOGRAPHICS, "admin", { city: "Kochi" }, current), {});

@@ -38,8 +38,8 @@ export function AccountMenu({ name, role }: { name: string; role: UserRole }) {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        aria-haspopup="menu"
         aria-expanded={open}
+        aria-controls="account-menu"
         className="pressable flex min-w-0 items-center gap-2 rounded-md px-2 py-1 hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
       >
         <span className="hidden max-w-[10rem] truncate font-medium sm:inline">{name}</span>
@@ -56,12 +56,11 @@ export function AccountMenu({ name, role }: { name: string; role: UserRole }) {
 
       {open ? (
         <div
-          role="menu"
+          id="account-menu"
           className="absolute right-0 z-50 mt-1 w-48 rounded-lg border bg-popover p-1 text-popover-foreground shadow-pop"
         >
           <Link
             href="/account"
-            role="menuitem"
             onClick={() => setOpen(false)}
             className="block rounded-md px-3 py-2 text-sm hover:bg-muted"
           >

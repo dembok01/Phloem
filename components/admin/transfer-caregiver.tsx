@@ -9,7 +9,6 @@ import { useRouter } from "next/navigation";
 import { Users } from "lucide-react";
 import { Sheet } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { SubmitButton } from "@/components/ui/submit-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/toast";
@@ -92,9 +91,9 @@ export function TransferCaregiver({
             <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <SubmitButton form={formId} pendingText="Saving…" disabled={pending}>
-              Confirm
-            </SubmitButton>
+            <Button type="submit" form={formId} loading={pending}>
+              {pending ? "Saving…" : "Confirm"}
+            </Button>
           </>
         }
       >

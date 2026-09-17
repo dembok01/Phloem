@@ -13,6 +13,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { actionFail, actionFromError, actionOk, type ActionResult } from "@/lib/action-result";
+import { logError } from "@/lib/observe";
 
 const schema = z.object({
   userId: z.string().uuid(),
@@ -23,8 +24,9 @@ export async function adminChangeEmailAction(userId: string, email: string): Pro
   const parsed = schema.safeParse({ userId, email });
   if (!parsed.success) return actionFail("Enter a valid email address.");
 
-  // Checked here so a non-admin never reaches the service-role client at all.
-  // admin_set_profile_email re-checks it, and that is the boundary that counts.
+  // THIS check is the boundary for the auth.users write below: the service-role
+  // client bypasses RLS, so nothing in the database stops it. admin_set_profile_email
+  // re-checks the role only for the profile copy and its audit row.
   const supabase = await createClient();
   const {
     data: { user },
@@ -53,6 +55,11 @@ export async function adminChangeEmailAction(userId: string, email: string): Pro
     p_email: parsed.data.email,
   });
   if (error) {
+    // The credential already moved; without this there is no record of who moved it.
+    logError("auth.admin_email_change.audit_failed", error.message, {
+      actor: user.id,
+      target: parsed.data.userId,
+    });
     return actionFromError(
       error,
       "The sign-in address changed, but the profile record did not update. It corrects itself the next time they open their account page.",

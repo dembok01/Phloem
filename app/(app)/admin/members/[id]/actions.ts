@@ -109,7 +109,11 @@ export async function transferCaregiverAction(
     p_member: parsed.data.memberId,
     p_new_user: parsed.data.newUserId,
   });
-  if (error) return actionFromError(error, "Could not move this member. Please try again.");
+  if (error) {
+    return actionFromError(error, "Could not move this member. Please try again.", {
+      role_mismatch_or_inactive: "That login isn't an active family account.",
+    });
+  }
 
   revalidatePath(`/admin/members/${parsed.data.memberId}`);
   revalidatePath("/portal");
@@ -122,13 +126,10 @@ const inviteSchema = z.object({
 });
 
 /**
- * For an incoming caregiver with no account yet. The invite row IS the pending
- * state: the current caregiver keeps access until it is accepted.
- *
- * Refused for any member past 'invited'. The live accept_invite writes
- * `status = 'signed_up'` unconditionally, so accepting this invite would throw a
- * running member back to the start of the lifecycle. Migration 0041 fixes that and
- * is held for owner approval; once it is applied this check can go.
+ * For an incoming caregiver with no account yet. replace_caregiver_invite (0043)
+ * expires any invite still outstanding and inserts the new one in one transaction,
+ * so only one link is ever live. It also refuses a member past 'invited' while the
+ * live accept_invite would reset them (0041 is held for approval).
  */
 export async function inviteReplacementCaregiverAction(
   memberId: string,
@@ -138,32 +139,11 @@ export async function inviteReplacementCaregiverAction(
   if (!parsed.success) return actionFail("Enter a valid email address.");
 
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return actionFail("You are signed out.");
-
-  const { data: member } = await supabase
-    .from("members")
-    .select("status")
-    .eq("id", parsed.data.memberId)
-    .maybeSingle();
-  if (!member) return actionFail("That member could not be found.");
-  if (member.status !== "invited") {
-    return actionFail(
-      "Inviting a new family member is paused for members already past sign-up, until the invite fix (migration 0041) is approved. Move them to an existing family login instead.",
-    );
-  }
-
-  // Written under the inv_admin policy, as inviteProfessional already does:
-  // §6 has no invite RPC for this shape.
-  const { error } = await supabase.from("invites").insert({
-    email: parsed.data.email,
-    role: "caregiver",
-    member_id: parsed.data.memberId,
-    invited_by: user.id,
+  const { error } = await supabase.rpc("replace_caregiver_invite", {
+    p_member: parsed.data.memberId,
+    p_email: parsed.data.email,
   });
-  if (error) return actionFail("Could not create that invite. Please try again.");
+  if (error) return actionFromError(error, "Could not create that invite. Please try again.");
 
   revalidatePath(`/admin/members/${parsed.data.memberId}`);
   revalidatePath("/admin/invites");
