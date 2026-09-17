@@ -47,6 +47,10 @@ export const RPC_ERROR_CODES = [
   "name_required",
   "bad_age",
   "no_changes",
+  // 0037 email change
+  "email_mismatch",
+  // 0038 caregiver transfer
+  "same_caregiver",
 ] as const;
 
 export type RpcErrorCode = (typeof RPC_ERROR_CODES)[number];
@@ -101,6 +105,8 @@ export const RPC_ERROR_COPY: Record<RpcErrorCode, string> = {
   name_required: "A name is required.",
   bad_age: "Age must be between 1 and 120.",
   no_changes: "Nothing changed, so there was nothing to save.",
+  email_mismatch: "The sign-in address didn't change. Please try again.",
+  same_caregiver: "That is already the family member managing this care.",
 };
 
 export function rpcErrorMessage(

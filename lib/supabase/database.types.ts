@@ -69,51 +69,14 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "activity_events_member_id_fkey"
-            columns: ["member_id"]
+            foreignKeyName: "activity_events_actor_id_fkey"
+            columns: ["actor_id"]
             isOneToOne: false
-            referencedRelation: "members"
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
-        ]
-      }
-      checkin_links: {
-        Row: {
-          created_at: string
-          created_by: string | null
-          expires_at: string
-          id: string
-          last_used_at: string | null
-          member_id: string
-          revoked_at: string | null
-          token: string
-          uses: number
-        }
-        Insert: {
-          created_at?: string
-          created_by?: string | null
-          expires_at?: string
-          id?: string
-          last_used_at?: string | null
-          member_id: string
-          revoked_at?: string | null
-          token?: string
-          uses?: number
-        }
-        Update: {
-          created_at?: string
-          created_by?: string | null
-          expires_at?: string
-          id?: string
-          last_used_at?: string | null
-          member_id?: string
-          revoked_at?: string | null
-          token?: string
-          uses?: number
-        }
-        Relationships: [
           {
-            foreignKeyName: "checkin_links_member_id_fkey"
+            foreignKeyName: "activity_events_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
             referencedRelation: "members"
@@ -205,6 +168,57 @@ export type Database = {
           meta?: Json | null
         }
         Relationships: []
+      }
+      checkin_links: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          expires_at: string
+          id: string
+          last_used_at: string | null
+          member_id: string
+          revoked_at: string | null
+          token: string
+          uses: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string
+          id?: string
+          last_used_at?: string | null
+          member_id: string
+          revoked_at?: string | null
+          token?: string
+          uses?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string
+          id?: string
+          last_used_at?: string | null
+          member_id?: string
+          revoked_at?: string | null
+          token?: string
+          uses?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checkin_links_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checkin_links_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       consultations: {
         Row: {
@@ -900,6 +914,200 @@ export type Database = {
           },
         ]
       }
+      profiles: {
+        Row: {
+          created_at: string
+          display_prefs: Json
+          email: string
+          full_name: string
+          id: string
+          phone: string | null
+          role: Database["public"]["Enums"]["user_role"]
+          specialization: string | null
+          status: Database["public"]["Enums"]["account_status"]
+          whatsapp: string | null
+        }
+        Insert: {
+          created_at?: string
+          display_prefs?: Json
+          email: string
+          full_name: string
+          id: string
+          phone?: string | null
+          role: Database["public"]["Enums"]["user_role"]
+          specialization?: string | null
+          status?: Database["public"]["Enums"]["account_status"]
+          whatsapp?: string | null
+        }
+        Update: {
+          created_at?: string
+          display_prefs?: Json
+          email?: string
+          full_name?: string
+          id?: string
+          phone?: string | null
+          role?: Database["public"]["Enums"]["user_role"]
+          specialization?: string | null
+          status?: Database["public"]["Enums"]["account_status"]
+          whatsapp?: string | null
+        }
+        Relationships: []
+      }
+      renewals: {
+        Row: {
+          completed_package: string | null
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
+          id: string
+          member_id: string
+          note: string | null
+          package_id: string
+          proposed_at: string
+          proposed_by: string | null
+          proposed_months: number
+          status: string
+        }
+        Insert: {
+          completed_package?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          id?: string
+          member_id: string
+          note?: string | null
+          package_id: string
+          proposed_at?: string
+          proposed_by?: string | null
+          proposed_months: number
+          status?: string
+        }
+        Update: {
+          completed_package?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          id?: string
+          member_id?: string
+          note?: string | null
+          package_id?: string
+          proposed_at?: string
+          proposed_by?: string | null
+          proposed_months?: number
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "renewals_completed_package_fkey"
+            columns: ["completed_package"]
+            isOneToOne: false
+            referencedRelation: "packages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "renewals_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "renewals_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "renewals_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "packages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "renewals_proposed_by_fkey"
+            columns: ["proposed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reports: {
+        Row: {
+          content: Json
+          created_at: string
+          created_by: string | null
+          cycle_id: string | null
+          id: string
+          member_id: string
+          pdf_path: string | null
+          share_with_caregiver: boolean
+          supersedes: string | null
+          type: Database["public"]["Enums"]["report_type"]
+          version: number
+        }
+        Insert: {
+          content: Json
+          created_at?: string
+          created_by?: string | null
+          cycle_id?: string | null
+          id?: string
+          member_id: string
+          pdf_path?: string | null
+          share_with_caregiver?: boolean
+          supersedes?: string | null
+          type: Database["public"]["Enums"]["report_type"]
+          version?: number
+        }
+        Update: {
+          content?: Json
+          created_at?: string
+          created_by?: string | null
+          cycle_id?: string | null
+          id?: string
+          member_id?: string
+          pdf_path?: string | null
+          share_with_caregiver?: boolean
+          supersedes?: string | null
+          type?: Database["public"]["Enums"]["report_type"]
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reports_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reports_cycle_id_fkey"
+            columns: ["cycle_id"]
+            isOneToOne: false
+            referencedRelation: "cycles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reports_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reports_supersedes_fkey"
+            columns: ["supersedes"]
+            isOneToOne: false
+            referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       thread_messages: {
         Row: {
           author_id: string | null
@@ -1033,184 +1241,21 @@ export type Database = {
           },
         ]
       }
-      profiles: {
-        Row: {
-          created_at: string
-          display_prefs: Json
-          email: string
-          full_name: string
-          id: string
-          phone: string | null
-          role: Database["public"]["Enums"]["user_role"]
-          specialization: string | null
-          status: Database["public"]["Enums"]["account_status"]
-          whatsapp: string | null
-        }
-        Insert: {
-          created_at?: string
-          display_prefs?: Json
-          email: string
-          full_name: string
-          id: string
-          phone?: string | null
-          role: Database["public"]["Enums"]["user_role"]
-          specialization?: string | null
-          status?: Database["public"]["Enums"]["account_status"]
-          whatsapp?: string | null
-        }
-        Update: {
-          created_at?: string
-          display_prefs?: Json
-          email?: string
-          full_name?: string
-          id?: string
-          phone?: string | null
-          role?: Database["public"]["Enums"]["user_role"]
-          specialization?: string | null
-          status?: Database["public"]["Enums"]["account_status"]
-          whatsapp?: string | null
-        }
-        Relationships: []
-      }
-      renewals: {
-        Row: {
-          completed_package: string | null
-          created_at: string
-          decided_at: string | null
-          decided_by: string | null
-          decision_note: string | null
-          id: string
-          member_id: string
-          note: string | null
-          package_id: string
-          proposed_at: string
-          proposed_by: string | null
-          proposed_months: number
-          status: string
-        }
-        Insert: {
-          completed_package?: string | null
-          created_at?: string
-          decided_at?: string | null
-          decided_by?: string | null
-          decision_note?: string | null
-          id?: string
-          member_id: string
-          note?: string | null
-          package_id: string
-          proposed_at?: string
-          proposed_by?: string | null
-          proposed_months: number
-          status?: string
-        }
-        Update: {
-          completed_package?: string | null
-          created_at?: string
-          decided_at?: string | null
-          decided_by?: string | null
-          decision_note?: string | null
-          id?: string
-          member_id?: string
-          note?: string | null
-          package_id?: string
-          proposed_at?: string
-          proposed_by?: string | null
-          proposed_months?: number
-          status?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "renewals_member_id_fkey"
-            columns: ["member_id"]
-            isOneToOne: false
-            referencedRelation: "members"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "renewals_package_id_fkey"
-            columns: ["package_id"]
-            isOneToOne: false
-            referencedRelation: "packages"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      reports: {
-        Row: {
-          content: Json
-          created_at: string
-          created_by: string | null
-          cycle_id: string | null
-          id: string
-          member_id: string
-          pdf_path: string | null
-          share_with_caregiver: boolean
-          supersedes: string | null
-          type: Database["public"]["Enums"]["report_type"]
-          version: number
-        }
-        Insert: {
-          content: Json
-          created_at?: string
-          created_by?: string | null
-          cycle_id?: string | null
-          id?: string
-          member_id: string
-          pdf_path?: string | null
-          share_with_caregiver?: boolean
-          supersedes?: string | null
-          type: Database["public"]["Enums"]["report_type"]
-          version?: number
-        }
-        Update: {
-          content?: Json
-          created_at?: string
-          created_by?: string | null
-          cycle_id?: string | null
-          id?: string
-          member_id?: string
-          pdf_path?: string | null
-          share_with_caregiver?: boolean
-          supersedes?: string | null
-          type?: Database["public"]["Enums"]["report_type"]
-          version?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "reports_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "reports_cycle_id_fkey"
-            columns: ["cycle_id"]
-            isOneToOne: false
-            referencedRelation: "cycles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "reports_member_id_fkey"
-            columns: ["member_id"]
-            isOneToOne: false
-            referencedRelation: "members"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "reports_supersedes_fkey"
-            columns: ["supersedes"]
-            isOneToOne: false
-            referencedRelation: "reports"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      _append_review_to_cases: {
+        Args: {
+          p_actor: string
+          p_answers: Json
+          p_cycle_no: number
+          p_member: string
+          p_report: string
+        }
+        Returns: number
+      }
       _audit: {
         Args: {
           p_action: string
@@ -1222,6 +1267,14 @@ export type Database = {
         Returns: undefined
       }
       _build_performance: { Args: { p_cycle: string }; Returns: Json }
+      _last_family_activity: { Args: { p_member: string }; Returns: string }
+      _measure_domains: { Args: { m: string }; Returns: string[] }
+      _measure_value: {
+        Args: { a: Json; p_field: string; p_parse: string }
+        Returns: number
+      }
+      _missed_consults: { Args: { p_member: string }; Returns: number }
+      _norm_name: { Args: { p: string }; Returns: string }
       _notify: {
         Args: {
           p_body: string
@@ -1261,21 +1314,6 @@ export type Database = {
         Args: { p_cycle: number; p_extra?: Json; p_title: string }
         Returns: Json
       }
-      _append_review_to_cases: {
-        Args: {
-          p_actor: string
-          p_answers: Json
-          p_cycle_no: number
-          p_member: string
-          p_report: string
-        }
-        Returns: number
-      }
-      _measure_domains: { Args: { m: string }; Returns: string[] }
-      _measure_value: {
-        Args: { a: Json; p_field: string; p_parse: string }
-        Returns: number
-      }
       _seed_cases_from_problem_list: {
         Args: {
           p_actor: string
@@ -1285,138 +1323,13 @@ export type Database = {
         }
         Returns: number
       }
-      add_case_note: {
-        Args: { p_case: string; p_summary: string }
-        Returns: string
-      }
-      get_measure_series: {
-        Args: { m: string; p_domain?: string }
-        Returns: {
-          at: string
-          cycle_number: number
-          domain: string
-          higher_is_better: boolean
-          label: string
-          measure_key: string
-          source: string
-          unit: string
-          value: number
-        }[]
-      }
-      open_case: {
+      _thread_visible: {
         Args: {
-          p_detail?: string
-          p_member: string
-          p_severity?: string
-          p_title: string
-        }
-        Returns: string
-      }
-      record_progress_summary: {
-        Args: {
-          p_content: Json
-          p_cycle: string
-          p_force?: boolean
-          p_member: string
-        }
-        Returns: string
-      }
-      set_case_sharing: {
-        Args: { p_case: string; p_shared: boolean }
-        Returns: undefined
-      }
-      set_case_status: {
-        Args: { p_case: string; p_note?: string; p_status: string }
-        Returns: undefined
-      }
-      can_access_thread: { Args: { p_thread: string }; Returns: boolean }
-      my_declining_measures: {
-        Args: never
-        Returns: {
-          label: string
-          latest: number
-          measure_key: string
-          member_id: string
-          previous: number
-        }[]
-      }
-      mark_thread_read: { Args: { p_thread: string }; Returns: undefined }
-      my_unread_threads: {
-        Args: never
-        Returns: {
-          kind: string
-          last_message_at: string
-          member_id: string
-          subject: string
-          thread_id: string
-          unread: number
-        }[]
-      }
-      post_message: { Args: { p_body: string; p_thread: string }; Returns: string }
-      resolve_thread: {
-        Args: { p_resolved?: boolean; p_thread: string }
-        Returns: undefined
-      }
-      start_thread: {
-        Args: {
-          p_audience?: Database["public"]["Enums"]["care_role"][]
-          p_case?: string
+          p_audience: Database["public"]["Enums"]["care_role"][]
           p_kind: string
           p_member: string
-          p_subject: string
         }
-        Returns: string
-      }
-      create_checkin_link: {
-        Args: { p_days?: number; p_member: string }
-        Returns: string
-      }
-      get_checkin_link: { Args: { p_token: string }; Returns: Json }
-      get_engagement: {
-        Args: { p_member: string }
-        Returns: {
-          days_quiet: number
-          last_activity_at: string
-          member_id: string
-          missed_consults: number
-          reason: string
-          state: string
-        }[]
-      }
-      list_engagement: {
-        Args: never
-        Returns: {
-          days_quiet: number
-          full_name: string
-          last_activity_at: string
-          member_id: string
-          missed_consults: number
-          reason: string
-          state: string
-          status: Database["public"]["Enums"]["member_status"]
-        }[]
-      }
-      record_activity: {
-        Args: { p_kind: string; p_member: string; p_meta?: Json }
-        Returns: undefined
-      }
-      revoke_checkin_link: { Args: { p_token: string }; Returns: undefined }
-      submit_checkin: {
-        Args: { p_answers: Json; p_token: string }
-        Returns: Json
-      }
-      complete_renewal: {
-        Args: { p_months?: number; p_renewal: string }
-        Returns: string
-      }
-      open_due_renewals: { Args: { p_today?: string }; Returns: Json }
-      propose_renewal: {
-        Args: { p_member: string; p_months?: number; p_note?: string }
-        Returns: string
-      }
-      respond_to_renewal: {
-        Args: { p_intent: string; p_note?: string; p_renewal: string }
-        Returns: undefined
+        Returns: boolean
       }
       accept_invite: {
         Args: {
@@ -1428,9 +1341,30 @@ export type Database = {
         Returns: Json
       }
       activate_program: { Args: { p_member: string }; Returns: undefined }
+      add_case_note: {
+        Args: { p_case: string; p_summary: string }
+        Returns: string
+      }
+      add_manual_doctor_review: {
+        Args: { p_answers: Json; p_member: string; p_report_content: Json }
+        Returns: string
+      }
+      admin_set_profile_email: {
+        Args: { p_email: string; p_user: string }
+        Returns: undefined
+      }
       admin_update_profile: {
         Args: { p_patch: Json; p_user: string }
         Returns: undefined
+      }
+      amend_onboarding: {
+        Args: {
+          p_member: string
+          p_patch: Json
+          p_reason: string
+          p_report_content?: Json
+        }
+        Returns: string
       }
       assign_care_team: {
         Args: {
@@ -1444,8 +1378,17 @@ export type Database = {
         Args: never
         Returns: Database["public"]["Enums"]["user_role"]
       }
+      can_access_thread: { Args: { p_thread: string }; Returns: boolean }
       close_cycle_open_next: { Args: { p_cycle: string }; Returns: undefined }
       compile_performance_report: { Args: { p_cycle: string }; Returns: string }
+      complete_renewal: {
+        Args: { p_months?: number; p_renewal: string }
+        Returns: string
+      }
+      create_checkin_link: {
+        Args: { p_days?: number; p_member: string }
+        Returns: string
+      }
       create_member_with_invite: {
         Args: {
           p_address: string
@@ -1475,6 +1418,32 @@ export type Database = {
       }
       flag_quiet_families: { Args: { p_today?: string }; Returns: Json }
       get_care_team: { Args: { p_member: string }; Returns: Json }
+      get_checkin_link: { Args: { p_token: string }; Returns: Json }
+      get_engagement: {
+        Args: { p_member: string }
+        Returns: {
+          days_quiet: number
+          last_activity_at: string
+          member_id: string
+          missed_consults: number
+          reason: string
+          state: string
+        }[]
+      }
+      get_measure_series: {
+        Args: { m: string; p_domain?: string }
+        Returns: {
+          at: string
+          cycle_number: number
+          domain: string
+          higher_is_better: boolean
+          label: string
+          measure_key: string
+          source: string
+          unit: string
+          value: number
+        }[]
+      }
       get_member_elderly_mode: { Args: { p_member: string }; Returns: boolean }
       get_onboarding_scoped: { Args: { m: string }; Returns: Json }
       get_report_view_receipts: {
@@ -1488,19 +1457,94 @@ export type Database = {
       is_assigned_to: { Args: { m: string }; Returns: boolean }
       is_caregiver_of: { Args: { m: string }; Returns: boolean }
       is_member_self: { Args: { m: string }; Returns: boolean }
+      list_engagement: {
+        Args: never
+        Returns: {
+          days_quiet: number
+          full_name: string
+          last_activity_at: string
+          member_id: string
+          missed_consults: number
+          reason: string
+          state: string
+          status: Database["public"]["Enums"]["member_status"]
+        }[]
+      }
       log_ai_generation: {
         Args: { p_kind: string; p_member: string; p_meta?: Json }
         Returns: undefined
       }
       log_report_view: { Args: { p_report: string }; Returns: undefined }
       mark_meeting_done: { Args: { p_cons: string }; Returns: undefined }
+      mark_thread_read: { Args: { p_thread: string }; Returns: undefined }
       mark_video_watched: { Args: { p_member: string }; Returns: undefined }
+      my_declining_measures: {
+        Args: never
+        Returns: {
+          label: string
+          latest: number
+          measure_key: string
+          member_id: string
+          previous: number
+        }[]
+      }
+      my_unread_threads: {
+        Args: never
+        Returns: {
+          kind: string
+          last_message_at: string
+          member_id: string
+          subject: string
+          thread_id: string
+          unread: number
+        }[]
+      }
+      open_case: {
+        Args: {
+          p_detail?: string
+          p_member: string
+          p_severity?: string
+          p_title: string
+        }
+        Returns: string
+      }
+      open_due_renewals: { Args: { p_today?: string }; Returns: Json }
       pause_program: { Args: { p_package: string }; Returns: undefined }
+      post_message: {
+        Args: { p_body: string; p_thread: string }
+        Returns: string
+      }
+      propose_renewal: {
+        Args: { p_member: string; p_months?: number; p_note?: string }
+        Returns: string
+      }
       reactivate_member: {
         Args: { p_duration_months: number; p_member: string }
         Returns: string
       }
+      record_activity: {
+        Args: { p_kind: string; p_member: string; p_meta?: Json }
+        Returns: undefined
+      }
+      record_progress_summary: {
+        Args: {
+          p_content: Json
+          p_cycle: string
+          p_force?: boolean
+          p_member: string
+        }
+        Returns: string
+      }
+      resolve_thread: {
+        Args: { p_resolved?: boolean; p_thread: string }
+        Returns: undefined
+      }
+      respond_to_renewal: {
+        Args: { p_intent: string; p_note?: string; p_renewal: string }
+        Returns: undefined
+      }
       resume_program: { Args: { p_package: string }; Returns: undefined }
+      revoke_checkin_link: { Args: { p_token: string }; Returns: undefined }
       revoke_invite: { Args: { p_invite: string }; Returns: Json }
       run_daily_jobs: { Args: { p_today?: string }; Returns: Json }
       set_account_status: {
@@ -1508,6 +1552,14 @@ export type Database = {
           p_status: Database["public"]["Enums"]["account_status"]
           p_user_id: string
         }
+        Returns: undefined
+      }
+      set_case_sharing: {
+        Args: { p_case: string; p_shared: boolean }
+        Returns: undefined
+      }
+      set_case_status: {
+        Args: { p_case: string; p_note?: string; p_status: string }
         Returns: undefined
       }
       set_consultation_schedule: {
@@ -1536,6 +1588,20 @@ export type Database = {
         Args: { p_report: string; p_shared: boolean }
         Returns: undefined
       }
+      start_thread: {
+        Args: {
+          p_audience?: Database["public"]["Enums"]["care_role"][]
+          p_case?: string
+          p_kind: string
+          p_member: string
+          p_subject: string
+        }
+        Returns: string
+      }
+      submit_checkin: {
+        Args: { p_answers: Json; p_token: string }
+        Returns: Json
+      }
       submit_clinical_form: {
         Args: { p_answers: Json; p_cons: string; p_report_content?: Json }
         Returns: string
@@ -1543,6 +1609,11 @@ export type Database = {
       submit_feedback: { Args: { p_response: string }; Returns: undefined }
       submit_onboarding: {
         Args: { p_member: string; p_report_content?: Json; p_response: string }
+        Returns: undefined
+      }
+      sync_my_email: { Args: never; Returns: undefined }
+      transfer_caregiver: {
+        Args: { p_member: string; p_new_user: string }
         Returns: undefined
       }
       update_member: {
@@ -1616,12 +1687,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1645,11 +1716,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1670,11 +1741,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1695,11 +1766,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1712,11 +1783,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
