@@ -1303,3 +1303,78 @@ No §3 cell changed: admin was already ✅ and caregiver ✅ own. Coordinator st
   closed; the caller just gets generic error copy.
 - The onboarding mirror re-derives the age cast rather than reusing the validated `v_age`.
 - `buildPatch` has no direct test for "key absent from next" or "role with no editable fields".
+
+## Record correction — identity operations (feature/record-correction)
+
+**Status:** complete on the branch. Not merged to `main`. **One migration held for approval (0041).**
+**Plan:** `docs/superpowers/plans/2026-09-10-record-correction-identity-ops.md`
+
+### What was built
+
+| Capability | Migration | Applied to hosted? |
+|---|---|---|
+| Change your own sign-in address | `0037_email_change` | ✅ additive |
+| Admin changes a sign-in address for someone | `0037_email_change` | ✅ additive |
+| Move a member to another family login | `0038_caregiver_transfer` | ✅ additive |
+| Correct submitted onboarding answers | `0039_amend_onboarding` | ✅ additive |
+| Refuse amending a family's consent | `0040_amend_onboarding_consent_guard` | ✅ (replaces a function added the same day, unused on `main`) |
+| Stop accepting an invite from resetting a member's status | `0041_accept_invite_status_guard` | ❌ **HELD — replaces the live `accept_invite`** |
+
+UI: an email card on `/account`; a sign-in address action on the care-team table **and** on the family
+login of a member's page; a "Change" family-login sheet; and `/admin/members/[id]/onboarding`. Onboarding
+summaries that were superseded stay visible, dimmed.
+
+### Migration numbering
+
+Another session shipped `0036_manual_doctor_review` to `main` today and applied it to the same hosted
+project. This branch's migrations were renumbered to follow it (`0037`–`0041`). Its function
+(`add_manual_doctor_review`) is untouched by anything here — verified on the live database. The hosted
+history records this branch's first four under the names they were applied with (`0036_email_change`,
+`0037_caregiver_transfer`, `0038_amend_onboarding`, `0039_amend_onboarding_consent_guard`); history is keyed
+by timestamp, so the renumber is cosmetic there.
+
+### Where the plan was wrong, and what was done instead
+
+- **Email change.** The plan used `supabase.auth.updateUser({ email })`, which sends Supabase's built-in
+  mail. This app never does that: forgot-password mints tokens with `generateLink` and sends them through
+  `lib/notify`. The project also runs *secure email change* (both addresses must confirm). Probing on
+  throwaway accounts (created and deleted; no trigger on `auth.users`) showed the new address's `token_hash`
+  **never** verifies — it confirms through its 6-digit code. So the current inbox gets a link and the new
+  inbox gets a code.
+- **Profile mirror.** Link verification returns no session, so `/auth/confirm` can't reliably sync
+  `profiles.email`. Instead `/account` self-heals the mirror whenever it disagrees with the sign-in address.
+  At the time of writing, no real user's mirror was out of sync, so this writes nothing for anyone today.
+- **Onboarding amendment — three safety gaps.** The plan's `amend_onboarding` would have (1) let contact
+  identifiers back into the onboarding answers the **doctor** reads, which §3 forbids; (2) let demographics
+  drift apart from `members`; and (3) replaced the doctor's full summary with an empty stub. The shipped
+  version refuses contact keys, demographic keys and `consent`, and takes its report content from the same
+  `buildOnboardingSummary` used at submission.
+- **Admin email change placement.** The spec's purpose is "a family that has lost access to its inbox", but
+  the plan only mounted it on the care-team table, which lists professionals. It is on both surfaces.
+
+### 0041 — decision needed
+
+`accept_invite` writes `status = 'signed_up'` unconditionally. So today, if an admin deactivates an invited
+member and the family then clicks their link, the member quietly flips back to `signed_up`. 0041 makes the
+status write conditional on the member still being `invited`; nothing else in the function changes
+(verified mechanically against the live definition).
+
+Impact at writing: exactly two invites were still acceptable, both for members in `invited` — the one case
+where old and new behave identically. **Applying 0041 would change the outcome for no current client.**
+Until it is applied, "invite someone new" is refused for any member already past `invited`, because
+accepting it would reset them.
+
+### Verification
+
+- **Types:** `npx tsc --noEmit --noUnusedLocals --noUnusedParameters` — exit 0.
+- **Unit:** 120/120, including a drift test that the amendment form hides exactly the keys the RPC refuses.
+- **§16 security suite:** 19/19 across both phases, run against the hosted project in a rolled-back
+  transaction. Includes refusals for a suspended admin, and that even an admin cannot put a contact
+  identifier back into onboarding answers or amend consent.
+- **Runtime (rolled back):** email sync restores a staled mirror; `transfer_caregiver` moves the member,
+  notifies both people, and the outgoing caregiver loses visibility; `amend_onboarding` writes a new
+  response and a version-2 summary that keeps the rich content.
+- **No real data touched:** after all verification, the hosted project held **zero** audit rows,
+  notifications or superseding reports from any action this branch introduced, and no leftover fixtures.
+- **Types regenerated from live:** no table, view, function or enum removed.
+- **Lint:** eslint hangs on this machine before initialising (sibling checkouts too). Not run.
