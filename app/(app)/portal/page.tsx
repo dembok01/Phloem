@@ -193,15 +193,8 @@ async function CaregiverMember({
 }) {
   const needsOnboarding = member.status === "signed_up" || member.status === "onboarding";
 
-  // con_caregiver lets the family read their own member's contacts; con_cg_update
-  // has always let them write them — until now nothing ever called it.
-  const { data: contacts } = await supabase
-    .from("member_contacts")
-    .select("phone, whatsapp, email, address, pin_code, emergency_contact_name, emergency_contact_phone")
-    .eq("member_id", member.id)
-    .maybeSingle();
 
-  const [{ data: pkg }, team] = await Promise.all([
+  const [{ data: pkg }, team, { data: contacts }] = await Promise.all([
     supabase
       .from("packages")
       .select("id, status, paused_at, end_date")
@@ -210,6 +203,13 @@ async function CaregiverMember({
       .limit(1)
       .maybeSingle(),
     careTeam(supabase, member.id),
+    // con_caregiver lets the family read their own member's contacts; con_cg_update
+    // has always let them write them — until now nothing ever called it.
+    supabase
+      .from("member_contacts")
+      .select("phone, whatsapp, email, address, pin_code, emergency_contact_name, emergency_contact_phone")
+      .eq("member_id", member.id)
+      .maybeSingle(),
   ]);
   const { data: cycles } = pkg
     ? await supabase
@@ -424,7 +424,7 @@ async function CaregiverMember({
               title="Edit details"
               description="Some details are set by the care team — those show as locked."
               successText="Details updated"
-              onSave={async (patch) => updateMemberAction(member.id, patch)}
+              onSave={updateMemberAction.bind(null, member.id)}
             />
           </div>
           <dl className="grid gap-2 sm:grid-cols-2">
@@ -447,7 +447,7 @@ async function CaregiverMember({
               title="Edit contact details"
               description="Only your care coordinator and the PHLOEM team can see these."
               successText="Contact details updated"
-              onSave={async (patch) => updateMemberContactsAction(member.id, patch)}
+              onSave={updateMemberContactsAction.bind(null, member.id)}
             />
           </div>
           <dl className="grid gap-2 sm:grid-cols-2">

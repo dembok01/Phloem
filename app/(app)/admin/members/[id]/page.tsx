@@ -192,7 +192,7 @@ export default async function AdminMemberPage({
               description="Corrections apply everywhere, including the onboarding answers the doctor reads."
               triggerLabel="Edit details"
               successText="Member details updated"
-              onSave={async (patch) => updateMemberAction(member.id, patch)}
+              onSave={updateMemberAction.bind(null, member.id)}
             />
           </div>
         }
@@ -232,7 +232,7 @@ export default async function AdminMemberPage({
             title="Edit contact details"
             description="Only the family, the coordinator and you can see these."
             successText="Contact details updated"
-            onSave={async (patch) => updateMemberContactsAction(member.id, patch)}
+            onSave={updateMemberContactsAction.bind(null, member.id)}
           />
         </CardHeader>
         <CardContent className="grid gap-2 sm:grid-cols-2">
