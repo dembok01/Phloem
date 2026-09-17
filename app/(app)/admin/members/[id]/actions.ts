@@ -10,6 +10,7 @@ import {
   type MemberDeletionResult,
   type MemberDeletionState,
 } from "@/lib/member-deletion";
+import { actionFail, actionFromError, actionOk, type ActionResult } from "@/lib/action-result";
 
 // P-1 / CODE-REVIEW H-3 — flip a doctor/performance report's caregiver visibility
 // through the audited §6 set_report_sharing RPC (clinicians have no UPDATE on
@@ -88,4 +89,83 @@ async function removeMemberObjects(memberId: string): Promise<void> {
       console.error(`[member.deleted] ${bucket} sweep failed for ${memberId}`, error);
     }
   }
+}
+
+// ── Moving a member to a different family login (design §9) ──────────────────
+const transferSchema = z.object({
+  memberId: z.string().uuid(),
+  newUserId: z.string().uuid(),
+});
+
+export async function transferCaregiverAction(
+  memberId: string,
+  newUserId: string,
+): Promise<ActionResult> {
+  const parsed = transferSchema.safeParse({ memberId, newUserId });
+  if (!parsed.success) return actionFail("Invalid request.");
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("transfer_caregiver", {
+    p_member: parsed.data.memberId,
+    p_new_user: parsed.data.newUserId,
+  });
+  if (error) return actionFromError(error, "Could not move this member. Please try again.");
+
+  revalidatePath(`/admin/members/${parsed.data.memberId}`);
+  revalidatePath("/portal");
+  return actionOk(undefined);
+}
+
+const inviteSchema = z.object({
+  memberId: z.string().uuid(),
+  email: z.string().trim().toLowerCase().email().max(255),
+});
+
+/**
+ * For an incoming caregiver with no account yet. The invite row IS the pending
+ * state: the current caregiver keeps access until it is accepted.
+ *
+ * Refused for any member past 'invited'. The live accept_invite writes
+ * `status = 'signed_up'` unconditionally, so accepting this invite would throw a
+ * running member back to the start of the lifecycle. Migration 0041 fixes that and
+ * is held for owner approval; once it is applied this check can go.
+ */
+export async function inviteReplacementCaregiverAction(
+  memberId: string,
+  email: string,
+): Promise<ActionResult> {
+  const parsed = inviteSchema.safeParse({ memberId, email });
+  if (!parsed.success) return actionFail("Enter a valid email address.");
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return actionFail("You are signed out.");
+
+  const { data: member } = await supabase
+    .from("members")
+    .select("status")
+    .eq("id", parsed.data.memberId)
+    .maybeSingle();
+  if (!member) return actionFail("That member could not be found.");
+  if (member.status !== "invited") {
+    return actionFail(
+      "Inviting a new family member is paused for members already past sign-up, until the invite fix (migration 0041) is approved. Move them to an existing family login instead.",
+    );
+  }
+
+  // Written under the inv_admin policy, as inviteProfessional already does:
+  // §6 has no invite RPC for this shape.
+  const { error } = await supabase.from("invites").insert({
+    email: parsed.data.email,
+    role: "caregiver",
+    member_id: parsed.data.memberId,
+    invited_by: user.id,
+  });
+  if (error) return actionFail("Could not create that invite. Please try again.");
+
+  revalidatePath(`/admin/members/${parsed.data.memberId}`);
+  revalidatePath("/admin/invites");
+  return actionOk(undefined);
 }

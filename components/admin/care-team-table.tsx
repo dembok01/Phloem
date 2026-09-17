@@ -12,6 +12,7 @@ import { setAccountStatusAction } from "@/app/(app)/admin/care-team/actions";
 import { EditRecordSheet } from "@/components/edit-record-sheet";
 import { ADMIN_PROFILE } from "@/lib/member-fields";
 import { adminUpdateProfileAction } from "@/app/(app)/record-actions";
+import { ChangeSignInEmail } from "@/components/admin/change-sign-in-email";
 import { matchesQuery, sortRows } from "@/lib/admin-filters";
 import { ROLE_LABEL } from "@/lib/roles";
 import { cn } from "@/lib/utils";
@@ -173,6 +174,7 @@ export function CareTeamTable({
                   successText="Profile updated"
                   onSave={async (patch) => adminUpdateProfileAction(p.id, patch)}
                 />
+                <ChangeSignInEmail userId={p.id} name={p.full_name} current={p.email} />
                 {/* Suspend and reactivate are true inverses, so this is the one
                     place in the admin shell that can honestly offer an Undo. */}
                 <RowAction

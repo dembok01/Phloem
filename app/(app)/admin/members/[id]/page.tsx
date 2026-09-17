@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +16,8 @@ import { ReportShareToggle } from "@/components/admin/report-share-toggle";
 import { EditRecordSheet } from "@/components/edit-record-sheet";
 import { MEMBER_DEMOGRAPHICS, MEMBER_CONTACTS } from "@/lib/member-fields";
 import { updateMemberAction, updateMemberContactsAction } from "@/app/(app)/record-actions";
+import { ChangeSignInEmail } from "@/components/admin/change-sign-in-email";
+import { TransferCaregiver } from "@/components/admin/transfer-caregiver";
 import { MemberDangerZone } from "@/components/admin/member-danger-zone";
 import { DocumentList, type DocumentRow } from "@/components/documents/document-list";
 import { FlashToast } from "@/components/ui/toast";
@@ -23,6 +26,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatDateIST, formatDateTimeIST } from "@/lib/datetime";
 import { parseRedFlags } from "@/lib/red-flags";
 import { humanize } from "@/lib/reports/build/helpers";
+import { cn } from "@/lib/utils";
 import {
   CARE_ROLES,
   MEMBER_STATUS_LABEL,
@@ -90,6 +94,7 @@ export default async function AdminMemberPage({
     { data: renewalRow },
     { data: contacts },
     { data: caregiver },
+    { data: caregiverOptions },
   ] = await Promise.all([
     supabase.from("consultations").select("type, cycle_id, report_status").eq("member_id", id).is("cycle_id", null),
     supabase
@@ -106,7 +111,7 @@ export default async function AdminMemberPage({
       .maybeSingle(),
     supabase
       .from("reports")
-      .select("id, type, created_at, share_with_caregiver")
+      .select("id, type, created_at, share_with_caregiver, version, supersedes")
       .eq("member_id", id)
       .order("created_at", { ascending: false }),
     supabase
@@ -127,6 +132,12 @@ export default async function AdminMemberPage({
     member.caregiver_id
       ? supabase.from("profiles").select("full_name, phone, email").eq("id", member.caregiver_id).maybeSingle()
       : Promise.resolve({ data: null }),
+    supabase
+      .from("profiles")
+      .select("id, full_name, email")
+      .eq("role", "caregiver")
+      .eq("status", "active")
+      .order("full_name"),
   ]);
 
   const { data: cycles } = pkg
@@ -151,6 +162,9 @@ export default async function AdminMemberPage({
   }
 
   const redFlags = parseRedFlags(member.red_flags);
+  // An amended onboarding summary supersedes the one before it; the older version
+  // stays visible, dimmed, so the correction history is never hidden.
+  const superseded = new Set((reports ?? []).map((r) => r.supersedes).filter((x): x is string => !!x));
 
   return (
     <section className="mx-auto max-w-4xl space-y-6">
@@ -230,10 +244,21 @@ export default async function AdminMemberPage({
               </span>
             </div>
           ))}
-          <div className="flex items-center justify-between gap-3 rounded-lg border p-2.5 text-sm sm:col-span-2">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-2.5 text-sm sm:col-span-2">
             <span className="text-muted-foreground">Family login</span>
-            <span className="truncate font-medium">
-              {caregiver ? `${caregiver.full_name} · ${caregiver.phone ?? caregiver.email}` : "Not linked yet"}
+            <span className="flex min-w-0 items-center gap-2">
+              <span className="truncate font-medium">
+                {caregiver ? `${caregiver.full_name} · ${caregiver.email}` : "Not linked yet"}
+              </span>
+              {caregiver && member.caregiver_id ? (
+                <ChangeSignInEmail userId={member.caregiver_id} name={caregiver.full_name} current={caregiver.email} />
+              ) : null}
+              <TransferCaregiver
+                memberId={member.id}
+                memberName={member.full_name}
+                currentName={caregiver?.full_name ?? null}
+                options={(caregiverOptions ?? []).filter((o) => o.id !== member.caregiver_id)}
+              />
             </span>
           </div>
         </CardContent>
@@ -258,8 +283,14 @@ export default async function AdminMemberPage({
           a "Shared with family" switch (P-1 / H-3); other types are always
           caregiver-visible so they show no control. */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between gap-3">
           <CardTitle>Reports</CardTitle>
+          <Link
+            href={`/admin/members/${member.id}/onboarding`}
+            className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+          >
+            Correct onboarding answers
+          </Link>
         </CardHeader>
         <CardContent>
           {(reports ?? []).length === 0 ? (
@@ -267,12 +298,23 @@ export default async function AdminMemberPage({
           ) : (
             <ul className="divide-y">
               {(reports ?? []).map((r) => (
-                <li key={r.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-2">
+                <li
+                  key={r.id}
+                  className={cn(
+                    "flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-2",
+                    superseded.has(r.id) && "opacity-60",
+                  )}
+                >
                   <ReportPeek
                     reportId={r.id}
                     className="group flex min-w-0 items-center gap-2 text-left hover:underline"
                   >
                     <span className="truncate text-sm font-medium">{humanize(r.type)}</span>
+                    {r.supersedes ? (
+                      <Badge variant="muted">v{r.version} · replaces v{r.version - 1}</Badge>
+                    ) : superseded.has(r.id) ? (
+                      <Badge variant="outline">Superseded</Badge>
+                    ) : null}
                     <span className="text-xs text-muted-foreground">{formatDateTimeIST(r.created_at)}</span>
                   </ReportPeek>
                   {SHAREABLE_TYPES.has(r.type) ? (

@@ -7,6 +7,7 @@ import {
   MEMBER_CONTACTS,
   OWN_PROFILE,
   ADMIN_PROFILE,
+  AMEND_REFUSED_KEYS,
   buildPatch,
   canEdit,
   type FieldGroup,
@@ -68,4 +69,15 @@ test("buildPatch trims, treats blank as a cleared value, and ignores unknown key
 test("buildPatch returns an empty object when nothing moved", () => {
   const current = { city: "Kochi" };
   assert.deepEqual(buildPatch(MEMBER_DEMOGRAPHICS, "admin", { city: "Kochi" }, current), {});
+});
+
+test("the amendment form hides exactly the keys amend_onboarding refuses", () => {
+  const sql = readFileSync(
+    join(process.cwd(), "supabase", "migrations", "0040_amend_onboarding_consent_guard.sql"),
+    "utf8",
+  );
+  const block = sql.match(/if v_key = any\(array\[([\s\S]*?)\]\)/);
+  assert.ok(block, "no refused-key array found in 0040");
+  const refused = [...block[1].matchAll(/'([a-z_]+)'/g)].map((m) => m[1]).sort();
+  assert.deepEqual([...AMEND_REFUSED_KEYS].sort(), refused);
 });

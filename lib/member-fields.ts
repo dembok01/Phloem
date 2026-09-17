@@ -112,3 +112,19 @@ export function buildPatch(
   }
   return patch;
 }
+
+/**
+ * Onboarding answer keys an amendment may NOT change — mirrors the refused list in
+ * migration 0040's amend_onboarding (lib/member-fields.test.ts asserts they match).
+ *  - contact identifiers: submit_onboarding strips these out of the answers the
+ *    doctor reads; putting them back would expose them to clinicians (§3).
+ *  - demographics: edited through update_member, which keeps members and answers
+ *    in step.
+ *  - consent: the family's own agreement, never amended on their behalf.
+ */
+export const AMEND_REFUSED_KEYS: readonly string[] = [
+  "contact_number", "pin_code", "emergency_contact_name", "emergency_contact_phone",
+  "full_name", "age", "gender", "language", "occupation", "city", "country",
+  "relationship_to_caregiver",
+  "consent",
+];
