@@ -556,6 +556,11 @@ select
   (select id from profiles where role = 'coordinator' and status = 'active' limit 1) as coord,
   (select id from profiles where role = 'admin'       and status = 'active' limit 1) as adm;
 grant select on t35 to authenticated;
+do $$ begin
+  if (select m1 is null or cg is null or m_other is null or doc is null or coord is null or adm is null from t35) then
+    raise exception 'RLS TEST FAILED: 0035 fixtures missing — %', (select row_to_json(t35) from t35);
+  end if;
+end $$;
 
 -- A clinician may not edit a member at all.
 select set_config('request.jwt.claims',
@@ -630,6 +635,16 @@ begin
     raise exception 'RLS TEST FAILED: caregiver must not edit another member — got %', msg;
   end if;
   insert into results values ('PASS  edit: caregiver REFUSED a member that is not theirs');
+
+  begin
+    perform update_my_profile('{"role":"admin"}'::jsonb);
+    msg := 'no error';
+  exception when others then msg := SQLERRM;
+  end;
+  if msg <> 'field_not_allowed' then
+    raise exception 'RLS TEST FAILED: update_my_profile must refuse role — got %', msg;
+  end if;
+  insert into results values ('PASS  edit: update_my_profile REFUSED role (no self-promotion)');
 end $$;
 
 -- A rename must not become a back door into the duplicate state 0034 closed.
@@ -657,13 +672,23 @@ begin
     raise exception 'RLS TEST FAILED: rename onto an existing member must raise duplicate_member — got %', msg;
   end if;
   insert into results values ('PASS  edit: rename onto an existing member REFUSED (duplicate_member)');
+
+  begin
+    perform update_member(v_a, '{"age":"abc"}'::jsonb);
+    msg := 'no error';
+  exception when others then msg := SQLERRM;
+  end;
+  if msg <> 'bad_age' then
+    raise exception 'RLS TEST FAILED: non-numeric age must raise bad_age — got %', msg;
+  end if;
+  insert into results values ('PASS  edit: non-numeric age REFUSED (bad_age, not a raw cast error)');
 end $$;
 
 -- The 0017 regression that matters most: auth_role() is NULL for a suspended
 -- profile, and `NULL not in (...)` is NULL — so a guard written that way is
 -- SKIPPED and the function proceeds. All four must refuse.
 reset role;
-update profiles set status = 'suspended' where role = 'admin';
+update profiles set status = 'suspended' where id = (select adm from t35);
 select set_config('request.jwt.claims',
   json_build_object('sub', (select adm from t35), 'role', 'authenticated')::text, true);
 set local role authenticated;
@@ -692,7 +717,7 @@ begin
   end loop;
 end $$;
 reset role;
-update profiles set status = 'active' where role = 'admin';
+update profiles set status = 'active' where id = (select adm from t35);
 
 -- ============ 0037-0040 identity operations ============
 -- Reuses t35 (resolved at runtime above). Adds a member that has SUBMITTED
@@ -705,6 +730,11 @@ select (select fr.member_id from form_responses fr join form_templates t on t.id
        (select p.id from profiles p where p.role = 'caregiver' and p.status = 'active'
           and p.id <> (select cg from t35) limit 1) as cg_other;
 grant select on tid to authenticated;
+do $$ begin
+  if (select onboarded_member is null or cg_other is null from tid) then
+    raise exception 'RLS TEST FAILED: identity-ops fixtures missing — %', (select row_to_json(tid) from tid);
+  end if;
+end $$;
 
 -- sync_my_email: no identity at all is refused (0017 net for a NULL auth_role).
 select set_config('request.jwt.claims', '{}', true);
@@ -735,6 +765,10 @@ do $$ declare msg text; begin
   begin perform transfer_caregiver((select m1 from t35), (select cg_other from tid)); msg := 'no error'; exception when others then msg := SQLERRM; end;
   if msg <> 'not_allowed' then raise exception 'RLS TEST FAILED: coordinator must be refused transfer_caregiver — got %', msg; end if;
   insert into results values ('PASS  idops: coordinator REFUSED transfer_caregiver');
+
+  begin perform replace_caregiver_invite((select m1 from t35), 'new@example.test'); msg := 'no error'; exception when others then msg := SQLERRM; end;
+  if msg <> 'not_allowed' then raise exception 'RLS TEST FAILED: coordinator must be refused replace_caregiver_invite — got %', msg; end if;
+  insert into results values ('PASS  idops: coordinator REFUSED replace_caregiver_invite');
 end $$;
 
 -- A clinician may not amend onboarding answers.
@@ -762,23 +796,31 @@ do $$ declare msg text; begin
   begin perform amend_onboarding((select onboarded_member from tid), '{"consent":false}'::jsonb, 'x'); msg := 'no error'; exception when others then msg := SQLERRM; end;
   if msg <> 'field_not_allowed' then raise exception 'RLS TEST FAILED: consent must be refused by amend_onboarding — got %', msg; end if;
   insert into results values ('PASS  idops: amend_onboarding REFUSED consent');
+
+  -- m1 has a caregiver, so it is past 'invited': replacing its invite would let the
+  -- live accept_invite reset it.
+  begin perform replace_caregiver_invite((select m1 from t35), 'new@example.test'); msg := 'no error'; exception when others then msg := SQLERRM; end;
+  if msg <> 'member_past_invited' then raise exception 'RLS TEST FAILED: replace_caregiver_invite must refuse a member past invited — got %', msg; end if;
+  insert into results values ('PASS  idops: replace_caregiver_invite REFUSED a member past invited');
 end $$;
 
 -- 0017 net: a suspended admin is refused every identity operation.
 reset role;
-update profiles set status = 'suspended' where role = 'admin';
+update profiles set status = 'suspended' where id = (select adm from t35);
 select set_config('request.jwt.claims',
   json_build_object('sub', (select adm from t35), 'role', 'authenticated')::text, true);
 set local role authenticated;
 do $$
 declare msg text; fn text;
 begin
-  foreach fn in array array['admin_set_profile_email','transfer_caregiver','amend_onboarding'] loop
+  foreach fn in array array['admin_set_profile_email','transfer_caregiver','amend_onboarding','replace_caregiver_invite'] loop
     begin
       if fn = 'admin_set_profile_email' then
         perform admin_set_profile_email((select doc from t35), 'x@example.test');
       elsif fn = 'transfer_caregiver' then
         perform transfer_caregiver((select m1 from t35), (select cg_other from tid));
+      elsif fn = 'replace_caregiver_invite' then
+        perform replace_caregiver_invite((select m1 from t35), 'x@example.test');
       else
         perform amend_onboarding((select onboarded_member from tid), '{"sleep_hours":"7"}'::jsonb, 'x');
       end if;
@@ -792,7 +834,7 @@ begin
   end loop;
 end $$;
 reset role;
-update profiles set status = 'active' where role = 'admin';
+update profiles set status = 'active' where id = (select adm from t35);
 
 reset role;
 
