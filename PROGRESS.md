@@ -1230,3 +1230,76 @@ The 0035 block is therefore written id-agnostically: it resolves a member, its c
 second caregiver's member and one clinician per role at runtime, and creates both sides of the
 duplicate-name fixture itself. Making the older blocks id-agnostic the same way is the fix, and
 is its own piece of work — re-seeding is not an option while the project holds real data.
+
+## Record correction — core editing (feature/record-correction)
+
+**Status:** complete on the branch. Not merged to `main`.
+**Spec:** `docs/superpowers/specs/2026-09-10-record-correction-design.md`
+**Plan:** `docs/superpowers/plans/2026-09-10-record-correction-core.md`
+
+### What was built
+
+Members, contacts and profiles were write-once at enrolment — fixing a typo in a name meant
+deleting the member and re-enrolling them.
+
+- **`0035_record_correction.sql`** (applied to the hosted project) — four role-gated jsonb-patch
+  RPCs: `update_member`, `update_member_contacts`, `update_my_profile`, `admin_update_profile`.
+  The caller's role picks the field whitelist inside the function. Each opens with an explicit
+  `auth_role() is null` check (the `0017` fail-closed rule). `update_member` mirrors demographics
+  into the latest onboarding answers so a doctor never sees two ages; `update_member_contacts`
+  audits field **names only**, never values.
+- **`lib/member-fields.ts`** — the cosmetic mirror of those whitelists, with a test that parses the
+  migration and fails if the two drift.
+- **`<EditRecordSheet>`** + `app/(app)/record-actions.ts` — one editing surface, used in four places:
+  - `/admin/members/[id]` — Edit details, plus a new **Contact details** card. The page previously
+    read no contact identifiers at all.
+  - `/portal` — "Their details" and "How we reach you".
+  - `/account` — new route for every role: own name, phone, WhatsApp, password. Reached from a
+    menu on the header name.
+  - `/admin/care-team` — Edit profile per row.
+
+### Who may edit what (the field split)
+
+| Field | Admin | Caregiver (own member) | Coordinator | Clinicians |
+|---|---|---|---|---|
+| Name, age, gender, relationship | ✅ | 🔒 shown locked | ❌ | ❌ |
+| Language, occupation, city, country | ✅ | ✅ | ❌ | ❌ |
+| Contact identifiers | ✅ | ✅ | ❌ | ❌ |
+| Own name / phone / WhatsApp | ✅ | ✅ | ✅ | ✅ |
+| A professional's specialisation | ✅ | ❌ | ❌ | ❌ |
+
+No §3 cell changed: admin was already ✅ and caregiver ✅ own. Coordinator stays 👁.
+
+### Verification
+
+- **Unit:** `npm run test:unit` — 119/119, exit 0.
+- **Types:** `npx tsc --noEmit` exit 0; also `--noUnusedLocals --noUnusedParameters` exit 0 repo-wide.
+- **§16 security suite:** 10/10 new assertions (see the section above), including a suspended
+  admin refused all four RPCs.
+- **Runtime, live database, rolled back:** real edit applies; a no-op raises `no_changes`;
+  `answers.age` mirrors as a JSON number; `field_not_allowed` and `bad_age` fire.
+- **Lint:** eslint hangs on this machine before initialising (even `--debug` on one file emits
+  nothing), so it could not run. Substituted by the strict tsc run above plus a manual review of the
+  hooks in the three new client components.
+
+### Safety for live clients
+
+- `0035` is additive only: zero DDL on existing tables, columns, policies or functions; four new
+  functions; no code on `main` calls them. The live dashboard cannot observe it.
+- Every verification ran inside a transaction that rolled back, or on fixtures it created and
+  removed. No real client's record was edited.
+
+### Assumptions
+
+- Coordinators get no write path, because §3 gives them 👁. Widening that is a matrix change.
+- The rename duplicate guard applies only when the member already has a `caregiver_id`: matching
+  on a NULL caregiver would collide every unclaimed member.
+- Demographics are mirrored into the **latest** submitted onboarding response; earlier responses
+  stay as issued.
+
+### Deferred minors (for the final review)
+
+- A non-numeric age (`{"age":"abc"}`) raises a raw Postgres cast error instead of `bad_age`. Fails
+  closed; the caller just gets generic error copy.
+- The onboarding mirror re-derives the age cast rather than reusing the validated `v_age`.
+- `buildPatch` has no direct test for "key absent from next" or "role with no editable fields".
