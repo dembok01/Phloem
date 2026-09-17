@@ -1,18 +1,16 @@
 import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { SubmitButton } from "@/components/ui/submit-button";
 import { ElderlyMode } from "@/components/elderly-mode";
 import { NotificationBell } from "@/components/notification-bell";
+import { AccountMenu } from "@/components/account-menu";
 import { ToastProvider } from "@/components/ui/toast";
 import { Tooltip } from "@base-ui/react/tooltip";
 import { getSessionProfile } from "@/lib/auth";
 import { getLens, viewRoleFor } from "@/lib/lens";
 import { CareTeamSwitcher, lensLabel } from "@/components/care-team-switcher";
 import { LensChrome } from "@/components/lens-chrome";
-import { logout } from "@/app/(auth)/login/actions";
-import { ROLE_CHIP, ROLE_LABEL, type UserRole } from "@/lib/roles";
-import { cn } from "@/lib/utils";
+import { type UserRole } from "@/lib/roles";
 
 const ROLE_HOME: Record<UserRole, string> = {
   admin: "/admin",
@@ -69,27 +67,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <div className="flex min-w-0 items-center gap-1.5 sm:gap-3">
               <CareTeamSwitcher />
               <NotificationBell />
-              <span className="hidden min-w-0 items-center gap-2 sm:flex">
-                <span className="truncate font-medium">{profile.full_name}</span>
-                <span
-                  className={cn(
-                    "rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap",
-                    ROLE_CHIP[role],
-                  )}
-                >
-                  {ROLE_LABEL[role]}
-                </span>
-              </span>
-              <form action={logout}>
-                <SubmitButton
-                  variant="ghost"
-                  size="sm"
-                  className="text-muted-foreground"
-                  pendingText="Signing out…"
-                >
-                  Sign out
-                </SubmitButton>
-              </form>
+              <AccountMenu name={profile.full_name} role={role} />
             </div>
           </div>
           <LensChrome
