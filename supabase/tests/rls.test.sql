@@ -694,6 +694,106 @@ end $$;
 reset role;
 update profiles set status = 'active' where role = 'admin';
 
+-- ============ 0037-0040 identity operations ============
+-- Reuses t35 (resolved at runtime above). Adds a member that has SUBMITTED
+-- onboarding, for amend_onboarding. Nothing here depends on seed UUIDs.
+reset role;
+create temp table tid as
+select (select fr.member_id from form_responses fr join form_templates t on t.id = fr.template_id
+         where t.key = 'onboarding' and fr.submitted_at is not null
+         order by fr.submitted_at desc limit 1) as onboarded_member,
+       (select p.id from profiles p where p.role = 'caregiver' and p.status = 'active'
+          and p.id <> (select cg from t35) limit 1) as cg_other;
+grant select on tid to authenticated;
+
+-- sync_my_email: no identity at all is refused (0017 net for a NULL auth_role).
+select set_config('request.jwt.claims', '{}', true);
+set local role authenticated;
+do $$ declare msg text; begin
+  begin perform sync_my_email(); msg := 'no error'; exception when others then msg := SQLERRM; end;
+  if msg <> 'not_allowed' then raise exception 'RLS TEST FAILED: no identity must be refused sync_my_email — got %', msg; end if;
+  insert into results values ('PASS  idops: no identity REFUSED sync_my_email');
+end $$;
+
+-- A caregiver may not use the admin email function, nor move a member.
+reset role;
+select set_config('request.jwt.claims',
+  json_build_object('sub', (select cg from t35), 'role', 'authenticated')::text, true);
+set local role authenticated;
+do $$ declare msg text; begin
+  begin perform admin_set_profile_email((select doc from t35), 'x@example.test'); msg := 'no error'; exception when others then msg := SQLERRM; end;
+  if msg <> 'not_allowed' then raise exception 'RLS TEST FAILED: caregiver must be refused admin_set_profile_email — got %', msg; end if;
+  insert into results values ('PASS  idops: caregiver REFUSED admin_set_profile_email');
+end $$;
+
+-- A coordinator may not move a member to another family login.
+reset role;
+select set_config('request.jwt.claims',
+  json_build_object('sub', (select coord from t35), 'role', 'authenticated')::text, true);
+set local role authenticated;
+do $$ declare msg text; begin
+  begin perform transfer_caregiver((select m1 from t35), (select cg_other from tid)); msg := 'no error'; exception when others then msg := SQLERRM; end;
+  if msg <> 'not_allowed' then raise exception 'RLS TEST FAILED: coordinator must be refused transfer_caregiver — got %', msg; end if;
+  insert into results values ('PASS  idops: coordinator REFUSED transfer_caregiver');
+end $$;
+
+-- A clinician may not amend onboarding answers.
+reset role;
+select set_config('request.jwt.claims',
+  json_build_object('sub', (select doc from t35), 'role', 'authenticated')::text, true);
+set local role authenticated;
+do $$ declare msg text; begin
+  begin perform amend_onboarding((select onboarded_member from tid), '{"sleep_hours":"7"}'::jsonb, 'x'); msg := 'no error'; exception when others then msg := SQLERRM; end;
+  if msg <> 'not_allowed' then raise exception 'RLS TEST FAILED: doctor must be refused amend_onboarding — got %', msg; end if;
+  insert into results values ('PASS  idops: doctor REFUSED amend_onboarding');
+end $$;
+
+-- Even an admin may not put a contact identifier back into the answers a doctor
+-- reads (§3), nor amend a family's consent.
+reset role;
+select set_config('request.jwt.claims',
+  json_build_object('sub', (select adm from t35), 'role', 'authenticated')::text, true);
+set local role authenticated;
+do $$ declare msg text; begin
+  begin perform amend_onboarding((select onboarded_member from tid), '{"contact_number":"+910000000000"}'::jsonb, 'x'); msg := 'no error'; exception when others then msg := SQLERRM; end;
+  if msg <> 'field_not_allowed' then raise exception 'RLS TEST FAILED: contact identifier must be refused by amend_onboarding — got %', msg; end if;
+  insert into results values ('PASS  idops: amend_onboarding REFUSED a contact identifier (no PHI back into answers)');
+
+  begin perform amend_onboarding((select onboarded_member from tid), '{"consent":false}'::jsonb, 'x'); msg := 'no error'; exception when others then msg := SQLERRM; end;
+  if msg <> 'field_not_allowed' then raise exception 'RLS TEST FAILED: consent must be refused by amend_onboarding — got %', msg; end if;
+  insert into results values ('PASS  idops: amend_onboarding REFUSED consent');
+end $$;
+
+-- 0017 net: a suspended admin is refused every identity operation.
+reset role;
+update profiles set status = 'suspended' where role = 'admin';
+select set_config('request.jwt.claims',
+  json_build_object('sub', (select adm from t35), 'role', 'authenticated')::text, true);
+set local role authenticated;
+do $$
+declare msg text; fn text;
+begin
+  foreach fn in array array['admin_set_profile_email','transfer_caregiver','amend_onboarding'] loop
+    begin
+      if fn = 'admin_set_profile_email' then
+        perform admin_set_profile_email((select doc from t35), 'x@example.test');
+      elsif fn = 'transfer_caregiver' then
+        perform transfer_caregiver((select m1 from t35), (select cg_other from tid));
+      else
+        perform amend_onboarding((select onboarded_member from tid), '{"sleep_hours":"7"}'::jsonb, 'x');
+      end if;
+      msg := 'no error';
+    exception when others then msg := SQLERRM;
+    end;
+    if msg <> 'not_allowed' then
+      raise exception 'RLS TEST FAILED: suspended admin must be refused % — got %', fn, msg;
+    end if;
+    insert into results values ('PASS  idops: suspended admin REFUSED ' || fn);
+  end loop;
+end $$;
+reset role;
+update profiles set status = 'active' where role = 'admin';
+
 reset role;
 
 select line from results;
