@@ -8,6 +8,9 @@ import { GrowthRings, type RingCycle } from "@/components/growth-rings";
 import { AdherenceCard } from "@/components/charts/adherence-card";
 import { MemberPhoto } from "@/components/member-photo";
 import { MemberPhotoUpload } from "@/components/portal/member-photo-upload";
+import { EditRecordSheet } from "@/components/edit-record-sheet";
+import { MEMBER_DEMOGRAPHICS, MEMBER_CONTACTS } from "@/lib/member-fields";
+import { updateMemberAction, updateMemberContactsAction } from "@/app/(app)/record-actions";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionProfile } from "@/lib/auth";
@@ -95,7 +98,7 @@ export default async function PortalHomePage({
   // RLS scopes this to the signed-in user's own member(s): mem_caregiver / mem_self.
   const { data: members } = await supabase
     .from("members")
-    .select("id, full_name, status, relationship_to_caregiver, photo_path")
+    .select("id, full_name, status, relationship_to_caregiver, photo_path, age, gender, language, occupation, city, country")
     .order("created_at", { ascending: true });
   const list = members ?? [];
 
@@ -180,9 +183,23 @@ async function CaregiverMember({
     status: MemberStatus;
     relationship_to_caregiver: string | null;
     photo_path: string | null;
+    age: number | null;
+    gender: string | null;
+    language: string | null;
+    occupation: string | null;
+    city: string | null;
+    country: string | null;
   };
 }) {
   const needsOnboarding = member.status === "signed_up" || member.status === "onboarding";
+
+  // con_caregiver lets the family read their own member's contacts; con_cg_update
+  // has always let them write them — until now nothing ever called it.
+  const { data: contacts } = await supabase
+    .from("member_contacts")
+    .select("phone, whatsapp, email, address, pin_code, emergency_contact_name, emergency_contact_phone")
+    .eq("member_id", member.id)
+    .maybeSingle();
 
   const [{ data: pkg }, team] = await Promise.all([
     supabase
@@ -391,6 +408,60 @@ async function CaregiverMember({
           admin sees; RLS already scopes consultations, reports and cycles to
           this caregiver's own member. */}
       <MemberTimeline memberId={member.id} />
+
+      {/* What the family told us, and what they may correct themselves. Name, age
+          and gender render disabled with their reason rather than being hidden —
+          a screen that silently omits the member's age reads as a bug and
+          generates the call this card exists to prevent. */}
+      <Card>
+        <CardContent className="space-y-4 py-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-base font-semibold">Their details</p>
+            <EditRecordSheet
+              group={MEMBER_DEMOGRAPHICS}
+              role="caregiver"
+              values={member}
+              title="Edit details"
+              description="Some details are set by the care team — those show as locked."
+              successText="Details updated"
+              onSave={async (patch) => updateMemberAction(member.id, patch)}
+            />
+          </div>
+          <dl className="grid gap-2 sm:grid-cols-2">
+            {MEMBER_DEMOGRAPHICS.fields.map((f) => (
+              <div key={f.key} className="flex items-center justify-between gap-3 rounded-lg border p-2.5 text-sm">
+                <dt className="text-muted-foreground">{f.label}</dt>
+                <dd className="truncate font-medium">
+                  {(member as Record<string, unknown>)[f.key]?.toString() ?? "—"}
+                </dd>
+              </div>
+            ))}
+          </dl>
+
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
+            <p className="text-base font-semibold">How we reach you</p>
+            <EditRecordSheet
+              group={MEMBER_CONTACTS}
+              role="caregiver"
+              values={contacts ?? {}}
+              title="Edit contact details"
+              description="Only your care coordinator and the PHLOEM team can see these."
+              successText="Contact details updated"
+              onSave={async (patch) => updateMemberContactsAction(member.id, patch)}
+            />
+          </div>
+          <dl className="grid gap-2 sm:grid-cols-2">
+            {MEMBER_CONTACTS.fields.map((f) => (
+              <div key={f.key} className="flex items-center justify-between gap-3 rounded-lg border p-2.5 text-sm">
+                <dt className="text-muted-foreground">{f.label}</dt>
+                <dd className="truncate font-medium">
+                  {(contacts as Record<string, string | null> | null)?.[f.key] ?? "—"}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </CardContent>
+      </Card>
 
       <CareTeamCard team={team} />
     </div>
