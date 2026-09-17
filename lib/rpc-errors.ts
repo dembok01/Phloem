@@ -51,15 +51,21 @@ export const RPC_ERROR_CODES = [
   "email_mismatch",
   // 0038 caregiver transfer
   "same_caregiver",
+  // 0043 replace caregiver invite
+  "member_past_invited",
 ] as const;
 
 export type RpcErrorCode = (typeof RPC_ERROR_CODES)[number];
+
+// Longest first: some codes contain a shorter one (field_not_allowed contains
+// not_allowed), and a substring match in registry order would report the shorter.
+const CODES_LONGEST_FIRST: readonly RpcErrorCode[] = [...RPC_ERROR_CODES].sort((a, b) => b.length - a.length);
 
 export function rpcErrorCode(
   error: { message: string } | null | undefined
 ): RpcErrorCode | null {
   if (!error) return null;
-  for (const code of RPC_ERROR_CODES) if (error.message.includes(code)) return code;
+  for (const code of CODES_LONGEST_FIRST) if (error.message.includes(code)) return code;
   return null;
 }
 
@@ -107,6 +113,8 @@ export const RPC_ERROR_COPY: Record<RpcErrorCode, string> = {
   no_changes: "Nothing changed, so there was nothing to save.",
   email_mismatch: "The sign-in address didn't change. Please try again.",
   same_caregiver: "That is already the family member managing this care.",
+  member_past_invited:
+    "This member is already past sign-up. Inviting a new family member is paused until the invite fix (migration 0041) is approved — move them to an existing family login instead.",
 };
 
 export function rpcErrorMessage(

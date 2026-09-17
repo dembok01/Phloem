@@ -1535,6 +1535,10 @@ export type Database = {
         }
         Returns: string
       }
+      replace_caregiver_invite: {
+        Args: { p_email: string; p_member: string }
+        Returns: string
+      }
       resolve_thread: {
         Args: { p_resolved?: boolean; p_thread: string }
         Returns: undefined
