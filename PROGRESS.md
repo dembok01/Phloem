@@ -1378,3 +1378,58 @@ accepting it would reset them.
   notifications or superseding reports from any action this branch introduced, and no leftover fixtures.
 - **Types regenerated from live:** no table, view, function or enum removed.
 - **Lint:** eslint hangs on this machine before initialising (sibling checkouts too). Not run.
+
+## Record correction — final review and fixes
+
+A whole-branch review on the most capable model confirmed the database layer is sound (fail-closed guard
+on every new function, whitelists match §3, no service-role leak, `/auth/confirm` still closed, 0041
+correct) — and found one Critical and five Important defects. All are fixed on the branch.
+
+| Finding | Fix |
+|---|---|
+| **Critical:** `/portal` and `/admin/members/[id]` passed inline `async` closures from Server Components into a client component — unserializable, so **both pages would crash for every family and admin** once merged. tsc and unit tests cannot catch it. | `updateMemberAction.bind(null, member.id)` at all four sites |
+| `profiles.email` is where **notification mail** goes (`lib/notify.ts`), not a display copy as the spec assumed | Self-heal in the app shell on any page view; immediate sync in `/auth/confirm` when signed in. Spec §13 corrected |
+| A transfer left older invites live — a later click would re-point the member; an `invited` member was stranded | `0042`: `transfer_caregiver` expires the member's other pending invites and moves `invited` → `signed_up`. `0043`: `replace_caregiver_invite` |
+| Gender dropdown erased free-text values — live data holds `femaile` and `male` | A select always offers its stored value |
+| A pending email change was a dead end | "Use a different address" |
+| Admin email change had no from/to audit, and no record if the RPC failed after the credential moved | `0042` audits from/to; failure is logged with actor and target |
+
+Also fixed: `field_not_allowed` errors were reported as `not_allowed` (substring matching); "Saving…"
+never appeared in the sheets; the §16 blocks suspended and reactivated **every** admin (now only the test
+admin); fixtures asserted non-null; a non-numeric age raised a raw cast error; onboarding mirror copied
+untrimmed values; the account menu was a half-built ARIA menu.
+
+**Re-review of the fixes** (most capable model): all findings addressed, no new Critical or Important
+breakage. One residual was fixed because it reaches people — `0044`: closing a superseded invite by
+expiring it would have triggered the daily job's "The invite for X has expired unused" **email to every
+admin**, inviting someone to re-invite an address that was dropped on purpose. Superseded invites are now
+deleted (a plain delete never touches the member), with the removed addresses kept in the audit row.
+Runtime 7/7, rolled back; both real pending invites intact. Also: the layout alone owns the email sync
+(`/account` running it too could write duplicate audit rows), sync errors are logged, and the admin
+failure log carries the new address.
+
+**Production build:** `next build --no-lint` — exit 0, every route compiled.
+
+**`revoke_invite` is a trap.** When the member is still an `invited` shell with no other invite
+outstanding, it **deletes the member**. It was deliberately not reused to close old invites; `0043`
+expires them instead.
+
+### Verification after fixes
+
+- Strict `tsc --noEmit --noUnusedLocals --noUnusedParameters` — exit 0.
+- Unit — **122/122**.
+- §16 record-correction blocks — **24/24**, against the hosted project, rolled back.
+- `0042` runtime 5/5 and `0043` runtime 4/4, rolled back; both real pending invites confirmed intact.
+
+### Deferred (not blocking)
+
+- `amend_onboarding` uses a deny-list; an allow-list from the template's field ids would be tighter.
+- Pre-existing, not this branch: the `fr_cg for all` policy lets a caregiver write onboarding rows
+  directly, bypassing the refusal list. Worth a ticket.
+- Amendment notifications reach the whole care team, including the psychologist (spec says doctor +
+  coordinator). Content is harmless.
+- After a link completes the *second* half of an email change, the toast still says "enter the code".
+- `generateLink` skips GoTrue's per-user rate limit, so email-change mail is unthrottled — the same
+  accepted ceiling forgot-password documents.
+- **Not rendered in a browser.** Rendering `/portal` as a real family writes an activity row, which the
+  real-client rule forbids. Load `/admin/members/[id]` and `/portal` once locally before merging.

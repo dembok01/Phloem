@@ -31,16 +31,10 @@ export default async function AccountPage() {
     .eq("id", profile.user.id)
     .maybeSingle();
 
-  // Self-heal the profile mirror. A confirmation link opened on another device
-  // completes the change with no session to sync from, and the admin path moves
-  // auth first — so whenever the two disagree, the sign-in address wins.
-  // sync_my_email is idempotent; when they already match nothing is called.
+  // Show the sign-in address. The (app) layout re-syncs profiles.email when the two
+  // disagree; calling sync here as well would race it and write a second audit row.
   const authEmail = profile.user.email ?? "";
-  let email = row?.email ?? authEmail;
-  if (authEmail && row?.email && row.email.toLowerCase() !== authEmail.toLowerCase()) {
-    const { error } = await supabase.rpc("sync_my_email");
-    if (!error) email = authEmail;
-  }
+  const email = authEmail || row?.email || "";
 
   return (
     <section className="mx-auto max-w-2xl space-y-6">

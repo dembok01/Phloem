@@ -8,6 +8,7 @@ import { ToastProvider } from "@/components/ui/toast";
 import { Tooltip } from "@base-ui/react/tooltip";
 import { getSessionProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { logEvent } from "@/lib/observe";
 import { getLens, viewRoleFor } from "@/lib/lens";
 import { CareTeamSwitcher, lensLabel } from "@/components/care-team-switcher";
 import { LensChrome } from "@/components/lens-chrome";
@@ -31,12 +32,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   // profiles.email is where notification mail goes (lib/notify.ts), not a display
   // copy. An address change can complete with no session to sync from (a link
-  // opened on another device), so heal it here, on the person's next page view
-  // anywhere. A string compare on every request; the RPC runs only on a mismatch.
+  // opened on another device), so heal it here, on the person's next full page
+  // load or sign-in (a shared layout does not re-run on client-side navigation).
+  // A string compare on every request; the RPC runs only on a mismatch.
   const authEmail = profile.user.email?.toLowerCase();
   if (authEmail && profile.profileEmail && authEmail !== profile.profileEmail.toLowerCase()) {
     const supabase = await createClient();
-    await supabase.rpc("sync_my_email");
+    const { error } = await supabase.rpc("sync_my_email");
+    if (error) logEvent("auth.email_sync.failed", { reason: error.message });
   }
 
   const role = profile.role;

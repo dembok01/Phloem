@@ -39,7 +39,7 @@ export function AccountMenu({ name, role }: { name: string; role: UserRole }) {
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        aria-controls="account-menu"
+        aria-controls={open ? "account-menu" : undefined}
         className="pressable flex min-w-0 items-center gap-2 rounded-md px-2 py-1 hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
       >
         <span className="hidden max-w-[10rem] truncate font-medium sm:inline">{name}</span>

@@ -4,10 +4,11 @@
 // lost access to its inbox, or a professional whose address changed.
 //
 // Order is deliberate: GoTrue first, the audited RPC second. auth.users.email is
-// the credential and profiles.email only a display mirror, so a failure between
-// the two leaves a cosmetic mismatch (which /account self-heals) — never a person
-// who cannot sign in. email_confirm: true skips verification on purpose: the
-// whole point is that this person cannot read the inbox a link would go to.
+// the credential, so a failure between the two can never lock anyone out. What it
+// can do is leave profiles.email — where notification mail goes — on the old
+// address until the person's next page view, when the app shell re-syncs it.
+// email_confirm: true skips verification on purpose: the whole point is that this
+// person cannot read the inbox a link would go to.
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
@@ -59,10 +60,11 @@ export async function adminChangeEmailAction(userId: string, email: string): Pro
     logError("auth.admin_email_change.audit_failed", error.message, {
       actor: user.id,
       target: parsed.data.userId,
+      to: parsed.data.email,
     });
     return actionFromError(
       error,
-      "The sign-in address changed, but the profile record did not update. It corrects itself the next time they open their account page.",
+      "The sign-in address changed, but the profile record did not update. It corrects itself the next time they load the dashboard.",
     );
   }
 

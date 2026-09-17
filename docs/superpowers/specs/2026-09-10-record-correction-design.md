@@ -370,8 +370,10 @@ Staged so each stage is independently shippable:
 - Coordinator gets no write path, because §3 gives them `👁`. If coordinators
   turn out to need it operationally, that is a matrix change and its own
   decision.
-- `profiles.email` is display and record only; `auth.users.email` is the
-  credential. §8 depends on this.
+- ~~`profiles.email` is display and record only~~ **Corrected 2026-09-17:** `auth.users.email`
+  is the credential, but `profiles.email` is NOT display-only — `lib/notify.ts` sends notification
+  mail to it. It is kept in step by `sync_my_email`, called from the app shell on any page view when
+  the two disagree, from `/auth/confirm` when the browser is signed in, and after a confirmation code.
 - Supabase's secure-email-change setting (confirmation required on the new
   address) is left at its project default; §8.1 works either way, and the
   admin path in §8.2 bypasses confirmation intentionally with
