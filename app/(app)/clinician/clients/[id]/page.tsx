@@ -1,8 +1,8 @@
 import { cache, Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CheckCircle2, Eye, FileCheck2, Lock, ShieldAlert } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CheckCircle2, Eye, FileCheck2, FilePlus2, Lock, ShieldAlert } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CardSkeleton } from "@/components/ui/skeleton";
 import { Who5Card } from "@/components/charts/who5-card";
 import { Monogram, toneForRole } from "@/components/monogram";
@@ -85,10 +85,10 @@ export default async function ClinicianClientPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ tab?: string; tl?: string }>;
+  searchParams: Promise<{ tab?: string; tl?: string; followup?: string }>;
 }) {
   const { id } = await params;
-  const { tab, tl } = await searchParams;
+  const { tab, tl, followup } = await searchParams;
   const supabase = await createClient();
 
   const session = await getSessionProfile();
@@ -209,7 +209,13 @@ export default async function ClinicianClientPage({
         {activeTab === "directives" ? <DirectivesPanel supabase={supabase} memberId={id} /> : null}
         {activeTab === "clearance" ? <ClearancePanel supabase={supabase} memberId={id} /> : null}
         {activeTab === "form" ? (
-          <FormPanel supabase={supabase} role={role} memberId={id} userId={session.user.id} />
+          <FormPanel
+            supabase={supabase}
+            role={role}
+            memberId={id}
+            userId={session.user.id}
+            followup={followup === "1"}
+          />
         ) : null}
         {activeTab === "trends" ? (
           <MeasureTrends
@@ -674,11 +680,14 @@ async function FormPanel({
   role,
   memberId,
   userId,
+  followup,
 }: {
   supabase: SB;
   role: CareRole;
   memberId: string;
   userId: string;
+  /** the doctor asked to file a follow-up review by hand (?followup=1) */
+  followup: boolean;
 }) {
   // The submittable consultation for this role: meeting done + report pending.
   const { data: consults } = await supabase
@@ -689,6 +698,14 @@ async function FormPanel({
   const submittable = (consults ?? []).find(
     (c) => c.meeting_status === "done" && c.report_status === "pending",
   );
+
+  // A due consultation always wins; the manual path is for when nothing is due.
+  // Any doctor report means the intake exists (a review cannot precede it) — the
+  // RPC re-checks that and the assignment regardless.
+  const canFollowUp = role === "doctor" && !submittable && (await doctorReports(memberId)).length > 0;
+  if (canFollowUp && followup) {
+    return <ManualReviewPanel supabase={supabase} memberId={memberId} userId={userId} />;
+  }
 
   if (!submittable) {
     const latest = (consults ?? [])[0];
@@ -726,6 +743,20 @@ async function FormPanel({
               View {humanize(lastOwnReport.type).toLowerCase()} →
             </ReportPeek>
           ) : null}
+          {canFollowUp ? (
+            <div className="mt-3 flex flex-col items-center gap-2 border-t pt-5">
+              <p className="max-w-sm text-sm text-muted-foreground">
+                Held a follow-up consultation that has no review scheduled here? Record it as a report.
+              </p>
+              <Link
+                href={`/clinician/clients/${memberId}?tab=form&followup=1`}
+                className="inline-flex min-h-10 items-center gap-2 rounded-full bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+              >
+                <FilePlus2 className="size-4" aria-hidden />
+                Add a follow-up report
+              </Link>
+            </div>
+          ) : null}
         </CardContent>
       </Card>
     );
@@ -745,22 +776,7 @@ async function FormPanel({
     return <Card><CardContent className="py-8 text-sm text-muted-foreground">Form template missing.</CardContent></Card>;
   }
   const schema = parseFormTemplate(template.schema);
-
-  // W5 — the previous consultation's answers, shown BESIDE each field as reference
-  // ("Last time: 128/82"). Never prefilled: copy-forward is a known charting
-  // hazard, where last month's reading silently becomes this month's record. This
-  // gives a doctor the speed of seeing the trend without that risk.
-  const { data: lastSubmitted } = await supabase
-    .from("form_responses")
-    .select("answers, submitted_at")
-    .eq("member_id", memberId)
-    .eq("respondent_id", userId)
-    .not("submitted_at", "is", null)
-    .order("submitted_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  const hints = previousValueHints(schema, lastSubmitted?.answers as Record<string, unknown> | null);
+  const hints = await lastSubmissionHints(supabase, schema, memberId, userId);
 
   // Ensure a draft (fr_own_clinical: respondent_id = self).
   const { data: existing } = await supabase
@@ -818,6 +834,107 @@ async function FormPanel({
       lockedReason={lockedReason}
     />
   );
+}
+
+// 0036 — the doctor's follow-up review, filed without a review consultation (the
+// member's programme never started, so no cycle opened one). Same form and editor
+// as a cycle review; the draft simply has no consultation_id, and
+// add_manual_doctor_review submits it.
+async function ManualReviewPanel({ supabase, memberId, userId }: { supabase: SB; memberId: string; userId: string }) {
+  const { data: template } = await supabase
+    .from("form_templates")
+    .select("id, schema")
+    .eq("key", "doctor_review")
+    .eq("active", true)
+    .order("version", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!template) {
+    return <Card><CardContent className="py-8 text-sm text-muted-foreground">Form template missing.</CardContent></Card>;
+  }
+  const parsed = parseFormTemplate(template.schema);
+  // There is no performance report outside a programme cycle, so there is nothing
+  // a response to it could be required for.
+  const schema = {
+    ...parsed,
+    sections: parsed.sections.map((s) => ({
+      ...s,
+      fields: s.fields.map((f) => (f.id === "performance_response" ? { ...f, required: false } : f)),
+    })),
+  };
+  const hints = await lastSubmissionHints(supabase, schema, memberId, userId);
+
+  const { data: existing } = await supabase
+    .from("form_responses")
+    .select("id, answers")
+    .eq("member_id", memberId)
+    .eq("respondent_id", userId)
+    .eq("template_id", template.id)
+    .is("consultation_id", null)
+    .is("submitted_at", null)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  let responseId = existing?.id ?? null;
+  if (!responseId) {
+    const { data: created } = await supabase
+      .from("form_responses")
+      .insert({ member_id: memberId, template_id: template.id, respondent_id: userId, answers: {} as unknown as Json })
+      .select("id")
+      .single();
+    if (!created) {
+      return <Card><CardContent className="py-8 text-sm text-muted-foreground">Could not open the form.</CardContent></Card>;
+    }
+    responseId = created.id;
+  }
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>Follow-up report</CardTitle>
+          <CardDescription>
+            For a follow-up consultation you held that has no review scheduled here. It becomes a doctor&apos;s
+            review report, like one from a monthly review.{" "}
+            <Link href={`/clinician/clients/${memberId}?tab=form`} className="text-primary hover:underline">
+              Cancel
+            </Link>
+          </CardDescription>
+        </CardHeader>
+      </Card>
+      <ClinicalForm
+        template={schema}
+        memberId={memberId}
+        consultationId={null}
+        responseId={responseId}
+        initialAnswers={(existing?.answers as unknown as FormValues | null) ?? {}}
+        hints={hints}
+      />
+    </div>
+  );
+}
+
+/** W5 — the previous submission's answers, shown BESIDE each field as reference
+ *  ("Last time: 128/82"). Never prefilled: copy-forward is a known charting
+ *  hazard, where last month's reading silently becomes this month's record. This
+ *  gives a doctor the speed of seeing the trend without that risk. */
+async function lastSubmissionHints(
+  supabase: SB,
+  schema: ReturnType<typeof parseFormTemplate>,
+  memberId: string,
+  userId: string,
+): Promise<Record<string, { previous: string }>> {
+  const { data: lastSubmitted } = await supabase
+    .from("form_responses")
+    .select("answers, submitted_at")
+    .eq("member_id", memberId)
+    .eq("respondent_id", userId)
+    .not("submitted_at", "is", null)
+    .order("submitted_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return previousValueHints(schema, lastSubmitted?.answers as Record<string, unknown> | null);
 }
 
 // §9 monthly feedback (nutritionist/trainer). The draft is created by the cron at

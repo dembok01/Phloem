@@ -114,6 +114,55 @@ export async function submitClinicalForm(input: {
   return actionOk({ reportId: reportId as string });
 }
 
+const manualReviewSchema = z.object({
+  member_id: z.string().uuid(),
+  answers: z.record(z.string(), z.unknown()),
+});
+
+/**
+ * 0036 — the doctor files a follow-up review with no review consultation behind it
+ * (members whose programme never started, so no cycle ever opened one). The RPC
+ * re-checks: assigned active doctor, an initial doctor report exists, summary given.
+ */
+export async function submitManualDoctorReview(input: {
+  member_id: string;
+  answers: Record<string, unknown>;
+}): Promise<ActionResult<{ reportId: string }>> {
+  const parsed = manualReviewSchema.safeParse(input);
+  if (!parsed.success) return actionFail("Invalid form data.");
+  const { member_id, answers } = parsed.data;
+
+  const supabase = await createClient();
+  const { data: member } = await supabase
+    .from("members")
+    .select("full_name")
+    .eq("id", member_id)
+    .maybeSingle();
+
+  const content = buildClinicalReport("doctor_review", {
+    memberName: member?.full_name ?? "Member",
+    answers,
+    cycle: null,
+  });
+
+  const { data: reportId, error: rpcErr } = await supabase.rpc("add_manual_doctor_review", {
+    p_member: member_id,
+    p_answers: answers as unknown as Json,
+    p_report_content: content as unknown as Json,
+  });
+  if (rpcErr) {
+    return actionFromError(rpcErr, "Could not submit the report. Please try again.", {
+      not_allowed: "Only the doctor assigned to this member can add a follow-up report.",
+      initial_report_missing: "Submit the initial consultation report first.",
+      bad_content: "Write your review summary before submitting.",
+      template_missing: "The form template is missing.",
+    });
+  }
+
+  revalidatePath(`/clinician/clients/${member_id}`);
+  return actionOk({ reportId: reportId as string });
+}
+
 // ============ W1.4 — cases ============
 // A case is a clinical problem tracked across cycles. Authoring is mostly
 // automatic (submit_clinical_form seeds cases from the doctor's problem list and

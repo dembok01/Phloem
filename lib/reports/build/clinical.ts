@@ -170,6 +170,18 @@ export function buildClinicalReport(type: ReportType, input: ClinicalInput): Cli
         lead,
         record,
         {
+          heading: "Vitals This Month",
+          kind: "kv",
+          data: kv([
+            ["Blood pressure", a.bp],
+            ["Pulse", a.pulse],
+            ["Weight (kg)", a.weight_kg],
+            ["Sugar / HbA1c", a.sugar_hba1c],
+            ["Recent labs", a.recent_labs],
+            ["Tests advised", a.tests_advised],
+          ]),
+        },
+        {
           heading: "Changes",
           kind: "kv",
           data: kv([
@@ -190,6 +202,8 @@ export function buildClinicalReport(type: ReportType, input: ClinicalInput): Cli
             { id: "note", label: "Note" },
           ]),
         },
+        // The new clearance and its restrictions, not just the word "updated".
+        ...(a.clearance_change === "updated" ? [exerciseClearanceSection(a)] : []),
         listSection("Next-Month Goals", goalList(a.next_month_goals)),
         teamFlagsSection(a),
       ];

@@ -14,7 +14,7 @@ import { DynamicForm } from "./DynamicForm";
 import { missingRequiredFields } from "./logic";
 import type { FieldHint, FormTemplateSchema, FormValues } from "./types";
 import { useAutosaveDraft, type SaveState } from "./useAutosaveDraft";
-import { submitClinicalForm } from "@/app/(app)/clinician/clients/[id]/actions";
+import { submitClinicalForm, submitManualDoctorReview } from "@/app/(app)/clinician/clients/[id]/actions";
 
 export function ClinicalForm({
   template,
@@ -28,7 +28,8 @@ export function ClinicalForm({
 }: {
   template: FormTemplateSchema;
   memberId: string;
-  consultationId: string;
+  /** null = a doctor's manual follow-up review, filed without a consultation (0036). */
+  consultationId: string | null;
   responseId: string;
   initialAnswers: FormValues;
   locked?: boolean;
@@ -82,11 +83,9 @@ export function ClinicalForm({
     setSubmitError(null);
     setSubmitting(true);
     try {
-      const result = await submitClinicalForm({
-        member_id: memberId,
-        consultation_id: consultationId,
-        answers: values,
-      });
+      const result = consultationId
+        ? await submitClinicalForm({ member_id: memberId, consultation_id: consultationId, answers: values })
+        : await submitManualDoctorReview({ member_id: memberId, answers: values });
       if (!result.ok) {
         setSubmitError(result.error);
         setSubmitting(false);

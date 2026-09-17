@@ -1185,3 +1185,46 @@ name does not begin with a letter, which is why this had never surfaced.
 Fix: one `Intl.Collator` with `ignorePunctuation`, built once instead of per
 comparison. Numeric ordering is preserved and every admin table inherits it.
 Two tests written failing first — `test:unit` 114/114.
+
+## Manual follow-up doctor report (2026-09-17) — stopgap ✅
+
+**Why.** A review report only comes from a cycle's review consultation, and cycles
+only exist after `activate_program`, which needs the nutritionist's and trainer's
+initial reports. On the hosted project **10 of 10** members with an initial doctor
+report have no program, so none can ever get a second doctor report. The doctors
+hold the 30-day follow-up anyway. Requested as a same-day stopgap; the proper fix
+for stalled initial rounds is to be discussed.
+
+### Built
+
+- **0036 `add_manual_doctor_review(member, answers, report_content)`** — assigned
+  active doctor only (NULL-role fail-closed); requires a `doctor_initial` report;
+  requires a review summary. Submits the page's consultation-less draft (or inserts
+  one), files a `doctor_review` report with `cycle_id` NULL, appends to open cases
+  like a cycle review, audits `clinical_form.submitted` with `manual: true`.
+  **Creates no consultation** — a cycle-less doctor consultation would read as a
+  second *initial* one to `activate_program`, `assign_care_team` and `FormPanel`.
+- **Doctor → member → Consult form**: when nothing is due and a doctor report
+  exists, "Add a follow-up report" opens `?tab=form&followup=1` — the Monthly Review
+  form in the usual editor (autosave, "last time" hints). "Response to performance
+  report" is optional there, since no performance report exists outside a cycle.
+  Admin borrowed desks don't get the form tab, and the RPC refuses admin too.
+- **`doctor_review` builder** now includes "Vitals This Month" (collected since
+  v2, 0023, but never printed) and the new clearance + restrictions when
+  `clearance_change = updated` (previously only the word "Updated").
+
+### Verification
+
+- 0036 applied to the hosted project via MCP.
+- §16 block `0036: add_manual_doctor_review` (self-contained fixtures) run via MCP
+  `execute_sql` in a rolled-back transaction — **13/13 PASS**: no-intake refused;
+  unassigned doctor, assigned nutritionist, admin and suspended doctor refused
+  (`not_allowed`); blank summary refused; anon has no EXECUTE; the assigned doctor
+  files exactly one report, submitting the existing draft, no consultation row,
+  audited as manual. Confirmed afterwards that no fixture rows or status changes persisted.
+- `lib/reports/build/clinical.test.ts` (new) — vitals + updated clearance.
+
+### Assumptions
+
+- Visibility is exactly a normal doctor review (family only if shared).
+- Allowed repeatedly (a third month is the same situation); cycle is left NULL.
