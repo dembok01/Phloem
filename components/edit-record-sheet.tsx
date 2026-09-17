@@ -38,7 +38,9 @@ export function EditRecordSheet({
 }: {
   group: FieldGroup;
   role: UserRole;
-  values: Record<string, string | number | null | undefined>;
+  /** Any row: only the group's own keys are read, so extra columns (a JSON
+   *  red_flags, a boolean suspended) are ignored rather than rejected. */
+  values: Record<string, unknown>;
   title: string;
   description?: string;
   triggerLabel?: string;
@@ -50,11 +52,17 @@ export function EditRecordSheet({
   const [pending, start] = React.useTransition();
   const { toast } = useToast();
   const router = useRouter();
-  const formId = `edit-${group.name.replace(/\s+/g, "-").toLowerCase()}`;
+  // useId, not the group name: the care-team table renders one ADMIN_PROFILE
+  // sheet PER ROW, and a name-derived id would repeat across rows — every row's
+  // Save button would then submit the first row's form.
+  const formId = React.useId();
 
   const current = React.useMemo(() => {
     const out: Record<string, string> = {};
-    for (const f of group.fields) out[f.key] = values[f.key]?.toString() ?? "";
+    for (const f of group.fields) {
+      const v = values[f.key];
+      out[f.key] = v == null ? "" : String(v);
+    }
     return out;
   }, [group, values]);
 
