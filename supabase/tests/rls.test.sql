@@ -535,6 +535,93 @@ insert into results select pg_temp.assert_eq('desk: coordinator still sees 0 cli
 
 reset role;
 
+-- ============ 0036: add_manual_doctor_review ============
+-- Only the assigned, active doctor files a manual review; only after an initial
+-- doctor report; it submits the page's draft and never invents a consultation.
+update profiles set status = 'active' where email in ('doctor@phloem.local', 'nutritionist@phloem.local');
+create temp table mdr as select
+  (select id from profiles where email = 'doctor@phloem.local')       as doctor_id,
+  (select id from profiles where email = 'nutritionist@phloem.local') as nutri_id,
+  (select id from profiles where email = 'admin@phloem.local')        as admin_id,
+  gen_random_uuid() as m_ok, gen_random_uuid() as m_bare, gen_random_uuid() as m_other,
+  gen_random_uuid() as draft_id;
+grant select on mdr to authenticated;
+
+insert into members(id, full_name, status)
+  select m_ok,    'MDR intake done — test fixture', 'initial_consults'::member_status from mdr union all
+  select m_bare,  'MDR no intake — test fixture',   'assigned'::member_status         from mdr union all
+  select m_other, 'MDR unassigned — test fixture',  'initial_consults'::member_status from mdr;
+insert into assignments(member_id, care_user_id, care_role)
+  select m_ok,   doctor_id, 'doctor'::care_role       from mdr union all
+  select m_bare, doctor_id, 'doctor'::care_role       from mdr union all
+  select m_ok,   nutri_id,  'nutritionist' from mdr;
+insert into reports(member_id, type, content, created_by)
+  select m_ok,    'doctor_initial'::report_type, '{"title":"t","clearance":"cleared","sections":[]}'::jsonb, doctor_id from mdr union all
+  select m_other, 'doctor_initial', '{"title":"t","clearance":"cleared","sections":[]}', doctor_id from mdr;
+insert into form_responses(id, member_id, template_id, respondent_id, answers)
+  select draft_id, m_ok, (select id from form_templates where key = 'doctor_review' and active
+                           order by version desc limit 1), doctor_id, '{}' from mdr;
+
+create function pg_temp.mdr_call(p_member uuid, p_summary text) returns text language plpgsql as $$
+begin
+  perform add_manual_doctor_review(p_member, jsonb_build_object('review_summary', p_summary),
+                                   '{"title":"t","sections":[]}'::jsonb);
+  return 'ok';
+exception when others then return SQLERRM;
+end $$;
+
+select set_config('request.jwt.claims',
+  json_build_object('sub', (select doctor_id from mdr), 'role', 'authenticated')::text, true);
+set local role authenticated;
+insert into results select pg_temp.assert_true('manual review: doctor refused without an initial report',
+  pg_temp.mdr_call((select m_bare from mdr), 'x') = 'initial_report_missing');
+insert into results select pg_temp.assert_true('manual review: doctor refused for an unassigned member',
+  pg_temp.mdr_call((select m_other from mdr), 'x') = 'not_allowed');
+insert into results select pg_temp.assert_true('manual review: empty review summary refused',
+  pg_temp.mdr_call((select m_ok from mdr), '  ') = 'bad_content');
+insert into results select pg_temp.assert_true('manual review: assigned doctor files it',
+  pg_temp.mdr_call((select m_ok from mdr), 'Follow-up held by phone') = 'ok');
+
+reset role;
+select set_config('request.jwt.claims',
+  json_build_object('sub', (select nutri_id from mdr), 'role', 'authenticated')::text, true);
+set local role authenticated;
+insert into results select pg_temp.assert_true('manual review: assigned nutritionist refused',
+  pg_temp.mdr_call((select m_ok from mdr), 'x') = 'not_allowed');
+
+reset role;
+select set_config('request.jwt.claims',
+  json_build_object('sub', (select admin_id from mdr), 'role', 'authenticated')::text, true);
+set local role authenticated;
+insert into results select pg_temp.assert_true('manual review: admin refused (borrowed desks are read-only)',
+  pg_temp.mdr_call((select m_ok from mdr), 'x') = 'not_allowed');
+
+reset role;
+update profiles set status = 'suspended' where email = 'doctor@phloem.local';
+select set_config('request.jwt.claims',
+  json_build_object('sub', (select doctor_id from mdr), 'role', 'authenticated')::text, true);
+set local role authenticated;
+insert into results select pg_temp.assert_true('manual review: suspended doctor refused',
+  pg_temp.mdr_call((select m_ok from mdr), 'x') = 'not_allowed');
+
+reset role;
+update profiles set status = 'active' where email = 'doctor@phloem.local';
+insert into results select pg_temp.assert_true('manual review: NOT executable by anon',
+  not has_function_privilege('anon', 'public.add_manual_doctor_review(uuid,jsonb,jsonb)', 'execute'));
+insert into results select pg_temp.assert_eq('manual review: exactly one doctor_review report filed',
+  (select count(*) from reports where member_id = (select m_ok from mdr) and type = 'doctor_review'), 1);
+insert into results select pg_temp.assert_eq('manual review: the page draft was the row submitted',
+  (select count(*) from form_responses where id = (select draft_id from mdr)
+      and consultation_id is null and submitted_at is not null), 1);
+insert into results select pg_temp.assert_eq('manual review: no second doctor_review response row',
+  (select count(*) from form_responses fr join form_templates t on t.id = fr.template_id
+    where fr.member_id = (select m_ok from mdr) and t.key = 'doctor_review'), 1);
+insert into results select pg_temp.assert_eq('manual review: no consultation invented',
+  (select count(*) from consultations where member_id = (select m_ok from mdr)), 0);
+insert into results select pg_temp.assert_eq('manual review: audited as manual',
+  (select count(*) from audit_log where action = 'clinical_form.submitted'
+      and entity_id = (select draft_id from mdr) and meta->>'manual' = 'true'), 1);
+
 select line from results;
 
 rollback;

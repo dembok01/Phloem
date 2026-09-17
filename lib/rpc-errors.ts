@@ -42,6 +42,8 @@ export const RPC_ERROR_CODES = [
   // 0034 member deletion + duplicate guard
   "name_mismatch",
   "duplicate_member",
+  // 0036 manual doctor review
+  "initial_report_missing",
 ] as const;
 
 export type RpcErrorCode = (typeof RPC_ERROR_CODES)[number];
@@ -92,6 +94,7 @@ export const RPC_ERROR_COPY: Record<RpcErrorCode, string> = {
     "The name you typed doesn't match this member. Deletion is cancelled — check you are on the right profile.",
   duplicate_member:
     "A member with this name is already enrolled under this caregiver and hasn't finished onboarding. Open the existing profile instead of enrolling again.",
+  initial_report_missing: "The initial doctor consultation report has to be submitted first.",
 };
 
 export function rpcErrorMessage(
