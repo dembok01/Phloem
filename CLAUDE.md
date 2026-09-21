@@ -73,6 +73,14 @@ admin everything those shells read, and every coordinator RPC already accepted
 tabs are not rendered. `/portal` and the psychologist shell are deliberately not
 borrowable.
 
+**Program start (user-mandated 2026-09-22, migration 0046 — overrides the §1 core loop
+and the §6 `activate_program` gate).** The program starts when the **doctor submits the
+initial report**, from the day after that consultation — inside `submit_clinical_form`,
+so doctors gain no permission. Nutritionist, trainer and psychologist no longer gate it;
+each joins the monthly cycle (review consultation, day-27 feedback, performance report)
+once its own initial report is in (`_role_started`). The coordinator's Start button is
+the fallback; backdating a start (`activate_program(member, start)`) is admin-only.
+
 ## Current phase
 
 **All 8 phases complete** (see `PROGRESS.md` for the per-phase record). Phases (§15): 1 Scaffold & DB → 2 Invites & Admin → 3 DynamicForm & Onboarding → 4 Reports & PDF → 5 Coordinator & Consultations → 6 Clinician Shell & Clinical Forms → 7 Cycle Engine → 8 Portal & Polish — all ✅.

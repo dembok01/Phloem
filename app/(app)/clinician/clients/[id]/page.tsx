@@ -228,6 +228,7 @@ export default async function ClinicianClientPage({
             memberId={id}
             userId={session.user.id}
             followup={followup === "1"}
+            programRunning={member.status === "active" || member.status === "renewal_due"}
           />
         ) : null}
         {activeTab === "trends" ? (
@@ -731,6 +732,7 @@ async function FormPanel({
   memberId,
   userId,
   followup,
+  programRunning,
 }: {
   supabase: SB;
   role: CareRole;
@@ -738,6 +740,8 @@ async function FormPanel({
   userId: string;
   /** the doctor asked to file a follow-up review by hand (?followup=1) */
   followup: boolean;
+  /** 0046: a running program has its own monthly doctor review consultation */
+  programRunning: boolean;
 }) {
   // The submittable consultation for this role: meeting done + report pending.
   const { data: consults } = await supabase
@@ -752,7 +756,8 @@ async function FormPanel({
   // A due consultation always wins; the manual path is for when nothing is due.
   // Any doctor report means the intake exists (a review cannot precede it) — the
   // RPC re-checks that and the assignment regardless.
-  const canFollowUp = role === "doctor" && !submittable && (await doctorReports(memberId)).length > 0;
+  const canFollowUp =
+    role === "doctor" && !submittable && !programRunning && (await doctorReports(memberId)).length > 0;
   if (canFollowUp && followup) {
     return <ManualReviewPanel supabase={supabase} memberId={memberId} userId={userId} />;
   }
@@ -835,7 +840,17 @@ async function FormPanel({
   if (!template) {
     return <Card><CardContent className="py-8 text-sm text-muted-foreground">Form template missing.</CardContent></Card>;
   }
-  const schema = parseFormTemplate(template.schema);
+  let schema = parseFormTemplate(template.schema);
+  // 0046: a doctor review with no performance report on file (no nutrition or
+  // training feedback has ever come in) has nothing to respond to.
+  if (role === "doctor" && !isInitial) {
+    const { count } = await supabase
+      .from("reports")
+      .select("id", { count: "exact", head: true })
+      .eq("member_id", memberId)
+      .eq("type", "performance");
+    if (!count) schema = withOptional(schema, "performance_response");
+  }
   const hints = await lastSubmissionHints(supabase, schema, memberId, userId);
 
   // Ensure a draft (fr_own_clinical: respondent_id = self).
@@ -912,16 +927,9 @@ async function ManualReviewPanel({ supabase, memberId, userId }: { supabase: SB;
   if (!template) {
     return <Card><CardContent className="py-8 text-sm text-muted-foreground">Form template missing.</CardContent></Card>;
   }
-  const parsed = parseFormTemplate(template.schema);
   // There is no performance report outside a programme cycle, so there is nothing
   // a response to it could be required for.
-  const schema = {
-    ...parsed,
-    sections: parsed.sections.map((s) => ({
-      ...s,
-      fields: s.fields.map((f) => (f.id === "performance_response" ? { ...f, required: false } : f)),
-    })),
-  };
+  const schema = withOptional(parseFormTemplate(template.schema), "performance_response");
   const hints = await lastSubmissionHints(supabase, schema, memberId, userId);
 
   const { data: existing } = await supabase
@@ -973,6 +981,19 @@ async function ManualReviewPanel({ supabase, memberId, userId }: { supabase: SB;
       />
     </div>
   );
+}
+
+function withOptional(
+  schema: ReturnType<typeof parseFormTemplate>,
+  fieldId: string,
+): ReturnType<typeof parseFormTemplate> {
+  return {
+    ...schema,
+    sections: schema.sections.map((s) => ({
+      ...s,
+      fields: s.fields.map((f) => (f.id === fieldId ? { ...f, required: false } : f)),
+    })),
+  };
 }
 
 /** W5 — the previous submission's answers, shown BESIDE each field as reference

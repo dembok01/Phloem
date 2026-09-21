@@ -45,7 +45,6 @@ export function ProgramCard({
   pkg,
   cycles,
   eligibleToStart,
-  psychSubmitted,
   redirectTo,
   isAdmin,
 }: {
@@ -54,7 +53,6 @@ export function ProgramCard({
   pkg: ProgramPackage | null;
   cycles: ProgramCycle[];
   eligibleToStart: boolean;
-  psychSubmitted: boolean;
   redirectTo: string;
   isAdmin: boolean;
 }) {
@@ -70,51 +68,28 @@ export function ProgramCard({
         </CardAction>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* NOT STARTED — the activation trigger */}
+        {/* NOT STARTED — 0046: the doctor's initial report starts it; Start is the fallback */}
         {status === "not_started" ? (
           <div className="space-y-3">
             {eligibleToStart ? (
               <>
                 <p className="text-sm text-muted-foreground">
-                  All initial reports are in. Starting sets the program live —{" "}
-                  <span className="font-medium text-foreground">it begins tomorrow</span> and generates{" "}
+                  The doctor&apos;s initial report is in but the program didn&apos;t start with it. Starting sets it
+                  live — <span className="font-medium text-foreground">it begins tomorrow</span> and generates{" "}
                   {pkg?.duration_months ?? 3} monthly cycle{(pkg?.duration_months ?? 3) === 1 ? "" : "s"}.
                 </p>
-                {psychSubmitted ? (
-                  <form action={activateProgram}>
-                    <input type="hidden" name="member_id" value={memberId} />
-                    <input type="hidden" name="redirect_to" value={redirectTo} />
-                    <SubmitButton pendingText="Starting…">
-                      <Play className="size-4" /> Start program
-                    </SubmitButton>
-                  </form>
-                ) : (
-                  // §10: psych pending → an explicit amber confirm before the override.
-                  <details className="group max-w-xl rounded-xl border border-warning/40 bg-warning-tint">
-                    <summary className="flex cursor-pointer list-none items-center gap-2 rounded-xl px-4 py-3 font-medium">
-                      <Play className="size-4 shrink-0" aria-hidden />
-                      Start with psychologist pending?
-                    </summary>
-                    <div className="space-y-3 px-4 pb-4">
-                      <p className="text-sm">
-                        The psychologist check-in hasn&apos;t been submitted. Starting now records a{" "}
-                        <span className="font-semibold">psych override</span> in the audit log; the
-                        check-in can still happen after activation.
-                      </p>
-                      <form action={activateProgram}>
-                        <input type="hidden" name="member_id" value={memberId} />
-                        <input type="hidden" name="redirect_to" value={redirectTo} />
-                        <SubmitButton variant="outline" size="sm" pendingText="Starting…">
-                          Start program anyway
-                        </SubmitButton>
-                      </form>
-                    </div>
-                  </details>
-                )}
+                <form action={activateProgram}>
+                  <input type="hidden" name="member_id" value={memberId} />
+                  <input type="hidden" name="redirect_to" value={redirectTo} />
+                  <SubmitButton pendingText="Starting…">
+                    <Play className="size-4" /> Start program
+                  </SubmitButton>
+                </form>
               </>
             ) : (
               <p className="text-sm text-muted-foreground">
-                Start becomes available once the doctor, nutritionist and trainer initial reports are submitted.
+                Starts automatically the day after the doctor&apos;s initial consultation, once the doctor submits
+                the report. Nutrition, training and wellbeing join the monthly cycle as their own reports come in.
               </p>
             )}
             {pkg ? (

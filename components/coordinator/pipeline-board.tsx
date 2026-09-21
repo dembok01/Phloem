@@ -60,7 +60,7 @@ export function PipelineBoard({
           toast("success", res.message);
           router.refresh();
         } else if (res.reason === "ineligible") {
-          toast("error", "All three initial reports must be submitted before starting.");
+          toast("error", "The doctor's initial report must be submitted before starting.");
         } else {
           toast("error", "Couldn't start the program. Please try again.");
         }

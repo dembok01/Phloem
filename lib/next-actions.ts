@@ -142,7 +142,7 @@ export function nextActions(input: NextActionsInput): NextAction[] {
       out.push({
         kind: "start", owner: "coordinator", bucket: "today",
         verb: "Start the programme", subject: m.full_name, memberId: m.id, href: to,
-        why: "All three initial reports are in, so the 30-day cycles can begin.",
+        why: "The doctor's initial report is in, so the 30-day cycles can begin.",
         how: "Starting it schedules cycle 1 from tomorrow.",
       });
     }

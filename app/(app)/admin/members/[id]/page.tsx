@@ -37,7 +37,7 @@ const ROLE_LABEL: Record<CareRole, string> = {
 
 const ERRORS: Record<string, string> = {
   invalid: "Please check the form and try again.",
-  initial_incomplete: "All three initial reports (doctor, nutritionist, trainer) must be submitted first.",
+  initial_incomplete: "The doctor's initial report must be submitted first.",
   no_package: "There is no package ready to start for this member.",
   not_active: "The program isn't active.",
   not_paused: "The program isn't paused.",
@@ -132,8 +132,9 @@ export default async function AdminMemberPage({
   const submittedInitial = new Set(
     (consults ?? []).filter((c) => c.report_status === "submitted").map((c) => c.type),
   );
-  const eligibleToStart = ["doctor", "nutritionist", "trainer"].every((t) => submittedInitial.has(t as CareRole));
-  const psychSubmitted = submittedInitial.has("psychologist");
+  // 0046: the doctor's initial report starts the program on its own; this is the
+  // fallback for a package that was not ready when that report came in.
+  const eligibleToStart = submittedInitial.has("doctor");
 
   const assignedName = new Map<string, string>();
   for (const a of assignments ?? []) {
@@ -181,7 +182,6 @@ export default async function AdminMemberPage({
         pkg={(pkg as ProgramPackage | null) ?? null}
         cycles={(cycles ?? []) as ProgramCycle[]}
         eligibleToStart={eligibleToStart}
-        psychSubmitted={psychSubmitted}
         redirectTo={redirectTo}
         isAdmin
       />

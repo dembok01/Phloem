@@ -44,7 +44,7 @@ const ERRORS: Record<string, string> = {
   bad_time: "Please choose a valid date and time.",
   schedule_failed: "Could not save the schedule. Please try again.",
   done_failed: "Could not mark the meeting done — is it scheduled?",
-  initial_incomplete: "All three initial reports (doctor, nutritionist, trainer) must be submitted first.",
+  initial_incomplete: "The doctor's initial report must be submitted first.",
   no_package: "There is no package ready to start for this member.",
   not_active: "The program isn't active.",
   not_paused: "The program isn't paused.",
@@ -187,8 +187,9 @@ export default async function CoordinatorMemberPage({
   const submittedInitial = new Set(
     initialConsults.filter((c) => c.report_status === "submitted").map((c) => c.type),
   );
-  const eligibleToStart = ["doctor", "nutritionist", "trainer"].every((t) => submittedInitial.has(t as CareRole));
-  const psychSubmitted = submittedInitial.has("psychologist");
+  // 0046: the doctor's initial report starts the program on its own; this is the
+  // fallback for a package that was not ready when that report came in.
+  const eligibleToStart = submittedInitial.has("doctor");
 
   // Consultations worth showing now: the initial round + the active cycle's review
   // round — both filtered from the full `consults` list already fetched above.
@@ -423,7 +424,6 @@ export default async function CoordinatorMemberPage({
         pkg={(pkg as ProgramPackage | null) ?? null}
         cycles={cycleList}
         eligibleToStart={eligibleToStart}
-        psychSubmitted={psychSubmitted}
         redirectTo={redirectTo}
         isAdmin={false}
       />

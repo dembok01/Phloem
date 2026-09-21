@@ -1307,3 +1307,57 @@ blood pressure or a missing protein target could only be fixed by an admin editi
 - A trainer can't correct a plan while the doctor's latest report withholds
   clearance — the same gate as submitting.
 - Monthly feedback forms are out of scope (not consultation reports).
+
+## The doctor's initial report starts the program (2026-09-22) — 0046
+
+**Why (user-mandated).** `activate_program` needed the doctor's, nutritionist's and
+trainer's initial reports. Families start their plan from the doctor's report, and the
+other two often never arrive: on the hosted project all 11 members with an initial
+doctor report had no program, zero cycles existed, and the 30-day follow-ups had
+nowhere to go (the 0036 manual button was the stopgap).
+
+### Built
+
+- **0046** — `_start_program` is the one place a package goes live. It runs:
+  - inside `submit_clinical_form` for the doctor's initial report, starting the day
+    after the consultation (`completed_at`, IST)
+  - from `activate_program`, whose gate is now only the doctor's report
+  A start in the past rebuilds the cycles as they would have been: past cycles
+  closed and empty, the current one active with its review round, and 0036 manual
+  reviews filed under their cycle (one inside the current round counts as that
+  round's doctor report). A stray never-scheduled second doctor intake is cancelled.
+  The family isn't messaged for a backdated start; coordinators are told of every
+  automatic or backdated start.
+- **Started roles only** (`_role_started`: the role is assigned and its initial report
+  for this package is in):
+  - review rounds, in `close_cycle_open_next` (it used to open all four, even for
+    unassigned roles)
+  - day-27 feedback drafts and "feedback overdue" alerts, in `run_daily_jobs`
+  - the performance report says "Not started yet: training plan" rather than
+    "Feedback pending".
+- **Fixed in passing:** `submit_clinical_form` and `add_manual_doctor_review` now
+  write `reports.form_response_id`. 0045 added and backfilled the column, but nothing
+  wrote it for new reports, so any report submitted after 0045 couldn't be corrected.
+- **UI:**
+  - The program card says it starts on its own, and Start is the fallback.
+  - The psychologist-pending prompt is gone (the override is still audited).
+  - The doctor's 0036 follow-up button is hidden once a program runs.
+  - A doctor review's "Response to performance report" is optional while none exists.
+
+### Verification
+
+- The whole migration plus the new §16 block (`0046: the doctor's initial report
+  starts the program`, self-contained fixtures) ran against the hosted project via
+  MCP `execute_sql` in a rolled-back transaction: **34/34 PASS**. That covered:
+  auto-start and its date, no start from other roles, no restart, coordinator
+  backdate refused, the start-date bounds, the backdated cycle layout, the manual
+  review filing, the stray intake cancelled, the notifications, `close_cycle_open_next`
+  and `run_daily_jobs` for started roles only, the performance callouts, and grants.
+  Afterwards: live functions unchanged, no fixtures left.
+
+### Assumptions
+
+- Start date = the day after the consultation was marked done. A report filed more
+  than 14 days late starts from tomorrow; an admin can backdate.
+- A doctor clearance of "on hold" still starts the program (nutrition and monitoring
+  apply; the trainer form stays locked by its own gate).
