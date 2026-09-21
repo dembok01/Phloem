@@ -166,10 +166,11 @@ async function main() {
       else if (error) throw new Error(`submit ${role}: ${error.message}`);
     }
 
-    // ---- Activate ----
+    // ---- Activate (0046: the doctor's initial report already started it) ----
     console.log("Activate:");
     const { error: aErr } = await coord.rpc("activate_program", { p_member: memberId });
-    if (aErr) throw new Error(`activate: ${aErr.message}`);
+    ok(aErr?.message.includes("no_package_to_start") ?? false,
+       "the doctor's intake started the program (a manual Start now finds nothing to start)");
     const { data: pkg } = await svc.from("packages").select("id").eq("member_id", memberId).single();
     const { data: cyclesAfterActivate } = await svc
       .from("cycles").select("id, number, status").eq("package_id", pkg!.id).order("number");

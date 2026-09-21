@@ -790,6 +790,209 @@ insert into results select pg_temp.assert_eq('amend: audited with changed KEYS o
       and entity_id = pg_temp.amd_v2()
       and meta->'fields' = '["bp"]'::jsonb and meta::text not like '%148%'), 1);
 
+-- ============ 0046: the doctor's initial report starts the program ============
+-- The doctor's intake starts it (from the day after the consultation) and nothing
+-- else does; it never restarts; only an admin backdates, which rebuilds the cycles
+-- as they would have been and files a hand-made review under its cycle; only roles
+-- whose plan has started get a review round, monthly feedback, or a "pending" line.
+reset role;
+select set_config('request.jwt.claims', '', true);
+update profiles set status = 'active'
+ where email in ('doctor@phloem.local','nutritionist@phloem.local',
+                 'admin@phloem.local','coordinator@phloem.local');
+create temp table pst as select
+  (select id from profiles where email = 'doctor@phloem.local')       as doctor_id,
+  (select id from profiles where email = 'nutritionist@phloem.local') as nutri_id,
+  (select id from profiles where email = 'admin@phloem.local')        as admin_id,
+  -- stands in as the family, as in the 0045 block: no caregiver login is seeded
+  (select id from profiles where email = 'coordinator@phloem.local')  as coord_id,
+  (now() at time zone 'Asia/Kolkata')::date                           as today,
+  gen_random_uuid() as m_auto, gen_random_uuid() as m_nut, gen_random_uuid() as m_back,
+  gen_random_uuid() as c_doc, gen_random_uuid() as c_doc2, gen_random_uuid() as c_nut,
+  gen_random_uuid() as c_nut_only, gen_random_uuid() as c_back_doc,
+  gen_random_uuid() as c_back_stray, gen_random_uuid() as c_back_nut,
+  gen_random_uuid() as r_manual;
+grant select on pst to authenticated;
+
+insert into members(id, full_name, status, caregiver_id)
+  select m_auto, 'PST auto — test fixture',           'assigned'::member_status, coord_id from pst union all
+  select m_nut,  'PST nutrition only — test fixture', 'assigned',                coord_id from pst union all
+  select m_back, 'PST backdate — test fixture',       'initial_consults',        coord_id from pst;
+insert into packages(member_id, duration_months)
+  select m_auto, 3 from pst union all select m_nut, 3 from pst union all select m_back, 3 from pst;
+insert into assignments(member_id, care_user_id, care_role)
+  select m_auto, doctor_id, 'doctor'::care_role from pst union all
+  select m_auto, nutri_id,  'nutritionist'      from pst union all
+  select m_nut,  nutri_id,  'nutritionist'      from pst union all
+  select m_back, doctor_id, 'doctor'            from pst union all
+  select m_back, nutri_id,  'nutritionist'      from pst;
+insert into consultations(id, member_id, cycle_id, type, meeting_status, completed_at, report_status)
+  -- m_auto: the doctor saw them yesterday; the rest held today
+  select c_doc,  m_auto, null::uuid, 'doctor'::care_role, 'done'::meeting_status,
+         now() - interval '1 day', 'pending'::submit_status from pst union all
+  select c_doc2, m_auto, null, 'doctor',       'done', now(), 'pending' from pst union all
+  select c_nut,  m_auto, null, 'nutritionist', 'done', now(), 'pending' from pst union all
+  select c_nut_only, m_nut, null, 'nutritionist', 'done', now(), 'pending' from pst union all
+  -- m_back: intake 51 days ago, never started; a stray re-assignment intake; no nutrition plan
+  select c_back_doc,   m_back, null, 'doctor',       'done',        now() - interval '51 days', 'submitted' from pst union all
+  select c_back_stray, m_back, null, 'doctor',       'to_schedule', null, 'pending' from pst union all
+  select c_back_nut,   m_back, null, 'nutritionist', 'to_schedule', null, 'pending' from pst;
+insert into reports(member_id, type, content, created_by)
+  select m_back, 'doctor_initial'::report_type,
+         '{"title":"t","clearance":"cleared","sections":[]}'::jsonb, doctor_id from pst;
+insert into reports(id, member_id, type, content, created_by)  -- a 0036 hand-made review, today
+  select r_manual, m_back, 'doctor_review'::report_type, '{"title":"t","sections":[]}'::jsonb, doctor_id from pst;
+
+create function pg_temp.pst_try(q text) returns text language plpgsql as $$
+begin execute q; return 'ok'; exception when others then return SQLERRM; end $$;
+create function pg_temp.pst_pkg(m uuid) returns uuid language sql as $$
+  select id from packages where member_id = m $$;
+create function pg_temp.pst_cycle(m uuid, n int) returns uuid language sql as $$
+  select c.id from cycles c join packages p on p.id = c.package_id where p.member_id = m and c.number = n $$;
+
+-- the doctor submits the intake (and, later, a second one)
+select set_config('request.jwt.claims',
+  json_build_object('sub', (select doctor_id from pst), 'role', 'authenticated')::text, true);
+set local role authenticated;
+insert into results select pg_temp.assert_true('program: the doctor submits the intake',
+  submit_clinical_form((select c_doc from pst), '{"clinical_summary":"Stable","clearance":"cleared"}',
+                       '{"title":"t","clearance":"cleared","sections":[]}') is not null);
+
+reset role;
+select set_config('request.jwt.claims', '', true);
+insert into results select pg_temp.assert_true('program: the intake starts it, the day after the consultation',
+  (select status = 'active' and start_date = (select today from pst)
+     from packages where member_id = (select m_auto from pst)));
+insert into results select pg_temp.assert_eq('program: 3 cycles, cycle 1 active, the rest upcoming',
+  (select count(*) from cycles where package_id = pg_temp.pst_pkg((select m_auto from pst))
+      and ((number = 1 and status = 'active') or (number > 1 and status = 'upcoming'))), 3);
+insert into results select pg_temp.assert_true('program: the member is active',
+  (select status = 'active' from members where id = (select m_auto from pst)));
+insert into results select pg_temp.assert_true('program: audited as a doctor_initial start, nutrition + training not started',
+  exists (select 1 from audit_log
+           where action = 'program.activated' and entity_id = pg_temp.pst_pkg((select m_auto from pst))
+             and meta->>'source' = 'doctor_initial'
+             and meta->'not_started' ? 'nutritionist' and meta->'not_started' ? 'trainer'));
+insert into results select pg_temp.assert_eq('program: the family is told it has started',
+  (select count(*) from notifications
+    where dedupe_key = 'start:' || pg_temp.pst_pkg((select m_auto from pst)) || ':caregiver'), 1);
+insert into results select pg_temp.assert_eq('program: coordinators are told it started automatically',
+  (select count(*) from notifications
+    where dedupe_key = 'start:' || pg_temp.pst_pkg((select m_auto from pst)) || ':staff:' || (select coord_id from pst)), 1);
+insert into results select pg_temp.assert_true('program: the new report is linked to its answers (0045 column)',
+  (select form_response_id is not null from reports
+    where member_id = (select m_auto from pst) and type = 'doctor_initial'));
+
+-- nutritionist reports start nothing
+select set_config('request.jwt.claims',
+  json_build_object('sub', (select nutri_id from pst), 'role', 'authenticated')::text, true);
+set local role authenticated;
+insert into results select pg_temp.assert_true('program: nutritionist plans submit',
+  submit_clinical_form((select c_nut_only from pst), '{"assessment_summary":"x"}', '{"title":"t","sections":[]}') is not null
+  and submit_clinical_form((select c_nut from pst), '{"assessment_summary":"x"}', '{"title":"t","sections":[]}') is not null);
+reset role;
+insert into results select pg_temp.assert_true('program: only the doctor''s intake starts it',
+  (select status = 'not_started' from packages where member_id = (select m_nut from pst)));
+
+-- a second doctor intake never restarts it
+select set_config('request.jwt.claims',
+  json_build_object('sub', (select doctor_id from pst), 'role', 'authenticated')::text, true);
+set local role authenticated;
+insert into results select pg_temp.assert_true('program: a second doctor intake submits',
+  submit_clinical_form((select c_doc2 from pst), '{"clinical_summary":"Again","clearance":"cleared"}',
+                       '{"title":"t","clearance":"cleared","sections":[]}') is not null);
+reset role;
+insert into results select pg_temp.assert_true('program: ...and never restarts it',
+  (select count(*) = 1 and bool_and(start_date = (select today from pst))
+     from packages where member_id = (select m_auto from pst))
+  and (select count(*) = 3 from cycles where package_id = pg_temp.pst_pkg((select m_auto from pst))));
+
+-- backdating: admin only, never beyond tomorrow, once
+select set_config('request.jwt.claims',
+  json_build_object('sub', (select coord_id from pst), 'role', 'authenticated')::text, true);
+set local role authenticated;
+insert into results select pg_temp.assert_true('program: a coordinator cannot backdate',
+  pg_temp.pst_try(format('select activate_program(%L, %L::date)',
+                         (select m_back from pst), (select today - 50 from pst))) = 'not_allowed');
+reset role;
+select set_config('request.jwt.claims',
+  json_build_object('sub', (select admin_id from pst), 'role', 'authenticated')::text, true);
+set local role authenticated;
+insert into results select pg_temp.assert_true('program: no start later than tomorrow',
+  pg_temp.pst_try(format('select activate_program(%L, %L::date)',
+                         (select m_back from pst), (select today + 5 from pst))) = 'bad_start');
+insert into results select pg_temp.assert_true('program: an admin backdates 50 days',
+  pg_temp.pst_try(format('select activate_program(%L, %L::date)',
+                         (select m_back from pst), (select today - 50 from pst))) = 'ok');
+insert into results select pg_temp.assert_true('program: a running package cannot be started again',
+  pg_temp.pst_try(format('select activate_program(%L)', (select m_back from pst))) = 'no_package_to_start');
+
+reset role;
+select set_config('request.jwt.claims', '', true);
+insert into results select pg_temp.assert_true('backdate: cycle 1 closed, cycle 2 current, cycle 3 upcoming',
+  (select string_agg(number || ':' || status, ',' order by number)
+     from cycles where package_id = pg_temp.pst_pkg((select m_back from pst))) = '1:closed,2:active,3:upcoming');
+insert into results select pg_temp.assert_eq('backdate: nothing compiled for the empty past cycle',
+  (select count(*) from reports where member_id = (select m_back from pst) and type = 'performance'), 0);
+insert into results select pg_temp.assert_true('backdate: the current review round is the doctor only (no nutrition plan yet)',
+  (select array_agg(type::text) = '{doctor}' from consultations
+    where cycle_id = pg_temp.pst_cycle((select m_back from pst), 2)));
+insert into results select pg_temp.assert_true('backdate: the hand-made review is filed under cycle 2 and IS its doctor report',
+  (select cycle_id = pg_temp.pst_cycle((select m_back from pst), 2) from reports where id = (select r_manual from pst))
+  and (select meeting_status = 'done' and report_status = 'submitted' from consultations
+        where cycle_id = pg_temp.pst_cycle((select m_back from pst), 2) and type = 'doctor'));
+insert into results select pg_temp.assert_true('backdate: the stray intake is cancelled, the nutrition intake is not',
+  (select meeting_status = 'cancelled' from consultations where id = (select c_back_stray from pst))
+  and (select meeting_status = 'to_schedule' from consultations where id = (select c_back_nut from pst)));
+insert into results select pg_temp.assert_eq('backdate: the family is not messaged',
+  (select count(*) from notifications
+    where dedupe_key = 'start:' || pg_temp.pst_pkg((select m_back from pst)) || ':caregiver'), 0);
+insert into results select pg_temp.assert_eq('backdate: coordinators are told',
+  (select count(*) from notifications
+    where dedupe_key = 'start:' || pg_temp.pst_pkg((select m_back from pst)) || ':staff:' || (select coord_id from pst)), 1);
+
+-- the cycle engine: rollover, monthly feedback and the performance report follow the started roles
+insert into results select pg_temp.assert_true('cycle: the backdated cycle 2 closes',
+  pg_temp.pst_try(format('select close_cycle_open_next(%L)', pg_temp.pst_cycle((select m_back from pst), 2))) = 'ok');
+insert into results select pg_temp.assert_true('cycle: the next review round skips the unstarted nutritionist (was all four)',
+  (select array_agg(type::text) = '{doctor}' from consultations
+    where cycle_id = pg_temp.pst_cycle((select m_back from pst), 3)));
+-- Each cron run is its own statement: a statement cannot see rows written by a
+-- function it calls, so running and checking in one statement would pass vacuously.
+insert into results select pg_temp.assert_true('cron: runs on day 27 of the auto member''s cycle 1',
+  pg_temp.pst_try(format('select run_daily_jobs(%L::date)', (select today + 26 from pst))) = 'ok');
+insert into results select pg_temp.assert_true('cron: ...and drafts feedback for the started nutritionist only',
+  exists (select 1 from form_responses fr join form_templates t on t.id = fr.template_id
+           where fr.cycle_id = pg_temp.pst_cycle((select m_auto from pst), 1) and t.key = 'feedback_nutrition')
+  and not exists (select 1 from form_responses fr join form_templates t on t.id = fr.template_id
+                   where fr.cycle_id = pg_temp.pst_cycle((select m_auto from pst), 1) and t.key = 'feedback_training'));
+insert into results select pg_temp.assert_true('cron: runs on day 27 of the backdated member''s cycle 3',
+  pg_temp.pst_try(format('select run_daily_jobs(%L::date)', (select today + 36 from pst))) = 'ok');
+insert into results select pg_temp.assert_true('cron: ...and drafts nothing for an assigned nutritionist with no plan',
+  exists (select 1 from cycles where id = pg_temp.pst_cycle((select m_back from pst), 3)
+           and end_date = (select today + 39 from pst))
+  and not exists (select 1 from form_responses fr join form_templates t on t.id = fr.template_id
+                   where fr.cycle_id = pg_temp.pst_cycle((select m_back from pst), 3)
+                     and t.key = 'feedback_nutrition'));
+insert into results select pg_temp.assert_true('cron: rollover opens cycle 2 reviews for doctor + nutritionist only',
+  (select array_agg(type::text order by type) = '{doctor,nutritionist}' from consultations
+    where cycle_id = pg_temp.pst_cycle((select m_auto from pst), 2)));
+insert into results select pg_temp.assert_true('performance: training is "not started", nutrition feedback is "pending"',
+  (select content::text like '%Not started yet: training plan.%'
+      and content::text like '%Feedback pending: nutritionist.%'
+     from reports where type = 'performance'
+      and cycle_id = pg_temp.pst_cycle((select m_auto from pst), 1)));
+update consultations set meeting_status = 'done', report_status = 'submitted'
+ where id = (select c_back_nut from pst);
+insert into results select pg_temp.assert_eq('cycle: a nutrition plan submitted mid-programme joins the next round',
+  _open_review_consults(pg_temp.pst_pkg((select m_back from pst)), pg_temp.pst_cycle((select m_back from pst), 3)), 1);
+
+insert into results select pg_temp.assert_true('program: _start_program is not client-callable',
+  not has_function_privilege('authenticated', 'public._start_program(uuid,date,text)', 'execute')
+  and not has_function_privilege('anon', 'public._start_program(uuid,date,text)', 'execute'));
+insert into results select pg_temp.assert_true('program: activate_program is not callable by anon',
+  not has_function_privilege('anon', 'public.activate_program(uuid,date)', 'execute'));
+
 select line from results;
 
 rollback;

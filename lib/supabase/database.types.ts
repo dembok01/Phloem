@@ -1455,7 +1455,10 @@ export type Database = {
         }
         Returns: Json
       }
-      activate_program: { Args: { p_member: string }; Returns: undefined }
+      activate_program: {
+        Args: { p_member: string; p_start?: string }
+        Returns: undefined
+      }
       add_manual_doctor_review: {
         Args: { p_answers: Json; p_member: string; p_report_content: Json }
         Returns: string

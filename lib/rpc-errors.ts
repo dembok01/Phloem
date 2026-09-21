@@ -47,6 +47,9 @@ export const RPC_ERROR_CODES = [
   // 0045 amend a submitted clinical report
   "no_changes",
   "not_latest_version",
+  // 0046 the doctor's initial report starts the program
+  "package_elapsed",
+  "bad_start",
 ] as const;
 
 export type RpcErrorCode = (typeof RPC_ERROR_CODES)[number];
@@ -74,7 +77,7 @@ export const RPC_ERROR_COPY: Record<RpcErrorCode, string> = {
   template_missing: "The form template is missing. Please contact support.",
   no_package_to_start: "There is no package ready to start for this member.",
   initial_reports_incomplete:
-    "Doctor, nutritionist and trainer reports must all be submitted before starting the program.",
+    "The doctor's initial report must be submitted before the program can start.",
   not_active: "The program isn't active.",
   not_paused: "The program isn't paused.",
   cannot_change_own_status: "You can't change your own account status.",
@@ -98,6 +101,8 @@ export const RPC_ERROR_COPY: Record<RpcErrorCode, string> = {
   duplicate_member:
     "A member with this name is already enrolled under this caregiver and hasn't finished onboarding. Open the existing profile instead of enrolling again.",
   initial_report_missing: "The initial doctor consultation report has to be submitted first.",
+  package_elapsed: "That start date is so early the whole package would already be over.",
+  bad_start: "A program can start tomorrow at the latest.",
   no_changes: "Nothing was changed, so there is nothing to correct.",
   not_latest_version:
     "This report has already been corrected — open the current version and correct that one.",
