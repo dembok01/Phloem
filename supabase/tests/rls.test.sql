@@ -622,6 +622,174 @@ insert into results select pg_temp.assert_eq('manual review: audited as manual',
   (select count(*) from audit_log where action = 'clinical_form.submitted'
       and entity_id = (select draft_id from mdr) and meta->>'manual' = 'true'), 1);
 
+-- ============ 0045: amend_clinical_report ============
+-- The author corrects their own latest version and nobody else does: no other
+-- clinician, no admin, no suspended account, no fork of an old version. The
+-- original rows are never touched, the trend shows only the corrected reading,
+-- and the notification reaches only people who may read the document.
+update profiles set status = 'active'
+ where email in ('doctor@phloem.local','nutritionist@phloem.local',
+                 'trainer@phloem.local','psychologist@phloem.local');
+create temp table amd as select
+  (select id from profiles where email = 'doctor@phloem.local')       as doctor_id,
+  (select id from profiles where email = 'nutritionist@phloem.local') as nutri_id,
+  (select id from profiles where email = 'trainer@phloem.local')      as trainer_id,
+  (select id from profiles where email = 'psychologist@phloem.local') as psych_id,
+  (select id from profiles where email = 'admin@phloem.local')        as admin_id,
+  -- Stands in as the family: the caregiver branch notifies members.caregiver_id,
+  -- whoever that profile is, and no caregiver login is seeded.
+  (select id from profiles where email = 'coordinator@phloem.local')  as family_id,
+  gen_random_uuid() as m_ok, gen_random_uuid() as m_other,
+  gen_random_uuid() as r_doc, gen_random_uuid() as r_nut, gen_random_uuid() as r_trn,
+  gen_random_uuid() as r_psy, gen_random_uuid() as r_foreign, gen_random_uuid() as r_other,
+  gen_random_uuid() as f_doc, gen_random_uuid() as f_nut, gen_random_uuid() as f_trn,
+  gen_random_uuid() as f_psy, gen_random_uuid() as f_foreign, gen_random_uuid() as f_other;
+grant select on amd to authenticated;
+
+insert into members(id, full_name, status, caregiver_id)
+  select m_ok,    'AMD assigned — test fixture',   'initial_consults'::member_status, family_id from amd union all
+  select m_other, 'AMD unassigned — test fixture', 'initial_consults'::member_status, null      from amd;
+insert into assignments(member_id, care_user_id, care_role)
+  select m_ok, doctor_id,  'doctor'::care_role from amd union all
+  select m_ok, nutri_id,   'nutritionist'      from amd union all
+  select m_ok, trainer_id, 'trainer'           from amd union all
+  select m_ok, psych_id,   'psychologist'      from amd;
+
+create function pg_temp.tmpl(k text) returns uuid language sql as $$
+  select id from form_templates where key = k and active order by version desc limit 1
+$$;
+insert into form_responses(id, member_id, template_id, respondent_id, answers, submitted_at)
+  select f_doc, m_ok, pg_temp.tmpl('doctor_initial'), doctor_id,
+         '{"clinical_summary":"Stable","bp":"184/92","clearance":"cleared","date":"2026-09-01"}'::jsonb, now() from amd union all
+  select f_nut, m_ok, pg_temp.tmpl('nutritionist_initial'), nutri_id,
+         '{"assessment_summary":"Low protein","protein_target_g":"40"}', now() from amd union all
+  select f_trn, m_ok, pg_temp.tmpl('trainer_initial'), trainer_id,
+         '{"assessment_summary":"Unsteady","sit_to_stand":"6"}', now() from amd union all
+  select f_psy, m_ok, pg_temp.tmpl('psych_checkin'), psych_id,
+         '{"session_notes":"confidential","mood":"3"}', now() from amd union all
+  select f_foreign, m_ok, pg_temp.tmpl('doctor_initial'), admin_id,
+         '{"clinical_summary":"By admin","clearance":"cleared"}', now() from amd union all
+  select f_other, m_other, pg_temp.tmpl('doctor_initial'), doctor_id,
+         '{"clinical_summary":"Elsewhere","clearance":"cleared"}', now() from amd;
+insert into reports(id, member_id, type, content, created_by, form_response_id, share_with_caregiver)
+  select r_doc, m_ok, 'doctor_initial'::report_type,
+         '{"title":"t","clearance":"cleared","sections":[]}'::jsonb, doctor_id, f_doc, true from amd union all
+  select r_nut, m_ok, 'nutrition_plan', '{"title":"t","sections":[]}', nutri_id, f_nut, false from amd union all
+  select r_trn, m_ok, 'training_plan',  '{"title":"t","sections":[]}', trainer_id, f_trn, false from amd union all
+  select r_psy, m_ok, 'wellbeing',      '{"title":"t","sections":[]}', psych_id, f_psy, false from amd union all
+  select r_foreign, m_ok, 'doctor_initial',
+         '{"title":"t","clearance":"cleared","sections":[]}', admin_id, f_foreign, false from amd union all
+  select r_other, m_other, 'doctor_initial',
+         '{"title":"t","clearance":"cleared","sections":[]}', doctor_id, f_other, false from amd;
+
+create function pg_temp.amd_call(p_report uuid, p_answers jsonb, p_reason text) returns text
+language plpgsql as $$
+begin
+  -- p_report_content NULL: exercises the _report_stub fallback path in SQL.
+  perform amend_clinical_report(p_report, p_answers, p_reason, null);
+  return 'ok';
+exception when others then return SQLERRM;
+end $$;
+create function pg_temp.amd_v2() returns uuid language sql as $$
+  select id from reports where supersedes = (select r_doc from amd)
+$$;
+
+select set_config('request.jwt.claims',
+  json_build_object('sub', (select doctor_id from amd), 'role', 'authenticated')::text, true);
+set local role authenticated;
+insert into results select pg_temp.assert_true('amend: doctor refused for an unassigned member',
+  pg_temp.amd_call((select r_other from amd), '{"clinical_summary":"x"}', 'r') = 'not_allowed');
+insert into results select pg_temp.assert_true('amend: doctor refused another clinician''s report',
+  pg_temp.amd_call((select r_nut from amd), '{"assessment_summary":"x"}', 'r') = 'not_allowed');
+insert into results select pg_temp.assert_true('amend: doctor refused a doctor report someone else wrote',
+  pg_temp.amd_call((select r_foreign from amd), '{"clinical_summary":"x"}', 'r') = 'not_allowed');
+insert into results select pg_temp.assert_true('amend: blank reason refused',
+  pg_temp.amd_call((select r_doc from amd), '{"clinical_summary":"x"}', '   ') = 'summary_required');
+insert into results select pg_temp.assert_true('amend: unchanged answers refused',
+  pg_temp.amd_call((select r_doc from amd),
+    '{"clinical_summary":"Stable","bp":"184/92","clearance":"cleared","date":"2026-09-01"}', 'r') = 'no_changes');
+insert into results select pg_temp.assert_true('amend: author corrects their own report',
+  pg_temp.amd_call((select r_doc from amd),
+    '{"clinical_summary":"Stable","bp":"148/92","clearance":"cleared","date":"2026-09-01"}', 'BP typo') = 'ok');
+insert into results select pg_temp.assert_true('amend: superseded version refused (no fork)',
+  pg_temp.amd_call((select r_doc from amd), '{"clinical_summary":"again"}', 'r') = 'not_latest_version');
+insert into results select pg_temp.assert_eq('amend: trend carries ONE systolic reading, not two',
+  (select count(*) from get_measure_series((select m_ok from amd), 'clinical') where measure_key = 'bp_systolic'), 1);
+insert into results select pg_temp.assert_true('amend: and it is the corrected one',
+  (select value from get_measure_series((select m_ok from amd), 'clinical') where measure_key = 'bp_systolic') = 148);
+
+reset role;
+select set_config('request.jwt.claims',
+  json_build_object('sub', (select admin_id from amd), 'role', 'authenticated')::text, true);
+set local role authenticated;
+insert into results select pg_temp.assert_true('amend: admin refused (borrowed desks are read-only)',
+  pg_temp.amd_call(pg_temp.amd_v2(), '{"clinical_summary":"x"}', 'r') = 'not_allowed');
+
+reset role;
+select set_config('request.jwt.claims',
+  json_build_object('sub', (select nutri_id from amd), 'role', 'authenticated')::text, true);
+set local role authenticated;
+insert into results select pg_temp.assert_true('amend: nutritionist refused the doctor''s report',
+  pg_temp.amd_call(pg_temp.amd_v2(), '{"clinical_summary":"x"}', 'r') = 'not_allowed');
+insert into results select pg_temp.assert_true('amend: nutritionist corrects their own plan',
+  pg_temp.amd_call((select r_nut from amd), '{"assessment_summary":"Low protein","protein_target_g":"60"}', 'target') = 'ok');
+
+reset role;
+select set_config('request.jwt.claims',
+  json_build_object('sub', (select trainer_id from amd), 'role', 'authenticated')::text, true);
+set local role authenticated;
+insert into results select pg_temp.assert_true('amend: trainer corrects their own plan (clearance held)',
+  pg_temp.amd_call((select r_trn from amd), '{"assessment_summary":"Unsteady","sit_to_stand":"8"}', 'count') = 'ok');
+
+reset role;
+select set_config('request.jwt.claims',
+  json_build_object('sub', (select psych_id from amd), 'role', 'authenticated')::text, true);
+set local role authenticated;
+insert into results select pg_temp.assert_true('amend: psychologist corrects their own wellbeing report',
+  pg_temp.amd_call((select r_psy from amd), '{"session_notes":"confidential","mood":"4"}', 'mood') = 'ok');
+
+reset role;
+update profiles set status = 'suspended' where email = 'doctor@phloem.local';
+select set_config('request.jwt.claims',
+  json_build_object('sub', (select doctor_id from amd), 'role', 'authenticated')::text, true);
+set local role authenticated;
+insert into results select pg_temp.assert_true('amend: suspended doctor refused',
+  pg_temp.amd_call(pg_temp.amd_v2(), '{"clinical_summary":"x"}', 'r') = 'not_allowed');
+
+reset role;
+update profiles set status = 'active' where email = 'doctor@phloem.local';
+insert into results select pg_temp.assert_true('amend: NOT executable by anon',
+  not has_function_privilege('anon', 'public.amend_clinical_report(uuid,jsonb,text,jsonb)', 'execute'));
+insert into results select pg_temp.assert_eq('amend: v2 supersedes v1, keeps sharing, links its answers',
+  (select count(*) from reports r join form_responses fr on fr.id = r.form_response_id
+    where r.id = pg_temp.amd_v2() and r.version = 2 and r.share_with_caregiver
+      and r.created_by = (select doctor_id from amd)
+      and r.content->>'amended_reason' = 'BP typo'
+      and fr.supersedes = (select f_doc from amd) and fr.answers->>'bp' = '148/92'), 1);
+insert into results select pg_temp.assert_eq('amend: the original report and answers are untouched',
+  (select count(*) from reports r join form_responses fr on fr.id = r.form_response_id
+    where r.id = (select r_doc from amd) and r.version = 1
+      and r.content = '{"title":"t","clearance":"cleared","sections":[]}'::jsonb
+      and fr.answers->>'bp' = '184/92'), 1);
+insert into results select pg_temp.assert_eq('amend: doctor report notifies its readers + the family it was shared with',
+  (select count(*) from notifications where link = '/reports/' || pg_temp.amd_v2()
+      and user_id in (select nutri_id from amd union all select trainer_id from amd
+                      union all select family_id from amd)), 3);
+insert into results select pg_temp.assert_eq('amend: psychologist and the author are not notified of it',
+  (select count(*) from notifications where link = '/reports/' || pg_temp.amd_v2()
+      and user_id in (select psych_id from amd union all select doctor_id from amd)), 0);
+insert into results select pg_temp.assert_eq('amend: nutrition plan correction never reaches the psychologist',
+  (select count(*) from notifications n join reports r on n.link = '/reports/' || r.id
+    where r.supersedes = (select r_nut from amd) and n.user_id = (select psych_id from amd)), 0);
+insert into results select pg_temp.assert_eq('amend: wellbeing correction tells no one outside admin',
+  (select count(*) from notifications n join reports r on n.link = '/reports/' || r.id
+     join profiles p on p.id = n.user_id
+    where r.supersedes = (select r_psy from amd) and p.role <> 'admin'), 0);
+insert into results select pg_temp.assert_eq('amend: audited with changed KEYS only, never values',
+  (select count(*) from audit_log where action = 'clinical_report.amended'
+      and entity_id = pg_temp.amd_v2()
+      and meta->'fields' = '["bp"]'::jsonb and meta::text not like '%148%'), 1);
+
 select line from results;
 
 rollback;

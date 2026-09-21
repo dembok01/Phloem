@@ -322,6 +322,7 @@ export type Database = {
           respondent_id: string | null
           submitted_at: string | null
           template_id: string
+          supersedes: string | null
         }
         Insert: {
           answers?: Json
@@ -333,6 +334,7 @@ export type Database = {
           respondent_id?: string | null
           submitted_at?: string | null
           template_id: string
+          supersedes?: string | null
         }
         Update: {
           answers?: Json
@@ -344,6 +346,7 @@ export type Database = {
           respondent_id?: string | null
           submitted_at?: string | null
           template_id?: string
+          supersedes?: string | null
         }
         Relationships: [
           {
@@ -372,6 +375,13 @@ export type Database = {
             columns: ["respondent_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_responses_supersedes_fkey"
+            columns: ["supersedes"]
+            isOneToOne: false
+            referencedRelation: "form_responses"
             referencedColumns: ["id"]
           },
           {
@@ -1141,6 +1151,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           cycle_id: string | null
+          form_response_id: string | null
           id: string
           member_id: string
           pdf_path: string | null
@@ -1154,6 +1165,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           cycle_id?: string | null
+          form_response_id?: string | null
           id?: string
           member_id: string
           pdf_path?: string | null
@@ -1167,6 +1179,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           cycle_id?: string | null
+          form_response_id?: string | null
           id?: string
           member_id?: string
           pdf_path?: string | null
@@ -1188,6 +1201,13 @@ export type Database = {
             columns: ["cycle_id"]
             isOneToOne: false
             referencedRelation: "cycles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reports_form_response_id_fkey"
+            columns: ["form_response_id"]
+            isOneToOne: false
+            referencedRelation: "form_responses"
             referencedColumns: ["id"]
           },
           {
@@ -1220,6 +1240,10 @@ export type Database = {
           p_meta?: Json
         }
         Returns: undefined
+      }
+      _amendable_types: {
+        Args: { p_role: Database["public"]["Enums"]["user_role"] }
+        Returns: Database["public"]["Enums"]["report_type"][]
       }
       _build_performance: { Args: { p_cycle: string }; Returns: Json }
       _notify: {
@@ -1257,6 +1281,10 @@ export type Database = {
       }
       _num_delta: { Args: { cur: string; prev: string }; Returns: string }
       _red_flags: { Args: { a: Json }; Returns: Json }
+      _report_readers: {
+        Args: { p_type: Database["public"]["Enums"]["report_type"] }
+        Returns: Database["public"]["Enums"]["care_role"][]
+      }
       _report_stub: {
         Args: { p_cycle: number; p_extra?: Json; p_title: string }
         Returns: Json
@@ -1430,6 +1458,15 @@ export type Database = {
       activate_program: { Args: { p_member: string }; Returns: undefined }
       add_manual_doctor_review: {
         Args: { p_answers: Json; p_member: string; p_report_content: Json }
+        Returns: string
+      }
+      amend_clinical_report: {
+        Args: {
+          p_answers: Json
+          p_reason: string
+          p_report: string
+          p_report_content?: Json
+        }
         Returns: string
       }
       assign_care_team: {

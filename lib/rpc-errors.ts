@@ -44,6 +44,9 @@ export const RPC_ERROR_CODES = [
   "duplicate_member",
   // 0036 manual doctor review
   "initial_report_missing",
+  // 0045 amend a submitted clinical report
+  "no_changes",
+  "not_latest_version",
 ] as const;
 
 export type RpcErrorCode = (typeof RPC_ERROR_CODES)[number];
@@ -95,6 +98,9 @@ export const RPC_ERROR_COPY: Record<RpcErrorCode, string> = {
   duplicate_member:
     "A member with this name is already enrolled under this caregiver and hasn't finished onboarding. Open the existing profile instead of enrolling again.",
   initial_report_missing: "The initial doctor consultation report has to be submitted first.",
+  no_changes: "Nothing was changed, so there is nothing to correct.",
+  not_latest_version:
+    "This report has already been corrected — open the current version and correct that one.",
 };
 
 export function rpcErrorMessage(
