@@ -35,10 +35,15 @@ export default async function PortalReportsPage({ params }: { params: Promise<{ 
 
   const { data: reports } = await supabase
     .from("reports")
-    .select("id, type, created_at")
+    .select("id, type, created_at, supersedes")
     .eq("member_id", id)
     .order("created_at", { ascending: false });
-  const list = reports ?? [];
+
+  // 0045 — a report the care team corrected leaves both versions in the table.
+  // The family is shown the one that stands; the version it replaced is reachable
+  // from the report page, which already explains the relationship.
+  const replaced = new Set((reports ?? []).map((r) => r.supersedes).filter((v): v is string => !!v));
+  const list = (reports ?? []).filter((r) => !replaced.has(r.id));
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">

@@ -1228,3 +1228,82 @@ for stalled initial rounds is to be discussed.
 
 - Visibility is exactly a normal doctor review (family only if shared).
 - Allowed repeatedly (a third month is the same situation); cycle is left NULL.
+
+## Correcting a submitted report (2026-09-21) — ✅
+
+**Why.** Requested: the doctor, nutritionist and trainer should be able to edit the
+reports they submit after a consultation. §8 already fixed the mechanism — reports
+are "immutable once submitted (amendments create versions)", and `reports.version`
+/ `supersedes` have existed since 0001 — but no clinical path used it. A typed-wrong
+blood pressure or a missing protein target could only be fixed by an admin editing rows.
+
+### Built
+
+- **0045 `amend_clinical_report(report, answers, reason, report_content)`** — the
+  `amend_onboarding` pattern for clinical reports. Refuses unless the caller wrote
+  the report, is still assigned, and the type is one their role authors
+  (`_amendable_types`); refuses a version something already supersedes, a blank
+  reason, an unchanged answer set; re-runs the trainer clearance gate. Inserts a new
+  `form_responses` row and a `reports` row at `version + 1`, both pointing at what
+  they replace, carrying `share_with_caregiver` forward and stamping
+  `amended_reason`. **Nothing is updated in place.** Does not re-seed cases (the
+  0024 helpers append — they would duplicate) and does not touch
+  `consultations.report_status`. Audits `clinical_report.amended` with the changed
+  field *keys* and the reason, never values.
+- **Notifications go to readers only** (`_report_readers`, which is `rep_*` from 0002
+  written as data): colleagues who may open that type, minus the author; the family
+  only for plans (always visible to them) or a doctor report already shared; a
+  wellbeing correction tells admins and nobody else (§3). `_notify_care_team` was
+  deliberately not used — it would have handed a nutritionist the reason a training
+  plan changed.
+- **`reports.form_response_id`** — a report and its answers were written in one
+  transaction but never linked. Backfilled by the equality that already held
+  (member, author, `submitted_at = created_at`): 12/12 clinical reports matched,
+  none ambiguously; 25 rows linked in all.
+- **`form_responses.supersedes` + `get_measure_series` filter** — without it a
+  corrected reading plots *beside* the wrong one. Unique partial indexes on both
+  `supersedes` columns make a forked history impossible, not just refused.
+- **UI**: "Correct this report" on the clinician's own live reports (Reports tab)
+  and "Something wrong? Correct it" after submitting (Consult form tab) open
+  `/clinician/clients/[id]/reports/[reportId]/edit` — the form prefilled with the
+  submitted answers, required-field check, required "What are you correcting?",
+  changed-answer count; saving goes to the new version. It is **not** `ClinicalForm`:
+  that one autosaves into a draft response, which here would rewrite the answers
+  behind the original report.
+- **Report lists show the live version only** — clinician Reports tab, family
+  Reports page, admin member page. The admin page matters most: its per-report
+  sharing toggle on a superseded version would have put the replaced copy in front
+  of the family. Earlier versions stay reachable from the report page's existing
+  "Versions" links. Corrected rows read "· corrected".
+
+### Verification
+
+- 0045 applied to the hosted project via MCP; `anon` holds no EXECUTE on the three
+  new functions.
+- §16 block `0045: amend_clinical_report` (self-contained fixtures, id-agnostic) run
+  via MCP `execute_sql` in a rolled-back transaction — **23/23 PASS**: unassigned
+  member, another clinician's report, a same-type report by someone else, admin,
+  another role, and a suspended account all refused `not_allowed`; blank reason,
+  no-op and superseded version refused; doctor, nutritionist, trainer and
+  psychologist each correct their own; v1 report + answers byte-identical after;
+  the trend holds one systolic reading and it is the corrected one; notifications
+  reach exactly the readers (and the family for a shared report), never the
+  psychologist for a non-wellbeing report, never anyone but admins for a wellbeing
+  one; audit carries keys, no values. Confirmed afterwards no fixture rows or status
+  changes persisted. The full suite still can't run on hosted (real client data vs
+  its seed-dependent early blocks — known, see earlier entries).
+- `tsc --noEmit` clean; `test:unit` 116/116 (the registry test covers the new
+  `no_changes` / `not_latest_version` codes).
+
+### Assumptions / decisions
+
+- Decided with the requester: the **psychologist** can correct wellbeing reports
+  too; **no time limit** (versioning + audit are the control); committed to `main`.
+- Numbered **0045**: 0035 and 0037–0044 are on `feature/record-correction` and
+  already applied to hosted. `lib/supabase/database.types.ts` was edited by hand
+  for 0045's additions only, so main's types keep describing main's migrations.
+- A doctor whose correction changes the problem list edits cases directly in
+  "Health matters"; the correction does not touch cases.
+- A trainer can't correct a plan while the doctor's latest report withholds
+  clearance — the same gate as submitting.
+- Monthly feedback forms are out of scope (not consultation reports).

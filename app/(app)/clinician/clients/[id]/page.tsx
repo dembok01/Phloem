@@ -1,7 +1,7 @@
 import { cache, Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CheckCircle2, Eye, FileCheck2, FilePlus2, Lock, ShieldAlert } from "lucide-react";
+import { CheckCircle2, Eye, FileCheck2, FilePlus2, Lock, Pencil, ShieldAlert } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CardSkeleton } from "@/components/ui/skeleton";
 import { Who5Card } from "@/components/charts/who5-card";
@@ -74,6 +74,19 @@ const TABS: Record<CareRole, [string, string][]> = {
     ["reports", "Wellbeing reports"],
   ],
 };
+
+// 0045 — the report types a clinician authors from a consult form, and can
+// therefore correct. _amendable_types() in the database is the same list and the
+// real gate; this one only decides whether to draw the link.
+const AMENDABLE_TYPES = new Set<Database["public"]["Enums"]["report_type"]>([
+  "doctor_initial",
+  "doctor_review",
+  "nutrition_plan",
+  "nutrition_review",
+  "training_plan",
+  "training_review",
+  "wellbeing",
+]);
 
 function templateKey(role: CareRole, isInitial: boolean): string {
   if (role === "psychologist") return "psych_checkin";
@@ -266,7 +279,13 @@ export default async function ClinicianClientPage({
           <div className="space-y-4">
             {/* §3: WHO-5 renders only where psych responses are readable (psychologist/admin). */}
             {role === "psychologist" ? <Who5Card memberId={id} /> : null}
-            <ReportsPanel supabase={supabase} memberId={id} canCompile={role === "doctor"} />
+            <ReportsPanel
+              supabase={supabase}
+              memberId={id}
+              canCompile={role === "doctor"}
+              userId={session.user.id}
+              canAmend={!isAdminView}
+            />
             {role === "doctor" ? <DocumentsPanel supabase={supabase} memberId={id} /> : null}
           </div>
         ) : null}
@@ -580,23 +599,34 @@ async function ReportsPanel({
   supabase,
   memberId,
   canCompile,
+  userId,
+  canAmend,
 }: {
   supabase: SB;
   memberId: string;
   /** only the doctor compiles the progress summary on demand (the RPC agrees) */
   canCompile: boolean;
+  userId: string;
+  /** false on a borrowed admin desk — those are read-only (amend_clinical_report agrees) */
+  canAmend: boolean;
 }) {
   // P-5 read receipts: fetch family (caregiver/member) opens of the reports THIS
   // clinician authored, so each row can say whether the plan was actually read.
   const [{ data: reports }, { data: receipts }] = await Promise.all([
     supabase
       .from("reports")
-      .select("id, type, created_at")
+      .select("id, type, created_at, created_by, version, supersedes")
       .eq("member_id", memberId)
       .order("created_at", { ascending: false }),
     supabase.rpc("get_report_view_receipts", { p_member: memberId }),
   ]);
-  const list = reports ?? [];
+
+  // 0045 — a correction supersedes rather than replaces, so both rows are here.
+  // Only the live one is listed: two rows reading "Doctor's Review Report" with
+  // nothing to tell them apart is worse than no history at all, and the version
+  // that was corrected stays one click away on the report page itself.
+  const replaced = new Set((reports ?? []).map((r) => r.supersedes).filter((v): v is string => !!v));
+  const list = (reports ?? []).filter((r) => !replaced.has(r.id));
 
   // The active cycle is what a fresh summary would cover; null means "all time",
   // which is the right scope before the first cycle starts.
@@ -627,21 +657,41 @@ async function ReportsPanel({
           <ul className="divide-y">
             {list.map((r) => {
               const receipt = receiptByReport.get(r.id);
+              // Their own work, and a type written from a consult form — a
+              // performance or progress report is compiled, not authored, so
+              // there are no answers behind it to correct.
+              const amendable =
+                canAmend && r.created_by === userId && AMENDABLE_TYPES.has(r.type);
               return (
                 <li key={r.id} className="py-2">
                   <ReportPeek
                     reportId={r.id}
                     className="flex w-full items-center justify-between hover:underline"
                   >
-                    <span className="text-sm font-medium">{humanize(r.type)}</span>
+                    <span className="text-sm font-medium">
+                      {humanize(r.type)}
+                      {r.version > 1 ? (
+                        <span className="ml-1.5 font-normal text-muted-foreground">· corrected</span>
+                      ) : null}
+                    </span>
                     <span className="text-xs text-muted-foreground">{formatDateTimeIST(r.created_at)}</span>
                   </ReportPeek>
-                  {receipt ? (
-                    <p className="mt-0.5 inline-flex items-center gap-1.5 text-xs text-success">
-                      <Eye className="size-3.5" aria-hidden />
-                      Opened by {receipt.viewer_name.split(" ")[0]} · {formatDateTimeIST(receipt.last_viewed_at)}
-                    </p>
-                  ) : null}
+                  <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+                    {receipt ? (
+                      <p className="inline-flex items-center gap-1.5 text-xs text-success">
+                        <Eye className="size-3.5" aria-hidden />
+                        Opened by {receipt.viewer_name.split(" ")[0]} · {formatDateTimeIST(receipt.last_viewed_at)}
+                      </p>
+                    ) : null}
+                    {amendable ? (
+                      <Link
+                        href={`/clinician/clients/${memberId}/reports/${r.id}/edit`}
+                        className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                      >
+                        <Pencil className="size-3.5" aria-hidden /> Correct this report
+                      </Link>
+                    ) : null}
+                  </div>
                 </li>
               );
             })}
@@ -742,6 +792,16 @@ async function FormPanel({
             >
               View {humanize(lastOwnReport.type).toLowerCase()} →
             </ReportPeek>
+          ) : null}
+          {/* Newest-first, so a corrected report is never the one found here —
+              its correction is. Always safe to offer. */}
+          {lastOwnReport && AMENDABLE_TYPES.has(lastOwnReport.type) ? (
+            <Link
+              href={`/clinician/clients/${memberId}/reports/${lastOwnReport.id}/edit`}
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+            >
+              <Pencil className="size-3.5" aria-hidden /> Something wrong? Correct it
+            </Link>
           ) : null}
           {canFollowUp ? (
             <div className="mt-3 flex flex-col items-center gap-2 border-t pt-5">

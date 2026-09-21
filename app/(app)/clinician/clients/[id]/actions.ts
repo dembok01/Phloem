@@ -163,6 +163,92 @@ export async function submitManualDoctorReview(input: {
   return actionOk({ reportId: reportId as string });
 }
 
+const amendSchema = z.object({
+  member_id: z.string().uuid(),
+  report_id: z.string().uuid(),
+  answers: z.record(z.string(), z.unknown()),
+  reason: z.string().trim().min(1, "Say what you are correcting.").max(500),
+});
+
+const AMEND_MESSAGES: Partial<Record<RpcErrorCode, string>> = {
+  not_allowed: "You can only correct a report you wrote, for a member you're still assigned to.",
+  not_latest_version:
+    "This report has already been corrected — open the current version and correct that one.",
+  no_changes: "Nothing was changed, so there is nothing to correct.",
+  invalid_response: "The answers behind this report can't be found, so it can't be corrected here.",
+  awaiting_doctor_clearance:
+    "The doctor has since withdrawn exercise clearance, so this plan can't be edited right now.",
+  summary_required: "Say what you are correcting before saving.",
+};
+
+/**
+ * 0045 — correct a report this clinician already submitted. Reports stay immutable
+ * (§8): the RPC supersedes both the answers and the document with a new version
+ * rather than overwriting either, so `reportId` below is a NEW id. Content is built
+ * with the same builder `submitClinicalForm` uses, so a correction is as complete a
+ * document as the original rather than a stub.
+ */
+export async function amendClinicalReport(input: {
+  member_id: string;
+  report_id: string;
+  answers: Record<string, unknown>;
+  reason: string;
+}): Promise<ActionResult<{ reportId: string }>> {
+  const parsed = amendSchema.safeParse(input);
+  if (!parsed.success) {
+    return actionFail(parsed.error.issues[0]?.message ?? "Check the correction and try again.");
+  }
+  const { member_id, report_id, answers, reason } = parsed.data;
+
+  const supabase = await createClient();
+
+  // The report's own row decides the type and cycle — never the caller's input, so
+  // a tampered payload cannot retitle someone's report. RLS already limits this
+  // read to reports the caller may see; the RPC re-checks authorship regardless.
+  const { data: report } = await supabase
+    .from("reports")
+    .select("type, cycle_id")
+    .eq("id", report_id)
+    .maybeSingle();
+  if (!report) return actionFail("That report could not be found.");
+
+  const { data: member } = await supabase
+    .from("members")
+    .select("full_name")
+    .eq("id", member_id)
+    .maybeSingle();
+
+  let cycleNumber: number | null = null;
+  if (report.cycle_id) {
+    const { data: cyc } = await supabase
+      .from("cycles")
+      .select("number")
+      .eq("id", report.cycle_id)
+      .maybeSingle();
+    cycleNumber = cyc?.number ?? null;
+  }
+
+  const content = buildClinicalReport(report.type, {
+    memberName: member?.full_name ?? "Member",
+    answers,
+    cycle: cycleNumber,
+  });
+
+  const { data: newReportId, error: rpcErr } = await supabase.rpc("amend_clinical_report", {
+    p_report: report_id,
+    p_answers: answers as unknown as Json,
+    p_reason: reason,
+    p_report_content: content as unknown as Json,
+  });
+  if (rpcErr) {
+    return actionFromError(rpcErr, "Could not save the correction. Please try again.", AMEND_MESSAGES);
+  }
+
+  revalidatePath(`/clinician/clients/${member_id}`);
+  revalidatePath(`/reports/${report_id}`);
+  return actionOk({ reportId: newReportId as string });
+}
+
 // ============ W1.4 — cases ============
 // A case is a clinical problem tracked across cycles. Authoring is mostly
 // automatic (submit_clinical_form seeds cases from the doctor's problem list and

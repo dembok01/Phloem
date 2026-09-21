@@ -101,7 +101,7 @@ export default async function AdminMemberPage({
       .maybeSingle(),
     supabase
       .from("reports")
-      .select("id, type, created_at, share_with_caregiver")
+      .select("id, type, created_at, share_with_caregiver, supersedes")
       .eq("member_id", id)
       .order("created_at", { ascending: false }),
     supabase
@@ -112,6 +112,14 @@ export default async function AdminMemberPage({
       .limit(1)
       .maybeSingle(),
   ]);
+
+  // 0045 — a corrected report leaves its previous version in the table. The list
+  // shows the one that stands, and the sharing toggle below goes with it: an admin
+  // flipping share_with_caregiver on a superseded version would put the copy the
+  // care team already replaced in front of the family. History stays reachable from
+  // the report page's version links and from the audit log.
+  const replaced = new Set((reports ?? []).map((r) => r.supersedes).filter((v): v is string => !!v));
+  const liveReports = (reports ?? []).filter((r) => !replaced.has(r.id));
 
   const { data: cycles } = pkg
     ? await supabase
@@ -201,11 +209,11 @@ export default async function AdminMemberPage({
           <CardTitle>Reports</CardTitle>
         </CardHeader>
         <CardContent>
-          {(reports ?? []).length === 0 ? (
+          {liveReports.length === 0 ? (
             <p className="text-sm text-muted-foreground">No reports yet.</p>
           ) : (
             <ul className="divide-y">
-              {(reports ?? []).map((r) => (
+              {liveReports.map((r) => (
                 <li key={r.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-2">
                   <ReportPeek
                     reportId={r.id}
