@@ -993,6 +993,104 @@ insert into results select pg_temp.assert_true('program: _start_program is not c
 insert into results select pg_temp.assert_true('program: activate_program is not callable by anon',
   not has_function_privilege('anon', 'public.activate_program(uuid,date)', 'execute'));
 
+-- ============ 0048: the coordinator closes a report by hand ============
+-- Only admin/coordinator, only a report actually being chased, only the two known
+-- reasons. "Received outside" still counts as the plan (the role joins the cycle, a
+-- doctor's intake starts the program); "not needed" only closes the item.
+reset role;
+select set_config('request.jwt.claims', '', true);
+update profiles set status = 'active'
+ where email in ('doctor@phloem.local','nutritionist@phloem.local','coordinator@phloem.local');
+create temp table crp as select
+  (select id from profiles where email = 'doctor@phloem.local')       as doctor_id,
+  (select id from profiles where email = 'nutritionist@phloem.local') as nutri_id,
+  (select id from profiles where email = 'coordinator@phloem.local')  as coord_id,
+  gen_random_uuid() as m_a, gen_random_uuid() as m_b,
+  gen_random_uuid() as c_doc, gen_random_uuid() as c_nut, gen_random_uuid() as c_nut_b,
+  gen_random_uuid() as c_unheld;
+grant select on crp to authenticated;
+insert into members(id, full_name, status)
+  select m_a, 'CRP outside — test fixture', 'initial_consults'::member_status from crp union all
+  select m_b, 'CRP not needed — test fixture', 'initial_consults' from crp;
+insert into packages(member_id, duration_months)
+  select m_a, 3 from crp union all select m_b, 3 from crp;
+insert into assignments(member_id, care_user_id, care_role)
+  select m_a, doctor_id, 'doctor'::care_role from crp union all
+  select m_a, nutri_id,  'nutritionist'      from crp union all
+  select m_b, nutri_id,  'nutritionist'      from crp;
+insert into consultations(id, member_id, cycle_id, type, meeting_status, completed_at)
+  select c_doc,    m_a, null::uuid, 'doctor'::care_role, 'done'::meeting_status, now() from crp union all
+  select c_nut,    m_a, null, 'nutritionist', 'done',        now() from crp union all
+  select c_nut_b,  m_b, null, 'nutritionist', 'done',        now() from crp union all
+  select c_unheld, m_b, null, 'doctor',       'to_schedule', null  from crp;
+create function pg_temp.crp_try(q text) returns text language plpgsql as $$
+begin execute q; return 'ok'; exception when others then return SQLERRM; end $$;
+
+-- clinicians cannot close their own (or anyone's) chased report
+select set_config('request.jwt.claims',
+  json_build_object('sub', (select nutri_id from crp), 'role', 'authenticated')::text, true);
+set local role authenticated;
+insert into results select pg_temp.assert_true('close report: a nutritionist cannot',
+  pg_temp.crp_try(format('select close_report(%L, %L)', (select c_nut from crp), 'not_needed')) = 'not_allowed');
+reset role;
+select set_config('request.jwt.claims',
+  json_build_object('sub', (select doctor_id from crp), 'role', 'authenticated')::text, true);
+set local role authenticated;
+insert into results select pg_temp.assert_true('close report: a doctor cannot',
+  pg_temp.crp_try(format('select close_report(%L, %L)', (select c_doc from crp), 'received_outside')) = 'not_allowed');
+
+-- the coordinator can, within the rules
+reset role;
+select set_config('request.jwt.claims',
+  json_build_object('sub', (select coord_id from crp), 'role', 'authenticated')::text, true);
+set local role authenticated;
+insert into results select pg_temp.assert_true('close report: an unknown reason is refused',
+  pg_temp.crp_try(format('select close_report(%L, %L)', (select c_nut from crp), 'lost_it')) = 'bad_reason');
+insert into results select pg_temp.assert_true('close report: a meeting not held is not a chased report',
+  pg_temp.crp_try(format('select close_report(%L, %L)', (select c_unheld from crp), 'not_needed')) = 'report_not_pending');
+insert into results select pg_temp.assert_true('close report: the doctor''s intake, received on WhatsApp',
+  pg_temp.crp_try(format('select close_report(%L, %L, %L)', (select c_doc from crp), 'received_outside',
+                         'Sent to the family on WhatsApp')) = 'ok');
+insert into results select pg_temp.assert_true('close report: the nutrition plan, received outside too',
+  pg_temp.crp_try(format('select close_report(%L, %L)', (select c_nut from crp), 'received_outside')) = 'ok');
+insert into results select pg_temp.assert_true('close report: another nutrition report, not needed',
+  pg_temp.crp_try(format('select close_report(%L, %L)', (select c_nut_b from crp), 'not_needed')) = 'ok');
+insert into results select pg_temp.assert_true('close report: a closed report cannot be closed again',
+  pg_temp.crp_try(format('select close_report(%L, %L)', (select c_nut from crp), 'not_needed')) = 'report_not_pending');
+
+reset role;
+select set_config('request.jwt.claims', '', true);
+insert into results select pg_temp.assert_true('close report: recorded with reason, note, who and when',
+  (select report_status = 'closed' and report_closed_reason = 'received_outside'
+      and report_closed_note = 'Sent to the family on WhatsApp'
+      and report_closed_by = (select coord_id from crp) and report_closed_at is not null
+     from consultations where id = (select c_doc from crp)));
+insert into results select pg_temp.assert_true('close report: a doctor intake received outside starts the program',
+  (select status = 'active' from packages where member_id = (select m_a from crp)));
+insert into results select pg_temp.assert_true('close report: "received outside" joins the cycle, "not needed" does not',
+  _role_started((select id from packages where member_id = (select m_a from crp)), 'nutritionist')
+  and not _role_started((select id from packages where member_id = (select m_b from crp)), 'nutritionist'));
+insert into results select pg_temp.assert_eq('close report: the clinician is told their form closed',
+  (select count(*) from notifications
+    where dedupe_key = 'repclosed:' || (select c_nut_b from crp) and user_id = (select nutri_id from crp)), 1);
+insert into results select pg_temp.assert_eq('close report: audited',
+  (select count(*) from audit_log where action = 'consultation.report_closed'
+      and entity_id in ((select c_doc from crp), (select c_nut from crp), (select c_nut_b from crp))), 3);
+
+-- suspended coordinator: refused (0017 fail-closed)
+update consultations set report_status = 'pending', report_closed_reason = null
+ where id = (select c_nut_b from crp);
+update profiles set status = 'suspended' where email = 'coordinator@phloem.local';
+select set_config('request.jwt.claims',
+  json_build_object('sub', (select coord_id from crp), 'role', 'authenticated')::text, true);
+set local role authenticated;
+insert into results select pg_temp.assert_true('close report: a suspended coordinator cannot',
+  pg_temp.crp_try(format('select close_report(%L, %L)', (select c_nut_b from crp), 'not_needed')) = 'not_allowed');
+reset role;
+update profiles set status = 'active' where email = 'coordinator@phloem.local';
+insert into results select pg_temp.assert_true('close report: not callable by anon',
+  not has_function_privilege('anon', 'public.close_report(uuid,text,text)', 'execute'));
+
 select line from results;
 
 rollback;

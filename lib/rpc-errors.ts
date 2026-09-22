@@ -50,6 +50,9 @@ export const RPC_ERROR_CODES = [
   // 0046 the doctor's initial report starts the program
   "package_elapsed",
   "bad_start",
+  // 0048 the coordinator closes a report by hand
+  "bad_reason",
+  "report_not_pending",
 ] as const;
 
 export type RpcErrorCode = (typeof RPC_ERROR_CODES)[number];
@@ -103,6 +106,8 @@ export const RPC_ERROR_COPY: Record<RpcErrorCode, string> = {
   initial_report_missing: "The initial doctor consultation report has to be submitted first.",
   package_elapsed: "That start date is so early the whole package would already be over.",
   bad_start: "A program can start tomorrow at the latest.",
+  bad_reason: "Choose why the report is being closed.",
+  report_not_pending: "That report isn't waiting on anyone — it may already be in or closed.",
   no_changes: "Nothing was changed, so there is nothing to correct.",
   not_latest_version:
     "This report has already been corrected — open the current version and correct that one.",

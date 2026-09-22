@@ -218,6 +218,10 @@ export type Database = {
           meeting_status: Database["public"]["Enums"]["meeting_status"]
           member_id: string
           mode: Database["public"]["Enums"]["consult_mode"] | null
+          report_closed_at: string | null
+          report_closed_by: string | null
+          report_closed_note: string | null
+          report_closed_reason: string | null
           report_status: Database["public"]["Enums"]["submit_status"]
           scheduled_at: string | null
           type: Database["public"]["Enums"]["care_role"]
@@ -233,6 +237,10 @@ export type Database = {
           meeting_status?: Database["public"]["Enums"]["meeting_status"]
           member_id: string
           mode?: Database["public"]["Enums"]["consult_mode"] | null
+          report_closed_at?: string | null
+          report_closed_by?: string | null
+          report_closed_note?: string | null
+          report_closed_reason?: string | null
           report_status?: Database["public"]["Enums"]["submit_status"]
           scheduled_at?: string | null
           type: Database["public"]["Enums"]["care_role"]
@@ -248,6 +256,10 @@ export type Database = {
           meeting_status?: Database["public"]["Enums"]["meeting_status"]
           member_id?: string
           mode?: Database["public"]["Enums"]["consult_mode"] | null
+          report_closed_at?: string | null
+          report_closed_by?: string | null
+          report_closed_note?: string | null
+          report_closed_reason?: string | null
           report_status?: Database["public"]["Enums"]["submit_status"]
           scheduled_at?: string | null
           type?: Database["public"]["Enums"]["care_role"]
@@ -1485,6 +1497,10 @@ export type Database = {
         Returns: Database["public"]["Enums"]["user_role"]
       }
       close_cycle_open_next: { Args: { p_cycle: string }; Returns: undefined }
+      close_report: {
+        Args: { p_cons: string; p_note?: string; p_reason: string }
+        Returns: undefined
+      }
       compile_performance_report: { Args: { p_cycle: string }; Returns: string }
       create_member_with_invite: {
         Args: {
@@ -1622,7 +1638,7 @@ export type Database = {
         | "wellbeing"
         | "performance"
         | "progress_summary"
-      submit_status: "pending" | "submitted"
+      submit_status: "pending" | "submitted" | "closed"
       user_role:
         | "admin"
         | "coordinator"
@@ -1800,7 +1816,7 @@ export const Constants = {
         "performance",
         "progress_summary",
       ],
-      submit_status: ["pending", "submitted"],
+      submit_status: ["pending", "submitted", "closed"],
       user_role: [
         "admin",
         "coordinator",
