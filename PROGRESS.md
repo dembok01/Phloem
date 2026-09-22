@@ -1361,3 +1361,19 @@ nowhere to go (the 0036 manual button was the stopgap).
   than 14 days late starts from tomorrow; an admin can backdate.
 - A doctor clearance of "on hold" still starts the program (nutrition and monitoring
   apply; the trainer form stays locked by its own gate).
+
+### Backfill (2026-09-22, user-approved) — ✅
+
+After a dry-run table was approved, `activate_program(member, consult_date + 1)` ran
+as the admin for the 11 waiting members, in one transaction guarded to abort unless
+the members and start dates matched the approved table exactly. Result:
+- Dibesh, Sunitha, Haseena and Mohammed: cycle 2 current, with its doctor review
+  round open. Dibesh's 17 Sep manual review was filed as that round's doctor report,
+  and his stray second intake was cancelled.
+- The other 7: cycle 1 current.
+- 0 family messages; one note per member to admin and coordinator.
+
+A 12th member (Kulsu) had already started on her own through the new path: her
+doctor's initial report at 08:10 IST started the program (source `doctor_initial`,
+start 22 Sep), and her family, care team and staff were notified. That is the first
+live confirmation of the automatic start.
