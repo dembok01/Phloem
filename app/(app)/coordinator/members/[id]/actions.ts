@@ -95,3 +95,34 @@ export async function markMeetingDone(formData: FormData): Promise<void> {
   revalidatePath(`/coordinator/members/${parsed.data.member_id}`);
   backTo(parsed.data.member_id, undefined, "meeting_done");
 }
+
+const closeSchema = z.object({
+  member_id: z.string().uuid(),
+  consultation_id: z.string().uuid(),
+  reason: z.enum(["received_outside", "not_needed"]),
+  note: z.string().trim().max(200).optional(),
+});
+
+/** 0048 close_report — the manual override for "Chase the report": the report came
+ * in outside the dashboard (e.g. WhatsApp) or is not needed. The RPC re-checks the
+ * role and that the report is actually being chased; notifies the clinician. */
+export async function closeReport(formData: FormData): Promise<void> {
+  const parsed = closeSchema.safeParse({
+    member_id: formData.get("member_id"),
+    consultation_id: formData.get("consultation_id"),
+    reason: formData.get("reason"),
+    note: formData.get("note") || undefined,
+  });
+  if (!parsed.success) backTo(String(formData.get("member_id") ?? ""), "invalid");
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("close_report", {
+    p_cons: parsed.data.consultation_id,
+    p_reason: parsed.data.reason,
+    p_note: parsed.data.note,
+  });
+  if (error) backTo(parsed.data.member_id, "close_failed");
+  revalidatePath(`/coordinator/members/${parsed.data.member_id}`);
+  revalidatePath("/coordinator");
+  backTo(parsed.data.member_id, undefined, "report_closed");
+}

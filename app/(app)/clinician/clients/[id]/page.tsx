@@ -782,9 +782,11 @@ async function FormPanel({
       ? "No consultation yet — the coordinator will schedule one."
       : submitted
         ? "Your report for this consultation is in."
-        : latest.meeting_status === "scheduled"
-          ? `The form opens after the coordinator marks the meeting done (scheduled ${formatDateTimeIST(latest.scheduled_at)}).`
-          : "The form opens once your meeting is scheduled and marked done.";
+        : latest.report_status === "closed"
+          ? "The coordinator closed this report — it reached the family another way, or isn't needed."
+          : latest.meeting_status === "scheduled"
+            ? `The form opens after the coordinator marks the meeting done (scheduled ${formatDateTimeIST(latest.scheduled_at)}).`
+            : "The form opens once your meeting is scheduled and marked done.";
     return (
       <Card>
         <CardContent className="flex flex-col items-center gap-3 py-8 text-center">

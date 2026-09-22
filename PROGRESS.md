@@ -1377,3 +1377,53 @@ A 12th member (Kulsu) had already started on her own through the new path: her
 doctor's initial report at 08:10 IST started the program (source `doctor_initial`,
 start 22 Sep), and her family, care team and staff were notified. That is the first
 live confirmation of the automatic start.
+
+## Coordinator queue cleanup + closing a report by hand (2026-09-22)
+
+### Cleanup before the coordinator demo (owner-approved, hosted data)
+
+Applied in one transaction, guarded to abort unless every item was still in the
+inventoried state:
+- **7 first nutritionist/trainer consultations never scheduled** (oldest 12 Aug:
+  Dibesh ×2, Gigi ×2, Haseena, Saly, Maya's trainer) → `cancelled`, each audited as
+  `consultation.cancelled`. There's no cancel RPC, so this was a direct update.
+  Re-assigning the role creates a fresh consultation.
+- **3 nutritionist meetings scheduled in the past and never marked done** (Sunitha
+  14 Aug, Anjana and Maya 10 Sep) → marked done through `mark_meeting_done` as the
+  coordinator, which asked Sona to submit her form.
+- **78 unread coordinator notifications** → marked read.
+- **Kept, per the owner:** today's three month-2 doctor reviews; the 4 reports owed
+  from held meetings (Deepak nutrition, Sunitha training, Mohammed nutrition + training);
+  and Reji's "Assign the care team", left for the demo.
+- **Untouched:** "Families who have gone quiet" measures real family activity.
+
+### Built — 0047 + 0048
+
+- `submit_status` gains `closed` (0047, on its own because Postgres can't use a
+  new enum value in the transaction that adds it).
+- `close_report(cons, reason, note)` (0048):
+  - admin or coordinator only
+  - only a report actually being chased (meeting done, report pending)
+  - reason is `received_outside` (e.g. WhatsApp) or `not_needed`, plus an optional
+    note of up to 200 characters
+  - records who closed it and when, audits it, and notifies the clinician
+- Everything that chases reports keys on `pending`: the queue, the admin
+  escalation, the daily overdue alerts and the clinician's form. So a closed report
+  leaves all of them with no further change.
+- **`received_outside` is still the plan:** `_role_started` counts it, so that role
+  joins the monthly cycle. A doctor's intake closed this way starts the program as
+  submitting would. `not_needed` only closes the item.
+- **UI:** "Close report manually" (reason + note) on the coordinator's consultation
+  row; a "Report closed" chip plus a reason line afterwards; the clinician's form
+  panel explains the closure; the queue's "Chase the report" hint mentions the option.
+
+### Verification
+
+- 0048 plus its §16 block ran in a rolled-back transaction on the hosted project:
+  **15/15 PASS**. Covered: nutritionist, doctor, suspended coordinator and anon
+  refused; unknown reason refused; an unheld meeting and an already-closed report
+  refused; reason, note, who and when recorded; a doctor intake received outside
+  starts the program; received-outside joins the cycle and not-needed doesn't;
+  clinician notified; audited.
+- 0047 and 0048 are applied.
+- `lib/next-actions.test.ts`: a closed report yields no queue or admin row.

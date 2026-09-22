@@ -71,6 +71,13 @@ function ReportSegment({ status, meetingDone }: { status: string; meetingDone: b
       </span>
     );
   }
+  if (status === "closed") {
+    return (
+      <span className={cn(SEG, "bg-muted text-muted-foreground")}>
+        <FileCheck2 className="size-3.5" aria-hidden /> Report closed
+      </span>
+    );
+  }
   // Pending is only "hot" once the meeting has happened.
   return (
     <span className={cn(SEG, meetingDone ? "bg-warning-tint text-warning" : "bg-muted text-muted-foreground")}>

@@ -231,7 +231,7 @@ export function nextActions(input: NextActionsInput): NextAction[] {
         verb: `Chase the ${role} report`, short: "Chase the report",
         subject, memberId: c.member_id, role, href: to,
         why: "The meeting happened but the clinician has not filed their report.",
-        how: "The next cycle stage waits on this report.",
+        how: "The next cycle stage waits on this report. If it came by WhatsApp or isn't needed, close it manually from their page.",
       });
       if (age !== null && age > STALE_DAYS) {
         out.push({

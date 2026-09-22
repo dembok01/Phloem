@@ -26,7 +26,7 @@ import {
   type CareRole,
   type MemberStatus,
 } from "@/lib/member-status";
-import { assignCareTeam, markMeetingDone, scheduleConsultation } from "./actions";
+import { assignCareTeam, closeReport, markMeetingDone, scheduleConsultation } from "./actions";
 
 const ROLE_LABEL: Record<CareRole, string> = {
   doctor: "Doctor",
@@ -44,6 +44,7 @@ const ERRORS: Record<string, string> = {
   bad_time: "Please choose a valid date and time.",
   schedule_failed: "Could not save the schedule. Please try again.",
   done_failed: "Could not mark the meeting done — is it scheduled?",
+  close_failed: "Could not close the report — it may already be in or closed.",
   initial_incomplete: "The doctor's initial report must be submitted first.",
   no_package: "There is no package ready to start for this member.",
   not_active: "The program isn't active.",
@@ -58,6 +59,7 @@ const OKS: Record<string, string> = {
   assigned: "Assigned to the care team",
   scheduled: "Consultation scheduled",
   meeting_done: "Meeting marked done — the professional has been asked to submit their form",
+  report_closed: "Report closed — it's off the list, and the professional has been told",
   paused: "Program paused",
   resumed: "Program resumed",
   duration_saved: "Package duration saved",
@@ -109,7 +111,9 @@ export default async function CoordinatorMemberPage({
     supabase.from("member_contacts").select("phone, whatsapp").eq("member_id", id).maybeSingle(),
     supabase
       .from("consultations")
-      .select("id, type, cycle_id, meeting_status, report_status, scheduled_at, mode, meeting_link")
+      .select(
+        "id, type, cycle_id, meeting_status, report_status, scheduled_at, mode, meeting_link, report_closed_reason, report_closed_note",
+      )
       .eq("member_id", id),
     supabase.from("assignments").select("care_role, care_user_id").eq("member_id", id).eq("active", true),
     supabase
@@ -408,6 +412,56 @@ export default async function CoordinatorMemberPage({
                   </div>
                 ) : null}
 
+                {/* 0048 — the manual override for "Chase the report": the report came
+                    in another way (e.g. WhatsApp), or isn't needed at all. */}
+                {c.meeting_status === "done" && c.report_status === "pending" ? (
+                  <details className="group mt-3">
+                    <summary className="inline-flex cursor-pointer list-none items-center rounded-lg border border-input px-3 py-1.5 text-sm font-medium hover:bg-muted">
+                      Close report manually
+                    </summary>
+                    <form action={closeReport} className="mt-3 space-y-3">
+                      <input type="hidden" name="member_id" value={member.id} />
+                      <input type="hidden" name="consultation_id" value={c.id} />
+                      <fieldset className="space-y-2 text-sm">
+                        <legend className="mb-1 text-muted-foreground">Why is it being closed?</legend>
+                        <label className="flex items-start gap-2">
+                          <input type="radio" name="reason" value="received_outside" required className="mt-1" />
+                          <span>
+                            Received outside the dashboard
+                            <span className="block text-xs text-muted-foreground">
+                              e.g. sent on WhatsApp — it counts as their plan, so they join the monthly cycle
+                            </span>
+                          </span>
+                        </label>
+                        <label className="flex items-start gap-2">
+                          <input type="radio" name="reason" value="not_needed" className="mt-1" />
+                          <span>Not needed</span>
+                        </label>
+                      </fieldset>
+                      <label className="block text-sm">
+                        <span className="mb-1 block text-muted-foreground">Note (optional)</span>
+                        <input
+                          type="text"
+                          name="note"
+                          maxLength={200}
+                          placeholder="e.g. Sona sent the plan on WhatsApp, 20 Sep"
+                          className={cn(SELECT_CLASS, "w-full")}
+                        />
+                      </label>
+                      <SubmitButton size="sm" variant="outline" pendingText="Closing…">
+                        Close report
+                      </SubmitButton>
+                    </form>
+                  </details>
+                ) : null}
+                {c.report_status === "closed" ? (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Closed by the coordinator —{" "}
+                    {c.report_closed_reason === "received_outside" ? "received outside the dashboard" : "not needed"}
+                    {c.report_closed_note ? ` · ${c.report_closed_note}` : ""}
+                  </p>
+                ) : null}
+
                 {c.meeting_link ? (
                   <p className="mt-2 truncate text-xs text-muted-foreground">Link: {c.meeting_link}</p>
                 ) : null}
@@ -459,6 +513,8 @@ type ConsultRow = {
   scheduled_at: string | null;
   mode: string | null;
   meeting_link: string | null;
+  report_closed_reason: string | null;
+  report_closed_note: string | null;
 };
 
 function ContactBlock({

@@ -115,6 +115,18 @@ test("a done meeting WITH its report is finished, and says nothing", () => {
   assert.deepEqual(out, []);
 });
 
+test("a report the coordinator closed by hand leaves the queue, and the admin escalation too", () => {
+  const out = nextActions(
+    input({
+      members: [member("m1", "active")],
+      consultations: [
+        consult({ meeting_status: "done", report_status: "closed", completed_at: ist("2026-08-01") }),
+      ],
+    }),
+  );
+  assert.deepEqual(out, []);
+});
+
 test("admin gets the renewal only once the family has accepted", () => {
   const accepted = nextActions(
     input({
