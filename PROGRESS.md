@@ -1509,3 +1509,75 @@ E is Arun's exact ordering. Post-run: 0 probe rows, 0 orphan members, 17 members
 `member.caregiver_linked_manually`. Still open: `profiles.full_name` for that
 caregiver reads "M Sreekumar" — his father's name, typed at signup. Needs the real
 name from the owner; not guessable from the address.
+
+## Audit fixes — security helpers, first-row bug, wait feedback, region (2026-09-25)
+
+From the 2026-09-24 audit (evidence: Supabase edge_logs, pg_stat_statements, live
+function definitions). Resend / email delivery deliberately out of scope (owner: not
+configured yet).
+
+### Found
+
+- **0050 — internal helpers callable by any signed-in user.** `_seed_cases_from_problem_list`
+  and `_append_review_to_cases` are SECURITY DEFINER with no guard and a caller-supplied
+  `p_actor`; EXECUTE was never revoked (0024 skipped the 0003 house pattern). Any
+  account could open cases / append case notes on any member under any clinician's
+  name. `_missed_consults` / `_last_family_activity` leaked a count and a timestamp.
+- **First member hidden in every admin table.** `AdminTable`'s `thead` was
+  `sticky top-14` inside an `overflow-x-auto` wrapper; that wrapper is the box sticky
+  measures against, so the header sat 56px low, over row 1. A filter that left one
+  match showed "1 of N" and an apparently empty table.
+- **Slowness is geography.** Supabase is ap-southeast-2 (Sydney). Functions ran in
+  iad1 (UA `node`, colo IAD: p50 ~240ms / p90 ~700ms per call); edge middleware ran
+  at BOM (getUser p50 279 / p90 587ms + profiles p50 294 / p90 935ms, on every
+  navigation, prefetch and action). The database itself answers in 2–25ms.
+- **No wait feedback** on the admin desk switcher; its Admin and Coordinator rows share
+  lens `""`, so after switching the trigger still read "Admin desk", both rows were
+  ticked, and the two forms shared a React key.
+
+### Built
+
+- `supabase/migrations/0050_lock_internal_helpers.sql` — revoke EXECUTE from public,
+  anon, authenticated. All callers are SECURITY DEFINER owned by `postgres`.
+- `components/admin/table.tsx` — `top-0`, with the reason in a comment.
+- `components/nav-progress.tsx` (+ `.nav-progress` in globals.css, mounted in the root
+  layout) — a 3px bar while any navigation, server action or refresh is in flight,
+  detected from Next's own `rsc` / `next-action` fetch headers, held until the body
+  finishes streaming, hidden for the first 120ms.
+- `components/care-team-switcher-menu.tsx` — per-row pending ("Opening …" + spinner)
+  via useFormStatus; active desk derived from the path; closes when the desk arrives;
+  unique form keys.
+- `vercel.json` `regions: ["syd1"]` + `middleware.ts` `runtime: "nodejs"` — functions
+  and middleware beside the database. Takes effect on the next deploy.
+
+### Verification
+
+- **0050 on the hosted project:** `has_function_privilege` → `authenticated` and `anon`
+  false for all four; owner `postgres` true; every caller is SECURITY DEFINER owned by
+  `postgres`, so the clinical-form path keeps its access.
+- `tsc --noEmit` clean, also with `--noUnusedLocals --noUnusedParameters`;
+  `npm run test:unit` 121/121; `next build` exit 0 (its eslint + type pass included).
+  Build output: `/_middleware` registered with `runtime: "nodejs"`, no edge middleware;
+  the PDF route still traces all four `@sparticuz/chromium/bin/*.br`.
+- **Real browser** (`next start`, headless Chrome, seeded admin; booleans only, no
+  member data captured):
+
+| Check | Result |
+|---|---|
+| Members, all 17 rows — header over row 1? / row-1 centre hits row 1? | no / yes |
+| Members filtered to a status with 1 member (the reported case) | no / yes |
+| Wait bar during sign-in (server action) | shown 5.5s, cleared on arrival |
+| Desk switch Admin → Coordinator | row read "Opening …", menu closed on arrival, trigger reads "Coordinator desk" |
+| Bar across the switch | action 2.7s, then the desk's RSC 1.5s; cleared 1.5s after the URL changed — the gap that used to look frozen |
+| Tab click to /coordinator/pipeline | bar cleared with the page (684ms) |
+
+The syd1 / Node-middleware speed-up is only measurable after a deploy (no Vercel access
+this session). Expected per-query cost falls from ~240ms to single-digit ms.
+
+### Not done (owner decisions)
+
+- Supabase Auth → leaked-password protection is off (dashboard toggle).
+- Free plans: Supabase Free has no downloadable backups and pauses after 7 idle days;
+  Vercel Hobby is non-commercial only.
+- Email: 263 notifications have never been emailed. When Resend is configured, the
+  dispatcher sends the oldest unsent first, so clear or age-limit that backlog first.
