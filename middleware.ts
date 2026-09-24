@@ -92,6 +92,12 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
+  // Node, not edge: edge middleware runs near the visitor (Mumbai) and each of the
+  // two Supabase calls above crossed to the Sydney database — ~280ms apiece, on
+  // every navigation, prefetch and action. As a Node function it runs in the
+  // project region beside the database: vercel.json `regions` is syd1 because the
+  // Supabase project is ap-southeast-2. Move one, move the other.
+  runtime: "nodejs",
   matcher: [
     "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
