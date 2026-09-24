@@ -410,6 +410,41 @@
   .fade-swap {
     animation: fade-swap var(--motion-pop) var(--motion-ease-out) backwards;
   }
+
+  /* The wait bar (components/nav-progress.tsx). Hidden for its first 120ms so a
+     quick answer never flickers it. Above sheets and dialogs (z-50): a wait is
+     worth knowing about whatever is open. Under reduced motion and elderly mode
+     the sweep stops but the tinted track stays, so the signal survives. */
+  .nav-progress {
+    position: fixed;
+    inset: 0 0 auto;
+    z-index: 60;
+    height: 3px;
+    overflow: hidden;
+    background: color-mix(in oklab, var(--primary) 30%, transparent);
+    animation: nav-progress-in 1ms 120ms backwards;
+  }
+  .nav-progress::after {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 40%;
+    background: var(--primary);
+    animation: nav-progress-sweep 1.1s var(--motion-ease-in-out) infinite;
+  }
+  @keyframes nav-progress-in {
+    from {
+      opacity: 0;
+    }
+  }
+  @keyframes nav-progress-sweep {
+    from {
+      translate: -100% 0;
+    }
+    to {
+      translate: 250% 0;
+    }
+  }
 }
 
 /* Motion discipline: honor reduced-motion everywhere; elderly mode forces it. */

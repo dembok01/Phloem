@@ -27,7 +27,10 @@ export function AdminTable({
   return (
     <div className="overflow-x-auto rounded-xl border bg-card shadow-card">
       <table className="w-full text-sm" aria-label={label}>
-        <thead className="sticky top-14 z-10 bg-card/95 backdrop-blur">
+        {/* top-0, never an offset: the overflow-x wrapper is the box sticky measures
+            against, so `top-14` pushed the header 56px down onto row 1 and hid the
+            first member — the only one, when a filter left a single match. */}
+        <thead className="sticky top-0 z-10 bg-card/95 backdrop-blur">
           <tr className="border-b text-left text-muted-foreground">{head}</tr>
         </thead>
         <tbody>{children}</tbody>

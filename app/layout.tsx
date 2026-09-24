@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Atkinson_Hyperlegible, Bricolage_Grotesque, IBM_Plex_Mono } from "next/font/google";
+import { NavProgress } from "@/components/nav-progress";
 import "./globals.css";
 
 // DESIGN-SYSTEM.md §2 — display / body / data faces.
@@ -37,6 +38,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${display.variable} ${body.variable} ${data.variable}`}>
       <body className="antialiased">
+        <NavProgress />
         {children}
       </body>
     </html>
