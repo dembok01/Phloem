@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import Link from "next/link";
 import { createMember } from "@/app/(app)/admin/members/actions";
+import { CaregiverLinkConfirm } from "@/components/admin/caregiver-link-confirm";
 import { MemberInviteSuccess } from "@/components/admin/member-invite-success";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -43,20 +44,55 @@ function Field({
 
 export function MemberEnrollmentForm() {
   const [attempt, setAttempt] = useState(0);
+  // Re-keying the attempt gives a clean useActionState. `defaults` is what
+  // survives that reset, so backing out of the link confirmation returns the
+  // coordinator to their own typing rather than to an empty form.
+  const [defaults, setDefaults] = useState<Record<string, string>>();
 
   return (
     <MemberEnrollmentAttempt
       key={attempt}
-      onEnrollAnother={() => setAttempt((current) => current + 1)}
+      defaults={defaults}
+      onEnrollAnother={() => {
+        setDefaults(undefined);
+        setAttempt((current) => current + 1);
+      }}
+      onEditAgain={(fields) => {
+        setDefaults(fields);
+        setAttempt((current) => current + 1);
+      }}
     />
   );
 }
 
-function MemberEnrollmentAttempt({ onEnrollAnother }: { onEnrollAnother: () => void }) {
+function MemberEnrollmentAttempt({
+  defaults,
+  onEnrollAnother,
+  onEditAgain,
+}: {
+  defaults?: Record<string, string>;
+  onEnrollAnother: () => void;
+  onEditAgain: (fields: Record<string, string>) => void;
+}) {
   const [state, formAction] = useActionState(createMember, null);
+  const initial = (name: string) => defaults?.[name] ?? undefined;
 
-  if (state?.ok) {
-    return <MemberInviteSuccess invite={state.data} onEnrollAnother={onEnrollAnother} />;
+  // Pulled out as a const so the narrowing below survives into the callback and
+  // into the second branch.
+  const outcome = state?.ok ? state.data : null;
+
+  if (outcome?.outcome === "confirm_link") {
+    return (
+      <CaregiverLinkConfirm
+        pending={outcome}
+        formAction={formAction}
+        onCancel={() => onEditAgain(outcome.fields)}
+      />
+    );
+  }
+
+  if (outcome) {
+    return <MemberInviteSuccess invite={outcome} onEnrollAnother={onEnrollAnother} />;
   }
 
   return (
@@ -76,31 +112,31 @@ function MemberEnrollmentAttempt({ onEnrollAnother }: { onEnrollAnother: () => v
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <Field id="full_name" label="Full name *">
-            <Input id="full_name" name="full_name" required maxLength={120} />
+            <Input id="full_name" name="full_name" defaultValue={initial("full_name")} required maxLength={120} />
           </Field>
           <Field id="age" label="Age *">
-            <Input id="age" name="age" type="number" min={0} max={130} required />
+            <Input id="age" name="age" defaultValue={initial("age")} type="number" min={0} max={130} required />
           </Field>
           <Field id="gender" label="Gender">
-            <Input id="gender" name="gender" maxLength={40} />
+            <Input id="gender" name="gender" defaultValue={initial("gender")} maxLength={40} />
           </Field>
           <Field id="language" label="Language">
-            <Input id="language" name="language" maxLength={60} />
+            <Input id="language" name="language" defaultValue={initial("language")} maxLength={60} />
           </Field>
           <Field id="occupation" label="Occupation">
-            <Input id="occupation" name="occupation" maxLength={120} />
+            <Input id="occupation" name="occupation" defaultValue={initial("occupation")} maxLength={120} />
           </Field>
           <Field id="city" label="City">
-            <Input id="city" name="city" maxLength={120} />
+            <Input id="city" name="city" defaultValue={initial("city")} maxLength={120} />
           </Field>
           <Field id="country" label="Country">
-            <Input id="country" name="country" maxLength={120} />
+            <Input id="country" name="country" defaultValue={initial("country")} maxLength={120} />
           </Field>
           <Field id="relationship_to_caregiver" label="Relationship to caregiver">
             <select
               id="relationship_to_caregiver"
               name="relationship_to_caregiver"
-              defaultValue=""
+              defaultValue={initial("relationship_to_caregiver") ?? ""}
               className="h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
             >
               <option value="">Select…</option>
@@ -120,29 +156,29 @@ function MemberEnrollmentAttempt({ onEnrollAnother }: { onEnrollAnother: () => v
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <Field id="phone" label="Phone">
-            <Input id="phone" name="phone" type="tel" maxLength={40} />
+            <Input id="phone" name="phone" defaultValue={initial("phone")} type="tel" maxLength={40} />
           </Field>
           <Field id="whatsapp" label="WhatsApp">
-            <Input id="whatsapp" name="whatsapp" type="tel" maxLength={40} />
+            <Input id="whatsapp" name="whatsapp" defaultValue={initial("whatsapp")} type="tel" maxLength={40} />
           </Field>
           <Field id="email" label="Email">
-            <Input id="email" name="email" type="email" maxLength={160} />
+            <Input id="email" name="email" defaultValue={initial("email")} type="email" maxLength={160} />
           </Field>
           <Field id="pin_code" label="PIN code">
-            <Input id="pin_code" name="pin_code" maxLength={20} />
+            <Input id="pin_code" name="pin_code" defaultValue={initial("pin_code")} maxLength={20} />
           </Field>
           <div className="sm:col-span-2">
             <Field id="address" label="Address">
-              <Input id="address" name="address" maxLength={300} />
+              <Input id="address" name="address" defaultValue={initial("address")} maxLength={300} />
             </Field>
           </div>
           <Field id="emergency_contact_name" label="Emergency contact name">
-            <Input id="emergency_contact_name" name="emergency_contact_name" maxLength={120} />
+            <Input id="emergency_contact_name" name="emergency_contact_name" defaultValue={initial("emergency_contact_name")} maxLength={120} />
           </Field>
           <Field id="emergency_contact_phone" label="Emergency contact phone">
             <Input
               id="emergency_contact_phone"
-              name="emergency_contact_phone"
+              name="emergency_contact_phone" defaultValue={initial("emergency_contact_phone")}
               type="tel"
               maxLength={40}
             />
@@ -161,7 +197,7 @@ function MemberEnrollmentAttempt({ onEnrollAnother }: { onEnrollAnother: () => v
           <Field id="caregiver_email" label="Caregiver email *">
             <Input
               id="caregiver_email"
-              name="caregiver_email"
+              name="caregiver_email" defaultValue={initial("caregiver_email")}
               type="email"
               required
               maxLength={160}
@@ -174,7 +210,7 @@ function MemberEnrollmentAttempt({ onEnrollAnother }: { onEnrollAnother: () => v
               type="number"
               min={1}
               max={24}
-              defaultValue={3}
+              defaultValue={initial("duration_months") ?? 3}
             />
           </Field>
         </CardContent>

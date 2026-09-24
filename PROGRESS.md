@@ -1427,3 +1427,85 @@ inventoried state:
   clinician notified; audited.
 - 0047 and 0048 are applied.
 - `lib/next-actions.test.ts`: a closed report yields no queue or admin row.
+
+## 0049 — one caregiver, more than one member (2026-09-24)
+
+### The report
+
+A caregiver (arunskumar14199@gmail.com) enrolled one parent, then used the second
+invite link for the other parent and was told *"An account already exists for this
+email. Try signing in instead."*
+
+### Root cause
+
+`accept_invite` is the **only** writer of `members.caregiver_id` anywhere in the
+schema or app, and it is reachable only through `acceptInvite`, whose first act is
+`admin.auth.admin.createUser` — which GoTrue rejects for a duplicate address
+(`app/(auth)/invite/[token]/actions.ts:52` → `?error=exists`).
+
+Nothing else was single-member: `members.caregiver_id` is a plain FK, `mem_caregiver`
+is a per-row predicate returning every match, the portal has rendered a member
+switcher since Phase 8 (`app/(app)/portal/page.tsx:145`), and every portal sub-route
+is already `members/[id]/…`. Only the write path was.
+
+Two orderings reach the same wall:
+
+- **A** — both invites minted before either is accepted (the observed case: two
+  invites five minutes apart on 17 Sep; the second could never be accepted).
+- **B** — the account already exists when the second member is enrolled.
+
+### Built
+
+- **A** closes in `accept_invite`: one accepted link now claims every member invited
+  to the same address and burns those invites. Guarded by `caregiver_id is null`, so
+  a member that already belongs to somebody is never re-pointed. Expired siblings are
+  deliberately left alone — with B fixed, re-enrolling now links directly, so nothing
+  is stranded by that choice.
+- **B** closes in `create_member_with_invite`, whose return type becomes `jsonb`
+  (drop + recreate: PostgREST resolves by named args and could not choose between
+  two overloads). Three shapes: `confirm_link` (writes nothing), `invited`
+  (unchanged), `linked` (member attached to the existing account, no invite, family
+  notified).
+- **The confirmation is the point.** A mistyped address that happens to belong to
+  another family would silently hand them a stranger's health record, so the first
+  call only names the account and who is already on it. New codes
+  `email_not_caregiver` (never turn a clinician into a caregiver) and
+  `caregiver_suspended`.
+- UI: `components/admin/caregiver-link-confirm.tsx`; the success card gained a
+  "linked" variant with nothing copyable. The confirm step echoes the typed fields
+  back, because React resets an uncontrolled form once its action resolves.
+
+### Verification
+
+Exercised as the coordinator on the hosted project in a rolled-back transaction:
+
+| Case | Result |
+|---|---|
+| A. existing account, unconfirmed | `confirm_link`, named the account + both members, wrote nothing |
+| B. existing account, confirmed | `linked` to that caregiver, no invite minted |
+| C. brand-new caregiver | `invited` with a token — unchanged |
+| D. clinician's address | refused, `email_not_caregiver` |
+| E. two invites to one fresh address, one accepted | **both** members claimed, both invites burned, both `signed_up` |
+
+E is Arun's exact ordering. Post-run: 0 probe rows, 0 orphan members, 17 members.
+`npm run test:unit` 121/121 pass.
+
+**A bug this caught:** `case when … then 'invited' else 'signed_up' end` resolves to
+`text`, not `member_status` — a bare literal coerces, a CASE does not. Folded into
+0049 and re-applied.
+
+### Assumptions
+
+- Claiming siblings is within the trust boundary `accept_invite` already relies on:
+  every one of those invites was addressed to the same mailbox, and it already
+  creates the account `email_confirm`'d on that address.
+- `p_link_existing` is a UX guard against typos, not a permission boundary —
+  coordinators already hold `✅ all` on client invites and enrollment.
+
+### Data repair (same day, before 0049)
+
+`1. Remadevi K A` was linked to the existing caregiver by hand (`caregiver_id`,
+`status='signed_up'`, invite `7a981aa7` closed, `"1. "` prefix stripped), audited as
+`member.caregiver_linked_manually`. Still open: `profiles.full_name` for that
+caregiver reads "M Sreekumar" — his father's name, typed at signup. Needs the real
+name from the owner; not guessable from the address.

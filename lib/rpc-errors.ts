@@ -53,6 +53,9 @@ export const RPC_ERROR_CODES = [
   // 0048 the coordinator closes a report by hand
   "bad_reason",
   "report_not_pending",
+  // 0049 a caregiver can hold more than one member
+  "email_not_caregiver",
+  "caregiver_suspended",
 ] as const;
 
 export type RpcErrorCode = (typeof RPC_ERROR_CODES)[number];
@@ -111,6 +114,10 @@ export const RPC_ERROR_COPY: Record<RpcErrorCode, string> = {
   no_changes: "Nothing was changed, so there is nothing to correct.",
   not_latest_version:
     "This report has already been corrected — open the current version and correct that one.",
+  email_not_caregiver:
+    "That email already belongs to a PHLOEM staff account, so it can't be used for a family. Use the caregiver's own address.",
+  caregiver_suspended:
+    "That caregiver's account is suspended. Reactivate it before adding another member to it.",
 };
 
 export function rpcErrorMessage(

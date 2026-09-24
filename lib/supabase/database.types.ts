@@ -1516,13 +1516,14 @@ export type Database = {
           p_full_name: string
           p_gender: string
           p_language: string
+          p_link_existing?: boolean
           p_occupation: string
           p_phone: string
           p_pin_code: string
           p_relationship_to_caregiver: string
           p_whatsapp: string
         }
-        Returns: string
+        Returns: Json
       }
       deactivate_member: { Args: { p_member: string }; Returns: undefined }
       delete_member: {

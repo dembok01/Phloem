@@ -17,7 +17,8 @@ export async function createMember(
     return { data, error };
   });
 
-  if (result.ok) {
+  // `confirm_link` wrote nothing — there is no new row to revalidate for.
+  if (result.ok && result.data.outcome !== "confirm_link") {
     revalidatePath("/admin/members");
     revalidatePath("/admin/invites");
   }

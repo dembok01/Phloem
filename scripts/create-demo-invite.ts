@@ -31,7 +31,7 @@ async function main() {
     return;
   }
 
-  const { data: token, error } = await c.rpc("create_member_with_invite", {
+  const { data: created, error } = await c.rpc("create_member_with_invite", {
     p_full_name: "K. V. Gopalan",
     p_age: 76,
     p_gender: "Male",
@@ -51,7 +51,12 @@ async function main() {
     p_duration_months: 3,
   });
   if (error) throw error;
-  console.log("TOKEN:", token);
+
+  // 0049 returns a shape, not a bare token: an address that already has a
+  // caregiver account gets the member linked to it and no invite at all.
+  const result = created as { mode?: string; token?: string } | null;
+  if (result?.mode === "invited") console.log("TOKEN:", result.token);
+  else console.log("NO TOKEN — result:", JSON.stringify(result));
 }
 
 main().then(

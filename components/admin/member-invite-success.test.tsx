@@ -7,6 +7,7 @@ test("the enrollment success handoff exposes the exact invite for manual sending
   const html = renderToStaticMarkup(
     <MemberInviteSuccess
       invite={{
+        outcome: "invited",
         memberName: "Mary Thomas",
         caregiverEmail: "alex@example.com",
         inviteUrl:
@@ -27,4 +28,25 @@ test("the enrollment success handoff exposes the exact invite for manual sending
   assert.match(html, />Copy</);
   assert.match(html, /href="\/admin\/invites"/);
   assert.match(html, /Enroll another member/);
+});
+
+test("linking to an existing account offers no invite link to copy", () => {
+  const html = renderToStaticMarkup(
+    <MemberInviteSuccess
+      invite={{
+        outcome: "linked",
+        memberName: "Remadevi K A",
+        caregiverEmail: "alex@example.com",
+        caregiverName: "Alex Kumar",
+      }}
+      onEnrollAnother={() => undefined}
+    />,
+  );
+
+  assert.match(html, /Added to an existing account/);
+  assert.match(html, /Remadevi K A/);
+  assert.match(html, /Alex Kumar/);
+  // The whole point: there is no invite, so nothing must look copyable.
+  assert.doesNotMatch(html, /Invite link/);
+  assert.doesNotMatch(html, /\/invite\//);
 });
