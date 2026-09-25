@@ -26,6 +26,14 @@ export type MemberRow = {
 
 type SortKey = "full_name" | "age" | "city" | "status";
 
+/** Status colour for the phone rows' text line — the same hues the Badge uses. */
+const STATUS_TEXT: Record<ReturnType<typeof memberStatusVariant>, string> = {
+  default: "text-primary",
+  muted: "text-muted-foreground",
+  success: "text-success",
+  warning: "text-warning",
+};
+
 const STATUS_ORDER: MemberStatus[] = [
   "invited",
   "signed_up",
@@ -102,11 +110,13 @@ export function MembersTable({
         shown={visible.length}
         total={rows.length}
         noun="members"
+        scrollChipsOnPhone
       >
         {flaggedCount > 0 ? (
           <button
             type="button"
             aria-pressed={flaggedFirst}
+            aria-label="Flagged first"
             onClick={() => setFlaggedFirst((v) => !v)}
             className={cn(
               "pressable inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg border px-3 text-sm font-medium",
@@ -116,7 +126,8 @@ export function MembersTable({
             )}
           >
             <ShieldAlert className="size-4" aria-hidden />
-            Flagged first
+            {/* Icon + count on phones, so it shares the search row. */}
+            <span className="hidden sm:inline">Flagged first</span>
             <span className="tabular-nums opacity-70">{flaggedCount}</span>
           </button>
         ) : null}
@@ -133,32 +144,39 @@ export function MembersTable({
           }
         />
       ) : (
-        <AdminTable
-          label="Members"
-          head={
-            <>
-              <SortTh id="full_name" label="Name" sort={sort} onSort={onSort} />
-              <SortTh id="age" label="Age" sort={sort} onSort={onSort} className="w-20" />
-              <SortTh id="city" label="City" sort={sort} onSort={onSort} />
-              <Th>Caregiver</Th>
-              <SortTh id="status" label="Status" sort={sort} onSort={onSort} />
-            </>
-          }
-        >
-          {visible.map((m) => (
-            <Tr key={m.id} className={cn(m.high && "bg-danger-tint/40")}>
-              <Td>
+        <>
+          {/* Phones get one compact row per member instead of the table: at 390px
+              the table is 728px wide, so Status sat off-screen and only four
+              members fitted above the fold. Name and status stack; 48px keeps the
+              whole row a comfortable tap. Same `visible` rows, so search, chips and
+              "Flagged first" drive both views. */}
+          <ul
+            aria-label="Members"
+            className="divide-y overflow-hidden rounded-xl border bg-card shadow-card md:hidden"
+          >
+            {visible.map((m) => (
+              <li key={m.id} className={cn(m.high && "bg-danger-tint/40")}>
                 <Link
                   href={`/admin/members/${m.id}`}
-                  className="pressable -m-1 flex items-center gap-2.5 rounded-lg p-1 font-medium text-foreground hover:text-primary"
+                  className="flex min-h-12 items-center gap-3 px-3 py-1.5 transition-colors active:bg-muted"
                 >
                   <Monogram name={m.full_name} size="xs" />
-                  <span className="truncate">{m.full_name}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[15px] leading-5 font-medium text-foreground">
+                      {m.full_name}
+                    </span>
+                    <span
+                      className={cn(
+                        "flex items-center gap-1.5 text-xs leading-4",
+                        STATUS_TEXT[memberStatusVariant(m.status)],
+                      )}
+                    >
+                      <span className="size-1.5 shrink-0 rounded-full bg-current" aria-hidden />
+                      <span className="truncate">{MEMBER_STATUS_LABEL[m.status]}</span>
+                    </span>
+                  </span>
                   {m.high ? (
-                    <ShieldAlert
-                      className="size-4 shrink-0 text-danger"
-                      aria-label="High red flag"
-                    />
+                    <ShieldAlert className="size-4 shrink-0 text-danger" aria-label="High red flag" />
                   ) : null}
                   {duplicates.has(m.id) ? (
                     <CopyCheck
@@ -167,24 +185,65 @@ export function MembersTable({
                     />
                   ) : null}
                 </Link>
-              </Td>
-              <Td numeric>{m.age ?? "—"}</Td>
-              <Td>{m.city ?? "—"}</Td>
-              <Td>
-                {m.linked ? (
-                  <Badge variant="success">Linked</Badge>
-                ) : (
-                  <Badge variant="warning">Pending</Badge>
-                )}
-              </Td>
-              <Td>
-                <Badge variant={memberStatusVariant(m.status)}>
-                  {MEMBER_STATUS_LABEL[m.status]}
-                </Badge>
-              </Td>
-            </Tr>
-          ))}
-        </AdminTable>
+              </li>
+            ))}
+          </ul>
+
+          <div className="hidden md:block">
+          <AdminTable
+            label="Members"
+            head={
+              <>
+                <SortTh id="full_name" label="Name" sort={sort} onSort={onSort} />
+                <SortTh id="age" label="Age" sort={sort} onSort={onSort} className="w-20" />
+                <SortTh id="city" label="City" sort={sort} onSort={onSort} />
+                <Th>Caregiver</Th>
+                <SortTh id="status" label="Status" sort={sort} onSort={onSort} />
+              </>
+            }
+          >
+            {visible.map((m) => (
+              <Tr key={m.id} className={cn(m.high && "bg-danger-tint/40")}>
+                <Td>
+                  <Link
+                    href={`/admin/members/${m.id}`}
+                    className="pressable -m-1 flex items-center gap-2.5 rounded-lg p-1 font-medium text-foreground hover:text-primary"
+                  >
+                    <Monogram name={m.full_name} size="xs" />
+                    <span className="truncate">{m.full_name}</span>
+                    {m.high ? (
+                      <ShieldAlert
+                        className="size-4 shrink-0 text-danger"
+                        aria-label="High red flag"
+                      />
+                    ) : null}
+                    {duplicates.has(m.id) ? (
+                      <CopyCheck
+                        className="size-4 shrink-0 text-warning"
+                        aria-label="Another member shares this name"
+                      />
+                    ) : null}
+                  </Link>
+                </Td>
+                <Td numeric>{m.age ?? "—"}</Td>
+                <Td>{m.city ?? "—"}</Td>
+                <Td>
+                  {m.linked ? (
+                    <Badge variant="success">Linked</Badge>
+                  ) : (
+                    <Badge variant="warning">Pending</Badge>
+                  )}
+                </Td>
+                <Td>
+                  <Badge variant={memberStatusVariant(m.status)}>
+                    {MEMBER_STATUS_LABEL[m.status]}
+                  </Badge>
+                </Td>
+              </Tr>
+            ))}
+          </AdminTable>
+          </div>
+        </>
       )}
     </div>
   );

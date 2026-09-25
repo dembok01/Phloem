@@ -55,7 +55,13 @@ export default async function MembersPage({
 
       <PageHeader
         title="Members"
-        description="Everyone enrolled, and where each of them is in the programme."
+        // Hidden on phones: without it the title and "Enroll member" share one
+        // row, and the list starts that much higher.
+        description={
+          <span className="hidden sm:inline">
+            Everyone enrolled, and where each of them is in the programme.
+          </span>
+        }
         actions={
           <Link href="/admin/members/new" className={cn(buttonVariants(), "pressable")}>
             Enroll member

@@ -1621,3 +1621,31 @@ no other function, policy or view referencing them, 51 alerts. After: 0 function
 alerts, latest migration `0051_remove_family_engagement`; check-in RPCs intact
 (`get_checkin_link` / `submit_checkin` still anon-callable by design, `create_checkin_link`
 and `delete_member` not).
+
+## Admin Members on phones — compact rows, smaller header (2026-09-26)
+
+Client request: the Members list is hard to scroll on a phone and will get worse at
+50–70 members. Measured before (390px, 17 members): first member 584px down, 4 members
+above the fold, table 728px wide so City/Caregiver/**Status** sat off-screen, 53px rows.
+
+Phone-only (below `md`); desktop and tablet keep the table unchanged:
+
+- `components/admin/members-table.tsx` — below `md`, one 48px row per member: initials,
+  name, and a coloured status line under it; red-flag and duplicate icons kept; flagged
+  rows keep their tint. Same `visible` rows as the table, so search, chips and
+  "Flagged first" drive both. "Flagged first" is icon + count on phones so it shares the
+  search row.
+- `components/admin/filter-bar.tsx` — opt-in `scrollChipsOnPhone`: chips on one row
+  that swipes sideways (bleeds to the screen edge); the "N of M" line is screen-reader
+  only on phones. Only the Members page opts in; the other admin lists are unchanged.
+- `app/(app)/admin/members/page.tsx` — description hidden on phones, so the title and
+  "Enroll member" share one row.
+
+Verification: strict `tsc` clean, `npm run test:unit` 120/120. Real browser (dev
+server, seeded admin, geometry only — no screenshots) at 390×844: phone list shown, no
+sideways scroll, title + Enroll on one row, search + Flagged on one row, chips on one
+swipeable row, 48px rows (+1px divider), first member at 356px (was 584), 9 members on
+the first screen (was 4). At 1280px the table renders exactly as before.
+
+Not done (asked to stay scoped): the admin layout's ⌘K search pill still takes a row on
+phones; an A–Z jump bar; the doctor's list and the coordinator pipeline.

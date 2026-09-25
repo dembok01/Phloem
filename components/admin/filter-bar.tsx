@@ -48,6 +48,7 @@ export function FilterBar({
   shown,
   total,
   noun,
+  scrollChipsOnPhone = false,
   children,
 }: {
   query: string;
@@ -60,6 +61,10 @@ export function FilterBar({
   shown: number;
   total: number;
   noun: string;
+  /** Phones: one row of chips that swipes sideways instead of wrapping onto
+   * several rows and pushing the list down. The shown/total line goes to screen
+   * readers only there; the chips already carry every count. */
+  scrollChipsOnPhone?: boolean;
   /** Extra controls pinned to the right of the search row. */
   children?: React.ReactNode;
 }) {
@@ -121,7 +126,15 @@ export function FilterBar({
         {children}
       </div>
 
-      <div className="flex flex-wrap items-center gap-1.5">
+      <div
+        className={cn(
+          "flex items-center gap-1.5",
+          scrollChipsOnPhone
+            ? // Bleeds to the screen edge like NavTabs, so a chip cut off at the edge says "swipe".
+              "-mx-4 overflow-x-auto px-4 [scrollbar-width:none] sm:-mx-6 sm:px-6 md:mx-0 md:flex-wrap md:overflow-visible md:px-0 [&::-webkit-scrollbar]:hidden"
+            : "flex-wrap",
+        )}
+      >
         <ChipButton on={active === null} onClick={() => onSelect(null)} count={total}>
           All
         </ChipButton>
@@ -141,6 +154,7 @@ export function FilterBar({
           className={cn(
             "ml-auto text-xs tabular-nums transition-colors",
             filtered ? "font-medium text-foreground" : "text-muted-foreground",
+            scrollChipsOnPhone && "sr-only md:not-sr-only",
           )}
         >
           {filtered ? `${shown} of ${total} ${noun}` : `${total} ${noun}`}
@@ -172,7 +186,7 @@ function ChipButton({
       // A zero-count chip stays clickable but recedes — hiding it would make the
       // row of filters jump around as data changes, which is worse than a dim chip.
       className={cn(
-        "pressable inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium",
+        "pressable inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium whitespace-nowrap",
         "data-[on=false]:hover:bg-muted data-[on=true]:border-transparent",
         count === 0 && !on && "opacity-45",
         tone ? TONE[tone] : "data-[on=true]:bg-foreground data-[on=true]:text-background",
