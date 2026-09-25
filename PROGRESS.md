@@ -1615,3 +1615,9 @@ card copy no longer promises to "clear their quiet flag". `activity_events` stay
 120/120 (the engagement test went with the feature). No remaining app reference to the
 dropped RPCs. Either deploy order is safe: the new app never calls them, and the old
 app reads each as `?? []` / ignores the result.
+
+**0051 applied to the hosted project** (same day). Pre-check: exactly the six functions,
+no other function, policy or view referencing them, 51 alerts. After: 0 functions, 0
+alerts, latest migration `0051_remove_family_engagement`; check-in RPCs intact
+(`get_checkin_link` / `submit_checkin` still anon-callable by design, `create_checkin_link`
+and `delete_member` not).
