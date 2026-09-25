@@ -5,14 +5,10 @@
 // every input is something the doctor's own RLS already grants, so computing this
 // leaks nothing a doctor could not already read.
 //
-// Two judgement calls encoded here rather than in the UI:
-//
-//   * A red flag that HAS a clearance decision is not an outstanding issue. The
-//     flag stays on the record, but the doctor already did the thing being asked
-//     for, and a queue that keeps nagging after the work is done gets ignored.
-//   * A `quiet` family is NOT a clinical issue. It is the coordinator's call to
-//     make. Only `at_risk` — a month of silence, or two missed consultations —
-//     reaches the doctor, because by then it is affecting care.
+// One judgement call encoded here rather than in the UI: a red flag that HAS a
+// clearance decision is not an outstanding issue. The flag stays on the record,
+// but the doctor already did the thing being asked for, and a queue that keeps
+// nagging after the work is done gets ignored.
 import type { RedFlag } from "@/lib/red-flags";
 
 export type IssueKind =
@@ -20,7 +16,6 @@ export type IssueKind =
   | "adverse_event"
   | "report_overdue"
   | "measure_decline"
-  | "family_at_risk"
   | "programme_ending"
   | "unread_messages";
 
@@ -44,7 +39,6 @@ export type IssueInput = {
   reportOverdueHours: number | null;
   /** labels of measures whose latest reading moved the wrong way */
   decliningMeasures: string[];
-  engagement: string;
   daysUntilProgrammeEnds: number | null;
   unreadMessages: number;
 };
@@ -95,15 +89,6 @@ export function computeIssues(input: IssueInput): Issue[] {
       label: `${input.decliningMeasures.length} measure${input.decliningMeasures.length === 1 ? "" : "s"} moving the wrong way`,
       detail: input.decliningMeasures.join(", "),
       tab: "trends",
-    });
-  }
-
-  if (input.engagement === "at_risk") {
-    issues.push({
-      kind: "family_at_risk",
-      severity: "warning",
-      label: "Family out of contact",
-      detail: "No activity for weeks, or consultations booked and never held.",
     });
   }
 

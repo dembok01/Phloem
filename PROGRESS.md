@@ -1581,3 +1581,37 @@ this session). Expected per-query cost falls from ~240ms to single-digit ms.
   Vercel Hobby is non-commercial only.
 - Email: 263 notifications have never been emailed. When Resend is configured, the
   dispatcher sends the oldest unsent first, so clear or age-limit that backlog first.
+
+## "Family out of contact" removed (2026-09-25, owner decision)
+
+### Why
+
+The flag judged a family by portal logins and meetings ticked in the dashboard.
+Families here talk to the team on WhatsApp and by phone, so nearly every active family
+read as "quiet" / "out of contact" while in touch — a weekly false alarm to the
+coordinators (51 such notifications) and a chip on the doctor's list.
+
+### Removed
+
+- App: the coordinator home's "Families who have gone quiet" list; the Engagement card
+  on the coordinator member page (its check-in link card stays, now unwrapped); the
+  doctor's `family_at_risk` issue chip (`lib/issues.ts` + test); the daily cron's
+  `flag_quiet_families` call; the portal's `record_activity` visit ping (also one fewer
+  blocking round trip per portal load); `components/engagement.tsx`; the dropped
+  functions from `database.types.ts`.
+- DB, `0051_remove_family_engagement.sql`: drop `list_engagement`, `get_engagement`,
+  `flag_quiet_families`, `_last_family_activity`, `_missed_consults`,
+  `record_activity`; delete the `family_quiet` / `family_at_risk` notifications.
+
+### Kept
+
+The family check-in link (0029) — a tool the coordinator sends, not a judgement. Its
+card copy no longer promises to "clear their quiet flag". `activity_events` stays
+(still written by `submit_checkin`, cleared by `delete_member`, no longer read).
+
+### Verification
+
+`tsc --noEmit --noUnusedLocals --noUnusedParameters` clean; `npm run test:unit`
+120/120 (the engagement test went with the feature). No remaining app reference to the
+dropped RPCs. Either deploy order is safe: the new app never calls them, and the old
+app reads each as `?? []` / ignores the result.

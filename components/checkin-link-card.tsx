@@ -53,8 +53,8 @@ export function CheckinLinkCard({
           <Link2 className="size-4 text-muted-foreground" aria-hidden /> Check-in link
         </h3>
         <p className="text-sm text-muted-foreground">
-          Five questions, no login. Use it when a family has gone quiet — the answers land in your
-          queue and clear their quiet flag.
+          Five questions, no login — for families who don&apos;t use the portal. Their answers
+          reach you as a notification, and any concern goes to the doctor too.
         </p>
       </div>
 

@@ -34,7 +34,7 @@ export function roleHome(role: UserRole): string {
  * from data the database would hand them anyway.
  *
  * /portal stays out: the family shell is the one surface an admin has no
- * business standing inside, and it writes engagement signals on render.
+ * business standing inside.
  */
 export function allowedPrefixes(role: UserRole): readonly string[] {
   switch (role) {

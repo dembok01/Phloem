@@ -14,10 +14,9 @@ import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 import { parseRedFlags } from "@/lib/red-flags";
 import { telHref, waMeLink } from "@/lib/wa";
-import { formatDateIST, formatDateTimeIST } from "@/lib/datetime";
+import { formatDateIST } from "@/lib/datetime";
 import { CheckinLinkCard } from "@/components/checkin-link-card";
 import { RenewalPanel } from "@/components/renewal-panel";
-import { EngagementBadge, type EngagementRow } from "@/components/engagement";
 import { ThreadPanel } from "@/components/threads/thread-panel";
 import {
   CARE_ROLES,
@@ -104,7 +103,6 @@ export default async function CoordinatorMemberPage({
     { data: pros },
     { data: pkg },
     { data: caregiver },
-    { data: engagementRows },
     { data: renewalRow },
     { data: checkinRow },
   ] = await Promise.all([
@@ -133,8 +131,6 @@ export default async function CoordinatorMemberPage({
     member.caregiver_id
       ? supabase.from("profiles").select("full_name, phone, whatsapp").eq("id", member.caregiver_id).maybeSingle()
       : Promise.resolve({ data: null }),
-    // W3: engagement is derived on read, so it is always current.
-    supabase.rpc("get_engagement", { p_member: id }),
     supabase
       .from("renewals")
       .select("id, status, proposed_months, decision_note")
@@ -153,7 +149,6 @@ export default async function CoordinatorMemberPage({
       .maybeSingle(),
   ]);
 
-  const engagement = ((engagementRows ?? []) as unknown as EngagementRow[])[0] ?? null;
   const checkinToken = checkinRow?.token ?? null;
   const checkinExpires = checkinRow?.expires_at ?? null;
 
@@ -241,32 +236,15 @@ export default async function CoordinatorMemberPage({
 
       <RedFlagBanner flags={redFlags} />
 
-      {/* W3 — is this family still with us, and how do I reach them if not. */}
-      <Card>
-        <CardHeader className="flex-row items-center justify-between gap-3">
-          <CardTitle>Engagement</CardTitle>
-          {engagement ? (
-            <EngagementBadge state={engagement.state} reason={engagement.reason} />
-          ) : null}
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {engagement ? (
-            <p className="text-sm text-muted-foreground">
-              {engagement.reason}
-              {engagement.last_activity_at
-                ? ` · Last seen ${formatDateTimeIST(engagement.last_activity_at)}`
-                : ""}
-            </p>
-          ) : null}
-          <CheckinLinkCard
-            memberId={member.id}
-            memberFirstName={member.full_name.split(" ")[0]}
-            existingToken={checkinToken}
-            whatsapp={contacts?.whatsapp ?? contacts?.phone ?? caregiver?.whatsapp ?? null}
-            expiresAt={checkinExpires ? formatDateIST(checkinExpires) : null}
-          />
-        </CardContent>
-      </Card>
+      {/* A no-login check-in link for families who don't use the portal. It is
+          its own card, so it sits here unwrapped. */}
+      <CheckinLinkCard
+        memberId={member.id}
+        memberFirstName={member.full_name.split(" ")[0]}
+        existingToken={checkinToken}
+        whatsapp={contacts?.whatsapp ?? contacts?.phone ?? caregiver?.whatsapp ?? null}
+        expiresAt={checkinExpires ? formatDateIST(checkinExpires) : null}
+      />
 
       {/* Contacts (§3: coordinator sees member + caregiver contact identifiers) */}
       <Card>

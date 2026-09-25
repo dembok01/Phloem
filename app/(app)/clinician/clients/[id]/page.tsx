@@ -332,7 +332,7 @@ async function OverviewPanel({
   // the other roles' work is already expressed by the form-due banner below.
   let issues: Issue[] = [];
   if (role === "doctor") {
-    const [{ data: clearanceReports }, { data: declining }, { data: unread }, { data: engagement }] =
+    const [{ data: clearanceReports }, { data: declining }, { data: unread }] =
       await Promise.all([
         supabase
           .from("reports")
@@ -342,7 +342,6 @@ async function OverviewPanel({
           .order("created_at", { ascending: false }),
         supabase.rpc("my_declining_measures"),
         supabase.rpc("my_unread_threads"),
-        supabase.rpc("get_engagement", { p_member: memberId }),
       ]);
 
     const overdue = (ownConsults ?? [])
@@ -357,8 +356,6 @@ async function OverviewPanel({
       decliningMeasures: ((declining ?? []) as { member_id: string; label: string }[])
         .filter((d) => d.member_id === memberId)
         .map((d) => d.label),
-      engagement:
-        ((engagement ?? []) as { state: string }[])[0]?.state ?? "engaged",
       daysUntilProgrammeEnds: null,
       unreadMessages: ((unread ?? []) as { member_id: string; unread: number }[])
         .filter((t) => t.member_id === memberId)

@@ -6,7 +6,6 @@ import {
   CheckCheck,
   FileClock,
   PartyPopper,
-  PhoneOff,
   Sunrise,
   UserPlus,
 } from "lucide-react";
@@ -22,7 +21,6 @@ import type { CareRole } from "@/lib/member-status";
 import { actionsFor, nextActions, type ActionKind, type NextAction } from "@/lib/next-actions";
 import { Explain } from "@/components/ui/explain";
 import { ScheduleSheet } from "@/components/coordinator/schedule-sheet";
-import type { EngagementRow } from "@/components/engagement";
 
 // §10 Today queue — every row is one clear action on one member (C3).
 const ROLE_NAME: Record<CareRole, string> = {
@@ -229,49 +227,6 @@ export default async function CoordinatorTodayPage() {
           );
         })
       )}
-
-      {/* W3 — families who have gone quiet. Separate from the task queue on
-          purpose: these are not tasks the system generated, they are people who
-          have stopped showing up, and they need a human decision rather than a
-          click. */}
-      <QuietFamilies />
     </section>
-  );
-}
-
-/** The "who needs a call today" list, worst first. Renders nothing when every
- *  family is engaged — an empty section would just be noise on a good day. */
-/** The "who needs a call today" list, worst first. Renders nothing when every
- *  family is engaged — an empty section would just be noise on a good day. */
-async function QuietFamilies() {
-  const supabase = await createClient();
-  const { data } = await supabase.rpc("list_engagement");
-  const rows = ((data ?? []) as unknown as EngagementRow[]).filter(
-    (r) => r.state === "quiet" || r.state === "at_risk",
-  );
-  if (rows.length === 0) return null;
-
-  return (
-    <ListSection
-      label="Families who have gone quiet"
-      count={rows.length}
-      tone="warning"
-      icon={<PhoneOff className="size-3.5 text-warning" aria-hidden />}
-    >
-      <List>
-        {rows.map((r) => (
-          <ListRow
-            key={r.member_id}
-            href={`/coordinator/members/${r.member_id}`}
-            tone={r.state === "at_risk" ? "danger" : "warning"}
-            leading={<Monogram name={r.full_name ?? "?"} size="sm" tone="caregiver" />}
-            eyebrow={r.state === "at_risk" ? "Needs a call" : "Quiet"}
-            title={r.full_name ?? "Member"}
-            detail={r.reason}
-            meta={r.days_quiet > 0 ? `${r.days_quiet}d` : undefined}
-          />
-        ))}
-      </List>
-    </ListSection>
   );
 }

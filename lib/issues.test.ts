@@ -8,7 +8,6 @@ const NONE: IssueInput = {
   adverseEvent: false,
   reportOverdueHours: null,
   decliningMeasures: [],
-  engagement: "engaged",
   daysUntilProgrammeEnds: null,
   unreadMessages: 0,
 };
@@ -61,15 +60,6 @@ test("declining measures are named, not just counted", () => {
   assert.match(decline.detail!, /Balance hold/);
 });
 
-test("engagement: at_risk is a warning, quiet is not the doctor's problem", () => {
-  assert.equal(computeIssues({ ...NONE, engagement: "at_risk" })[0]?.kind, "family_at_risk");
-  assert.deepEqual(
-    computeIssues({ ...NONE, engagement: "quiet" }),
-    [],
-    "a quiet family is the coordinator's call to make, not a clinical issue",
-  );
-});
-
 test("a programme ending inside a fortnight is info, not alarm", () => {
   const issues = computeIssues({ ...NONE, daysUntilProgrammeEnds: 9 });
   assert.equal(issues[0].kind, "programme_ending");
@@ -93,7 +83,6 @@ test("issues sort danger → warning → info, so the strip reads by urgency", (
     daysUntilProgrammeEnds: 5,
     reportOverdueHours: 100,
     adverseEvent: true,
-    engagement: "at_risk",
   });
   const severities = issues.map((i) => i.severity);
   assert.deepEqual(severities, [...severities].sort(bySeverity), "already ordered by urgency");

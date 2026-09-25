@@ -9,7 +9,6 @@ import {
   CalendarClock,
   FileWarning,
   MessageSquare,
-  PhoneOff,
   ShieldAlert,
   TrendingDown,
 } from "lucide-react";
@@ -22,7 +21,6 @@ const ICON: Record<IssueKind, typeof AlertTriangle> = {
   adverse_event: AlertTriangle,
   report_overdue: FileWarning,
   measure_decline: TrendingDown,
-  family_at_risk: PhoneOff,
   programme_ending: CalendarClock,
   unread_messages: MessageSquare,
 };

@@ -83,7 +83,6 @@ export default async function ClinicianClientsPage() {
     { data: docReports },
     { data: declining },
     { data: unread },
-    { data: engagement },
     { data: feedback },
   ] = await Promise.all([
     supabase.from("members").select("id, full_name, age, status, red_flags").order("full_name"),
@@ -106,7 +105,6 @@ export default async function ClinicianClientsPage() {
       : Promise.resolve({ data: [] as { member_id: string; content: unknown; created_at: string }[] }),
     isDoctor ? supabase.rpc("my_declining_measures") : Promise.resolve({ data: [] }),
     isDoctor ? supabase.rpc("my_unread_threads") : Promise.resolve({ data: [] }),
-    isDoctor ? supabase.rpc("list_engagement") : Promise.resolve({ data: [] }),
     isDoctor
       ? supabase
           .from("form_responses")
@@ -143,11 +141,6 @@ export default async function ClinicianClientsPage() {
   const unreadByMember = new Map<string, number>();
   for (const t of (unread ?? []) as { member_id: string; unread: number }[]) {
     unreadByMember.set(t.member_id, (unreadByMember.get(t.member_id) ?? 0) + Number(t.unread));
-  }
-
-  const engagementByMember = new Map<string, string>();
-  for (const e of (engagement ?? []) as { member_id: string; state: string }[]) {
-    engagementByMember.set(e.member_id, e.state);
   }
 
   const adverseByMember = new Set<string>();
@@ -209,7 +202,6 @@ export default async function ClinicianClientsPage() {
           adverseEvent: adverseByMember.has(m.id),
           reportOverdueHours: overdueHours.get(m.id) ?? null,
           decliningMeasures: decliningByMember.get(m.id) ?? [],
-          engagement: engagementByMember.get(m.id) ?? "engaged",
           // The doctor cannot read `packages`; the active cycle's end date is the
           // programme signal their RLS does grant.
           daysUntilProgrammeEnds: daysUntil(cycleEndByMember.get(m.id)),

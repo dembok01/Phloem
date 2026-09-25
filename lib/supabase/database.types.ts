@@ -1412,34 +1412,6 @@ export type Database = {
         Returns: string
       }
       get_checkin_link: { Args: { p_token: string }; Returns: Json }
-      get_engagement: {
-        Args: { p_member: string }
-        Returns: {
-          days_quiet: number
-          last_activity_at: string
-          member_id: string
-          missed_consults: number
-          reason: string
-          state: string
-        }[]
-      }
-      list_engagement: {
-        Args: never
-        Returns: {
-          days_quiet: number
-          full_name: string
-          last_activity_at: string
-          member_id: string
-          missed_consults: number
-          reason: string
-          state: string
-          status: Database["public"]["Enums"]["member_status"]
-        }[]
-      }
-      record_activity: {
-        Args: { p_kind: string; p_member: string; p_meta?: Json }
-        Returns: undefined
-      }
       revoke_checkin_link: { Args: { p_token: string }; Returns: undefined }
       submit_checkin: {
         Args: { p_answers: Json; p_token: string }
@@ -1530,7 +1502,6 @@ export type Database = {
         Args: { p_confirm_name: string; p_member: string }
         Returns: Json
       }
-      flag_quiet_families: { Args: { p_today?: string }; Returns: Json }
       get_care_team: { Args: { p_member: string }; Returns: Json }
       get_member_elderly_mode: { Args: { p_member: string }; Returns: boolean }
       get_onboarding_scoped: { Args: { m: string }; Returns: Json }
