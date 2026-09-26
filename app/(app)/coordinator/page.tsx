@@ -168,7 +168,7 @@ export default async function CoordinatorTodayPage() {
                     {rows.length > 1 ? (
                       <Link
                         href={`/coordinator/members/${memberId}`}
-                        className="mb-1.5 inline-flex items-center gap-2 text-sm font-medium hover:underline"
+                        className="mb-1.5 inline-flex items-center gap-2 text-sm font-medium hover:underline max-sm:min-h-10"
                       >
                         <Monogram name={rows[0]!.subject} size="xs" />
                         {rows[0]!.subject}

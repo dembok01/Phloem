@@ -76,7 +76,7 @@ export function CareTeamSwitcherMenu({
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="menu"
         aria-expanded={open}
-        className="flex max-w-[13rem] items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        className="flex max-w-[8.5rem] items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground max-sm:h-9 sm:max-w-[13rem]"
       >
         {onLensDesk ? <Eye className="size-3.5 shrink-0" aria-hidden /> : null}
         <span className="truncate">{active ? active.label : "Admin desk"}</span>

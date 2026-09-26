@@ -516,7 +516,7 @@ function ContactBlock({
         {tel ? (
           <a
             href={tel}
-            className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-sm hover:bg-muted"
+            className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-sm hover:bg-muted max-sm:min-h-10 max-sm:px-3"
           >
             <Phone className="size-3.5" /> {phone ?? whatsapp}
           </a>
@@ -528,7 +528,7 @@ function ContactBlock({
             href={wa}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-sm text-success hover:bg-muted"
+            className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-sm text-success hover:bg-muted max-sm:min-h-10 max-sm:px-3"
           >
             <MessageCircle className="size-3.5" /> WhatsApp
           </a>

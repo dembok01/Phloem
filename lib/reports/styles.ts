@@ -107,6 +107,15 @@ export const REPORT_CSS = `
 /* comparison (W1.7) */
 .report-doc .report-compare-label { text-align:left; font-weight:600; color:#5A6B60;
   background:#F5F8F5; }
+
+/* Phones. Report tables ran 349-417px wide on a 360px screen and dragged the whole
+   page sideways: tighter cells, long words may break, and a table that still does
+   not fit scrolls inside itself. \`screen\` keeps this out of the A4 PDF. */
+@media screen and (max-width: 640px) {
+  .report-doc table.report-table { display:block; overflow-x:auto; font-size:14px; }
+  .report-doc table.report-table th, .report-doc table.report-table td { padding:6px 8px; }
+  .report-doc table.report-table td { overflow-wrap:anywhere; }
+}
 `;
 
 // PDF-only chrome: the branded header band + page setup. Combined with REPORT_CSS.

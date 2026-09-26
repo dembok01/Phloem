@@ -470,3 +470,14 @@
   transition-delay: 0s !important;
   scroll-behavior: auto !important;
 }
+
+/* iPhone Safari zooms into any text field under 16px the moment it is tapped, and
+   stays zoomed. Below md every field is 16px whatever utility it carries: this is
+   unlayered, so it outranks every Tailwind layer. */
+@media (max-width: 767.98px) {
+  input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="color"]),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}

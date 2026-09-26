@@ -96,7 +96,7 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
                     <li key={i}>
                       <a
                         href={`#section-${i}`}
-                        className="block truncate text-xs text-muted-foreground hover:text-foreground hover:underline"
+                        className="block truncate py-2 text-xs text-muted-foreground hover:text-foreground hover:underline lg:py-0"
                       >
                         {h}
                       </a>

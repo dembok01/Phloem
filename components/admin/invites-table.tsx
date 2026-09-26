@@ -7,7 +7,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { CopyField } from "@/components/copy-field";
 import { FilterBar, syncUrl, type Chip } from "./filter-bar";
 import { RowAction } from "./row-action";
-import { AdminTable, SortTh, Td, Th, Tr, useSort } from "./table";
+import { AdminTable, PhoneList, SortTh, Td, Th, Tr, useSort } from "./table";
 import { revokeInviteAction } from "@/app/(app)/admin/invites/actions";
 import { matchesQuery, relativeDayLabel, sortRows } from "@/lib/admin-filters";
 import type { InviteState } from "@/lib/invite";
@@ -88,60 +88,88 @@ export function InvitesTable({
           }
         />
       ) : (
-        <AdminTable
-          label="Invites"
-          head={
-            <>
-              <SortTh id="email" label="Email" sort={sort} onSort={onSort} />
-              <SortTh id="roleLabel" label="Role" sort={sort} onSort={onSort} />
-              <Th>Kind</Th>
-              <Th>State</Th>
-              <SortTh id="expires_at" label="Expires" sort={sort} onSort={onSort} />
-              <Th className="text-right">Link / action</Th>
-            </>
-          }
-        >
-          {visible.map((inv) => (
-            <Tr key={inv.id} className={cn(inv.state === "expired" && "opacity-70")}>
-              <Td className="font-medium text-foreground">{inv.email}</Td>
-              <Td>{inv.roleLabel}</Td>
-              <Td className="text-muted-foreground">{inv.kind}</Td>
-              <Td>
-                {inv.state === "used" ? (
-                  <Badge variant="success">Used</Badge>
-                ) : inv.state === "expired" ? (
-                  <Badge variant="danger">Expired</Badge>
-                ) : (
-                  <Badge variant="warning">Pending</Badge>
-                )}
-              </Td>
-              {/* An expiry is only useful as a distance — "in 3 days", not a date
-                  you have to subtract today from. */}
-              <Td numeric className="whitespace-nowrap text-muted-foreground">
-                {relativeDayLabel(inv.expires_at)}
-              </Td>
-              <Td>
-                {inv.state === "used" ? (
-                  <span className="block text-right text-muted-foreground">—</span>
-                ) : (
-                  <div className="flex flex-col items-end gap-2">
-                    {inv.url ? <CopyField value={inv.url} label={`Invite link for ${inv.email}`} /> : null}
-                    {/* No Undo offered: revoking DELETES the row. */}
-                    <RowAction
-                      variant="destructive"
-                      pendingText="Revoking…"
-                      run={() => revokeInviteAction(inv.id)}
-                      success={`Invite to ${inv.email} revoked`}
-                    >
-                      Revoke
-                    </RowAction>
+        <>
+          <PhoneList label="Invites">
+            {visible.map((inv) => (
+              <li key={inv.id} className={cn("space-y-2 px-3 py-3", inv.state === "expired" && "opacity-70")}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-[15px] leading-5 font-medium text-foreground">{inv.email}</p>
+                    <p className="truncate text-xs leading-4 text-muted-foreground">
+                      {inv.roleLabel} · {inv.kind}
+                      {inv.state === "used" ? "" : ` · expires ${relativeDayLabel(inv.expires_at)}`}
+                    </p>
                   </div>
-                )}
-              </Td>
-            </Tr>
-          ))}
-        </AdminTable>
+                  <StateBadge state={inv.state} />
+                </div>
+                {inv.state === "used" ? null : <InviteActions inv={inv} />}
+              </li>
+            ))}
+          </PhoneList>
+
+          <AdminTable
+            label="Invites"
+            className="max-md:hidden"
+            head={
+              <>
+                <SortTh id="email" label="Email" sort={sort} onSort={onSort} />
+                <SortTh id="roleLabel" label="Role" sort={sort} onSort={onSort} />
+                <Th>Kind</Th>
+                <Th>State</Th>
+                <SortTh id="expires_at" label="Expires" sort={sort} onSort={onSort} />
+                <Th className="text-right">Link / action</Th>
+              </>
+            }
+          >
+            {visible.map((inv) => (
+              <Tr key={inv.id} className={cn(inv.state === "expired" && "opacity-70")}>
+                <Td className="font-medium text-foreground">{inv.email}</Td>
+                <Td>{inv.roleLabel}</Td>
+                <Td className="text-muted-foreground">{inv.kind}</Td>
+                <Td>
+                  <StateBadge state={inv.state} />
+                </Td>
+                {/* An expiry is only useful as a distance — "in 3 days", not a date
+                    you have to subtract today from. */}
+                <Td numeric className="whitespace-nowrap text-muted-foreground">
+                  {relativeDayLabel(inv.expires_at)}
+                </Td>
+                <Td>
+                  {inv.state === "used" ? (
+                    <span className="block text-right text-muted-foreground">—</span>
+                  ) : (
+                    <InviteActions inv={inv} className="items-end" />
+                  )}
+                </Td>
+              </Tr>
+            ))}
+          </AdminTable>
+        </>
       )}
+    </div>
+  );
+}
+
+function StateBadge({ state }: { state: InviteRow["state"] }) {
+  if (state === "used") return <Badge variant="success">Used</Badge>;
+  if (state === "expired") return <Badge variant="danger">Expired</Badge>;
+  return <Badge variant="warning">Pending</Badge>;
+}
+
+/** Copy the link, or revoke. Shared by the phone row and the table. */
+function InviteActions({ inv, className }: { inv: InviteRow; className?: string }) {
+  return (
+    <div className={cn("flex flex-col gap-2", className)}>
+      {inv.url ? <CopyField value={inv.url} label={`Invite link for ${inv.email}`} /> : null}
+      {/* No Undo offered: revoking DELETES the row. */}
+      <RowAction
+        variant="destructive"
+        pendingText="Revoking…"
+        run={() => revokeInviteAction(inv.id)}
+        success={`Invite to ${inv.email} revoked`}
+      >
+        Revoke
+      </RowAction>
     </div>
   );
 }

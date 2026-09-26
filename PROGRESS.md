@@ -1649,3 +1649,65 @@ the first screen (was 4). At 1280px the table renders exactly as before.
 
 Not done (asked to stay scoped): the admin layout's ⌘K search pill still takes a row on
 phones; an A–Z jump bar; the doctor's list and the coordinator pipeline.
+
+## Whole dashboard on phones (2026-09-27)
+
+Owner request: doctors first, then admin and coordinator, must be able to see and do
+everything from a phone (Chrome on Android, Safari on iPhone).
+
+### Audit before (360px, geometry only, seeded admin incl. the borrowed doctor desk)
+
+- **Every page scrolled sideways** (doc 373–440px): the header — logo, desk switcher,
+  bell, "Sign out" — did not fit, and on the doctor's member overview an issue chip
+  carried its full explanation on one unwrapped line (407px).
+- **iPhone auto-zoom** on 9 fields (admin list search, enroll, package duration,
+  care-team role, invites, coordinator Assign selects): Safari zooms into any field
+  under 16px and stays zoomed.
+- **(i) explanations never opened from a tap** — Base UI Tooltip ignores touch
+  (verified by tapping one on a touch-emulated phone).
+- Small targets: filter chips 26px, "Mark read" 28px (62 of 70 on notifications), call
+  and WhatsApp 30px, report links 16–20px, breadcrumbs 20px, (i) 16px, sheet close 24px.
+- Wide content: care team 752px, invites 806px, audit 600px tables; coordinator
+  pipeline 1,896px; doctor report tables 349–417px; doctor member tabs a 713px rail
+  with Consult form and Reports off-screen.
+
+### Changed
+
+- Header: "Sign out" is an icon below `sm`, smaller logo, tighter gaps, desk switcher
+  capped at 8.5rem — fits 360px with 12px to spare.
+- `app/globals.css`: one unlayered rule sets every text field to 16px below `md`.
+- `components/ui/explain.tsx`: the standalone (i) is a Popover that also opens on
+  hover; ExplainOn stays a tooltip (its host is a link — the tap belongs to the link).
+- Tap targets raised on phones only (`max-sm:` / `max-md:`), desktop unchanged: chips,
+  breadcrumbs (padding + negative margin, no layout shift), (i) via an `::after` hit
+  area, sheet close, "Mark read", call/WhatsApp, timeline filters and actions, report
+  rows, sharing switch, logo, lens banner, funnel segments (`min-w-6`).
+- Doctor: issue chips with detail wrap; the member tabs wrap onto rows below `sm` so
+  all eight sections are visible; report tables fit (`@media screen` in REPORT_CSS —
+  never reaches the A4 PDF): tighter cells, long words break, a still-too-wide table
+  scrolls inside itself.
+- Admin: `PhoneList` in `components/admin/table.tsx` — care team, invites and audit
+  get phone rows like Members (shared action components, so phone and table cannot
+  drift); the swipeable chip row is now the FilterBar default.
+- Coordinator: pipeline stages stack on phones (empty stages hidden, drag handle hidden
+  — HTML drag-and-drop does not work on touch; a card opens the member).
+- NavTabs scroll the current tab into view.
+
+Not verifiable as admin: the doctor's Consult form (not rendered on a borrowed desk)
+and the family portal. The form was reviewed in code: 44px/16px fields, stacked
+matrices below `sm`, section rail hidden below `lg`, sticky submit bar — no change
+needed.
+
+### Verification
+
+- Strict `tsc` (`--noUnusedLocals --noUnusedParameters`) clean; `npm run test:unit`
+  120/120.
+- Full re-audit at 360×780 on a freshly started dev server (a long-running one missed
+  file changes, so the final numbers come from a clean start), 20 pages incl. every
+  doctor tab and a doctor report: **no page scrolls sideways (was every page), 0 tap
+  targets under 32px, 0 fields that trigger iPhone zoom (was 9), (i) opens on tap.**
+  The only sideways scrollers left are deliberate: the section tabs and chip rows.
+- Desktop 1280×900: admin lists show their tables and hide the phone lists, "Sign out"
+  keeps its word, the pipeline is still a side-by-side board, nothing overflows.
+- Opening the doctor report for the audit wrote one truthful audit row
+  (`report.viewed` by the seeded admin).

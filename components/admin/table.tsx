@@ -19,13 +19,16 @@ export function AdminTable({
   head,
   children,
   label,
+  className,
 }: {
   head: React.ReactNode;
   children: React.ReactNode;
   label: string;
+  /** e.g. `max-md:hidden` when a PhoneList stands in for the table on phones */
+  className?: string;
 }) {
   return (
-    <div className="overflow-x-auto rounded-xl border bg-card shadow-card">
+    <div className={cn("overflow-x-auto rounded-xl border bg-card shadow-card", className)}>
       <table className="w-full text-sm" aria-label={label}>
         {/* top-0, never an offset: the overflow-x wrapper is the box sticky measures
             against, so `top-14` pushed the header 56px down onto row 1 and hid the
@@ -36,6 +39,23 @@ export function AdminTable({
         <tbody>{children}</tbody>
       </table>
     </div>
+  );
+}
+
+/**
+ * The phone stand-in for an AdminTable. A table's columns are wider than a phone
+ * (members 728px, invites 806px at 360), so on phones each list renders its own
+ * compact rows here and hides the table with `className="max-md:hidden"`. Both
+ * read the same filtered rows, so search, chips and sort order match.
+ */
+export function PhoneList({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <ul
+      aria-label={label}
+      className="divide-y overflow-hidden rounded-xl border bg-card shadow-card md:hidden"
+    >
+      {children}
+    </ul>
   );
 }
 

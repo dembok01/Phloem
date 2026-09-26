@@ -42,7 +42,10 @@ export function PageHeader({
                 <li key={i} className="flex items-center gap-1">
                   {i > 0 ? <ChevronRight className="size-3.5 shrink-0" aria-hidden /> : null}
                   {c.href ? (
-                    <Link href={c.href} className="rounded-sm hover:text-foreground hover:underline">
+                    <Link
+                      href={c.href}
+                      className="-my-1.5 rounded-sm py-1.5 hover:text-foreground hover:underline"
+                    >
                       {c.label}
                     </Link>
                   ) : (

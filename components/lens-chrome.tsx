@@ -60,7 +60,7 @@ export function LensChrome({
               <SubmitButton
                 variant="ghost"
                 size="sm"
-                className="h-7 shrink-0 px-2 text-xs"
+                className="h-7 shrink-0 px-2 text-xs max-sm:h-9"
                 pendingText="Leaving…"
               >
                 Back to admin

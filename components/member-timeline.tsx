@@ -80,7 +80,7 @@ const MEETING_STATUS: Record<string, string> = {
 };
 
 const ENTRY_ACTION =
-  "inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
+  "inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring max-md:min-h-8";
 
 const monthFmt = new Intl.DateTimeFormat("en-IN", {
   month: "long",
@@ -419,7 +419,7 @@ function FilterLink({
       href={href}
       aria-current={active ? "true" : undefined}
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
+        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors max-md:min-h-8",
         active
           ? "border-transparent bg-secondary text-secondary-foreground"
           : "bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground",

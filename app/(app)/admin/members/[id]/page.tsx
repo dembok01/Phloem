@@ -217,7 +217,7 @@ export default async function AdminMemberPage({
                 <li key={r.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-2">
                   <ReportPeek
                     reportId={r.id}
-                    className="group flex min-w-0 items-center gap-2 text-left hover:underline"
+                    className="group flex min-h-10 min-w-0 items-center gap-2 text-left hover:underline"
                   >
                     <span className="truncate text-sm font-medium">{humanize(r.type)}</span>
                     <span className="text-xs text-muted-foreground">{formatDateTimeIST(r.created_at)}</span>

@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Monogram } from "@/components/monogram";
 import { FilterBar, syncUrl, type Chip } from "./filter-bar";
-import { AdminTable, SortTh, Td, Th, Tr, useSort } from "./table";
+import { AdminTable, PhoneList, SortTh, Td, Th, Tr, useSort } from "./table";
 import { matchesQuery, sortRows } from "@/lib/admin-filters";
 import { duplicateNameIds } from "@/lib/member-duplicates";
 import { MEMBER_STATUS_LABEL, memberStatusVariant, type MemberStatus } from "@/lib/member-status";
@@ -110,7 +110,6 @@ export function MembersTable({
         shown={visible.length}
         total={rows.length}
         noun="members"
-        scrollChipsOnPhone
       >
         {flaggedCount > 0 ? (
           <button
@@ -150,10 +149,7 @@ export function MembersTable({
               members fitted above the fold. Name and status stack; 48px keeps the
               whole row a comfortable tap. Same `visible` rows, so search, chips and
               "Flagged first" drive both views. */}
-          <ul
-            aria-label="Members"
-            className="divide-y overflow-hidden rounded-xl border bg-card shadow-card md:hidden"
-          >
+          <PhoneList label="Members">
             {visible.map((m) => (
               <li key={m.id} className={cn(m.high && "bg-danger-tint/40")}>
                 <Link
@@ -187,11 +183,11 @@ export function MembersTable({
                 </Link>
               </li>
             ))}
-          </ul>
+          </PhoneList>
 
-          <div className="hidden md:block">
           <AdminTable
             label="Members"
+            className="max-md:hidden"
             head={
               <>
                 <SortTh id="full_name" label="Name" sort={sort} onSort={onSort} />
@@ -242,7 +238,6 @@ export function MembersTable({
               </Tr>
             ))}
           </AdminTable>
-          </div>
         </>
       )}
     </div>

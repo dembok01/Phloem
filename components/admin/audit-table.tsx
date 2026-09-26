@@ -5,7 +5,7 @@ import { ScrollText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FilterBar, syncUrl, type Chip } from "./filter-bar";
-import { AdminTable, SortTh, Td, Th, Tr, useSort } from "./table";
+import { AdminTable, PhoneList, SortTh, Td, Th, Tr, useSort } from "./table";
 import { matchesQuery, sortRows } from "@/lib/admin-filters";
 
 export type AuditRow = {
@@ -92,8 +92,26 @@ export function AuditTable({
         />
       ) : (
         <>
+          <PhoneList label="Audit log">
+            {page.map((r) => (
+              <li key={r.id} className="space-y-1 px-3 py-2.5">
+                <div className="flex items-center justify-between gap-3">
+                  <Badge variant="muted" className="min-w-0">
+                    <span className="truncate font-mono text-[0.7rem]">{r.action}</span>
+                  </Badge>
+                  <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{r.when}</span>
+                </div>
+                <p className="truncate text-sm">
+                  {r.actor}
+                  {r.entity ? <span className="text-muted-foreground"> · {r.entity}</span> : null}
+                </p>
+              </li>
+            ))}
+          </PhoneList>
+
           <AdminTable
             label="Audit log"
+            className="max-md:hidden"
             head={
               <>
                 <SortTh id="whenIso" label="When" sort={sort} onSort={onSort} />

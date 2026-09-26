@@ -47,8 +47,13 @@ export function IssueChips({
       {issues.map((issue) => {
         const Icon = ICON[issue.kind];
         return (
-          <li key={issue.kind}>
-            <Badge variant={VARIANT[issue.severity]} title={issue.detail}>
+          <li key={issue.kind} className="max-w-full">
+            <Badge
+              variant={VARIANT[issue.severity]}
+              title={issue.detail}
+              // With its "why" the chip is a sentence; let it wrap on a phone.
+              className={showDetail ? "rounded-lg whitespace-normal" : undefined}
+            >
               <Icon className="size-3.5 shrink-0" aria-hidden />
               {issue.label}
               {showDetail && issue.detail ? (

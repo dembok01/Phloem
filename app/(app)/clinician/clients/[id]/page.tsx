@@ -181,18 +181,20 @@ export default async function ClinicianClientPage({
         </CardContent>
       </Card>
 
+      {/* Phones: the tabs wrap onto rows. As one sideways rail, Consult form and
+          Reports — a doctor's two main destinations — started off-screen. */}
       <nav
-        className="-mx-4 overflow-x-auto px-4 sm:-mx-6 sm:px-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="sm:-mx-6 sm:overflow-x-auto sm:px-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         aria-label="Member sections"
       >
-        <div className="flex w-max gap-1 rounded-full border bg-card p-1 shadow-card">
+        <div className="flex flex-wrap gap-1 rounded-2xl border bg-card p-1 shadow-card sm:w-max sm:flex-nowrap sm:rounded-full">
           {tabs.map(([key, label]) => (
             <Link
               key={key}
               href={`/clinician/clients/${id}?tab=${key}`}
               aria-current={key === activeTab ? "page" : undefined}
               className={cn(
-                "rounded-full px-4 py-1.5 text-sm font-medium whitespace-nowrap transition-colors",
+                "rounded-full px-4 py-1.5 text-sm font-medium whitespace-nowrap transition-colors max-sm:px-3 max-sm:py-2",
                 key === activeTab
                   ? "bg-secondary text-secondary-foreground"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -664,7 +666,7 @@ async function ReportsPanel({
                 <li key={r.id} className="py-2">
                   <ReportPeek
                     reportId={r.id}
-                    className="flex w-full items-center justify-between hover:underline"
+                    className="flex min-h-10 w-full items-center justify-between hover:underline"
                   >
                     <span className="text-sm font-medium">
                       {humanize(r.type)}

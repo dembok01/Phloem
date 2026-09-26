@@ -54,7 +54,7 @@ export default async function NotificationsPage() {
               />
               <div className="min-w-0 flex-1">
                 {n.link ? (
-                  <Link href={n.link} className="font-medium hover:underline">
+                  <Link href={n.link} className="font-medium hover:underline max-sm:inline-block max-sm:py-1.5">
                     {n.title}
                   </Link>
                 ) : (
@@ -66,7 +66,7 @@ export default async function NotificationsPage() {
               {!n.read_at ? (
                 <form action={markOneRead}>
                   <input type="hidden" name="id" value={n.id} />
-                  <SubmitButton variant="ghost" size="xs" pendingText="…">
+                  <SubmitButton variant="ghost" size="xs" pendingText="…" className="max-sm:h-10 max-sm:px-3">
                     Mark read
                   </SubmitButton>
                 </form>

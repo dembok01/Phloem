@@ -45,7 +45,8 @@ export function StageFunnel({ stages, className }: { stages: Stage[]; className?
                 width: `${(s.count / total) * 100}%`,
                 background: RAMP[Math.min(i, RAMP.length - 1)],
               }}
-              className="pressable group relative grid place-items-center first:rounded-l-lg last:rounded-r-lg hover:brightness-95"
+              // min-w-6: a stage of one was a 16px sliver — too thin to tap on a phone.
+              className="pressable group relative grid min-w-6 place-items-center first:rounded-l-lg last:rounded-r-lg hover:brightness-95"
             >
               <span className="font-data text-xs font-medium text-foreground/80 tabular-nums">
                 {s.count}

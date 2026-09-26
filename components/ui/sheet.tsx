@@ -69,7 +69,7 @@ export function Sheet({
               {headerActions}
               <Drawer.Close
                 aria-label="Close"
-                className="-m-1 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                className="-m-2 rounded-md p-3 text-muted-foreground hover:bg-muted hover:text-foreground"
               >
                 <X className="size-4" aria-hidden />
               </Drawer.Close>

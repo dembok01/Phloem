@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { LogOut } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -51,10 +52,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           Skip to content
         </a>
         <header className="sticky top-0 z-40 border-b bg-card/95 backdrop-blur print:hidden">
-          <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
+          <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between gap-2 px-4 sm:gap-4 sm:px-6">
             <Link
               href={ROLE_HOME[role]}
-              className="flex shrink-0 items-center rounded-md"
+              className="flex h-10 shrink-0 items-center rounded-md"
               aria-label="PHLOEM home"
             >
               <Image
@@ -62,11 +63,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 alt="PHLOEM"
                 width={120}
                 height={40}
-                className="h-8 w-auto"
+                className="h-7 w-auto sm:h-8"
                 priority
               />
             </Link>
-            <div className="flex min-w-0 items-center gap-1.5 sm:gap-3">
+            <div className="flex min-w-0 items-center gap-1 sm:gap-3">
               <CareTeamSwitcher />
               <NotificationBell />
               <span className="hidden min-w-0 items-center gap-2 sm:flex">
@@ -80,14 +81,17 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                   {ROLE_LABEL[role]}
                 </span>
               </span>
+              {/* An icon on phones: at 360px the words pushed the whole page
+                  sideways. The spinner still shows while signing out. */}
               <form action={logout}>
                 <SubmitButton
                   variant="ghost"
                   size="sm"
-                  className="text-muted-foreground"
-                  pendingText="Signing out…"
+                  aria-label="Sign out"
+                  className="text-muted-foreground max-sm:size-10 max-sm:px-0"
                 >
-                  Sign out
+                  <LogOut className="size-4 sm:hidden" aria-hidden />
+                  <span className="hidden sm:inline">Sign out</span>
                 </SubmitButton>
               </form>
             </div>

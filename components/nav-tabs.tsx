@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import { Loader2 } from "lucide-react";
@@ -12,6 +13,11 @@ export type NavItem = { href: string; label: string; exact?: boolean };
  * Pill-style active state; scrolls horizontally on small screens instead of wrapping. */
 export function NavTabs({ items }: { items: NavItem[] }) {
   const pathname = usePathname();
+  const activeRef = React.useRef<HTMLAnchorElement>(null);
+  // On a phone the rail scrolls sideways; land with the current tab in view.
+  React.useEffect(() => {
+    activeRef.current?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [pathname]);
   return (
     <nav
       className="-mx-4 overflow-x-auto px-4 sm:-mx-6 sm:px-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
@@ -26,6 +32,7 @@ export function NavTabs({ items }: { items: NavItem[] }) {
           return (
             <Link
               key={item.href}
+              ref={active ? activeRef : undefined}
               href={item.href}
               aria-current={active ? "page" : undefined}
               className={cn(

@@ -74,7 +74,15 @@ export function PipelineBoard({
   }
 
   return (
-    <div className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-3 sm:-mx-6 sm:px-6">
+    // Phones: the stages stack as sections, and empty ones are left out. Side by side
+    // the board was 1,896px wide at 360, and drag-and-drop does not work on touch
+    // anyway, so a card there simply opens the member.
+    <div className="flex flex-col gap-3 md:-mx-6 md:snap-x md:flex-row md:overflow-x-auto md:px-6 md:pb-3">
+      {cards.length === 0 ? (
+        <p className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground md:hidden">
+          No members in the pipeline yet.
+        </p>
+      ) : null}
       {columns.map((col) => {
         const colCards = cards.filter((m) => col.statuses.includes(m.status));
         const hot = col.key === "renewal" && colCards.length > 0;
@@ -84,7 +92,10 @@ export function PipelineBoard({
         const isActiveTarget =
           isOver && col.key === "active" && draggingCard?.status === "ready_to_start";
         return (
-          <div key={col.key} className="w-64 shrink-0 snap-start">
+          <div
+            key={col.key}
+            className={cn("md:w-64 md:shrink-0 md:snap-start", colCards.length === 0 && "max-md:hidden")}
+          >
             <div
               onDragOver={(e) => {
                 e.preventDefault();
@@ -99,7 +110,7 @@ export function PipelineBoard({
                 handleDrop(col.key);
               }}
               className={cn(
-                "flex h-full min-h-40 flex-col rounded-xl border bg-sidebar/60 p-2 transition-colors",
+                "flex h-full flex-col rounded-xl border bg-sidebar/60 p-2 transition-colors md:min-h-40",
                 hot && "border-warning/40",
                 isOver && "border-primary/50 bg-secondary/40",
                 isActiveTarget && "border-success/60 bg-success-tint",
@@ -171,7 +182,7 @@ export function PipelineBoard({
                           <span className="block truncate text-xs text-muted-foreground">{m.nextAction}</span>
                         </span>
                         <GripVertical
-                          className="size-4 shrink-0 text-border transition-colors group-hover:text-muted-foreground"
+                          className="size-4 shrink-0 text-border transition-colors group-hover:text-muted-foreground max-md:hidden"
                           aria-hidden
                         />
                       </div>

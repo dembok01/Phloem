@@ -7,7 +7,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Monogram, toneForRole } from "@/components/monogram";
 import { FilterBar, syncUrl, type Chip } from "./filter-bar";
 import { RowAction } from "./row-action";
-import { AdminTable, SortTh, Td, Th, Tr, useSort } from "./table";
+import { AdminTable, PhoneList, SortTh, Td, Th, Tr, useSort } from "./table";
 import { setAccountStatusAction } from "@/app/(app)/admin/care-team/actions";
 import { matchesQuery, sortRows } from "@/lib/admin-filters";
 import { ROLE_LABEL } from "@/lib/roles";
@@ -114,74 +114,106 @@ export function CareTeamTable({
           }
         />
       ) : (
-        <AdminTable
-          label="Care team"
-          head={
-            <>
-              <SortTh id="full_name" label="Name" sort={sort} onSort={onSort} />
-              <SortTh id="role" label="Role" sort={sort} onSort={onSort} />
-              <Th>Contact</Th>
-              <SortTh id="status" label="Status" sort={sort} onSort={onSort} />
-              <Th className="text-right">Action</Th>
-            </>
-          }
-        >
-          {visible.map((p) => (
-            <Tr key={p.id} className={cn(p.suspended && "bg-danger-tint/40")}>
-              <Td>
-                <span className="flex items-center gap-2.5">
-                  <Monogram name={p.full_name} size="xs" tone={toneForRole(p.role)} />
-                  <span className="min-w-0">
-                    <span className="block truncate font-medium text-foreground">{p.full_name}</span>
-                    {p.specialization ? (
-                      <span className="block truncate text-xs text-muted-foreground">
-                        {p.specialization}
-                      </span>
-                    ) : null}
+        <>
+          <PhoneList label="Care team">
+            {visible.map((p) => (
+              <li
+                key={p.id}
+                className={cn("flex items-center gap-3 px-3 py-2.5", p.suspended && "bg-danger-tint/40")}
+              >
+                <Monogram name={p.full_name} size="xs" tone={toneForRole(p.role)} />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[15px] leading-5 font-medium text-foreground">
+                    {p.full_name}
+                  </p>
+                  <p className="truncate text-xs leading-4 text-muted-foreground">
+                    {p.suspended ? <span className="font-medium text-danger">Suspended · </span> : null}
+                    {ROLE_LABEL[p.role]}
+                    {p.specialization ? ` · ${p.specialization}` : ""}
+                  </p>
+                  {p.email || p.phone ? (
+                    <p className="truncate text-xs leading-4 text-muted-foreground">
+                      {[p.email, p.phone].filter(Boolean).join(" · ")}
+                    </p>
+                  ) : null}
+                </div>
+                <StatusAction p={p} />
+              </li>
+            ))}
+          </PhoneList>
+
+          <AdminTable
+            label="Care team"
+            className="max-md:hidden"
+            head={
+              <>
+                <SortTh id="full_name" label="Name" sort={sort} onSort={onSort} />
+                <SortTh id="role" label="Role" sort={sort} onSort={onSort} />
+                <Th>Contact</Th>
+                <SortTh id="status" label="Status" sort={sort} onSort={onSort} />
+                <Th className="text-right">Action</Th>
+              </>
+            }
+          >
+            {visible.map((p) => (
+              <Tr key={p.id} className={cn(p.suspended && "bg-danger-tint/40")}>
+                <Td>
+                  <span className="flex items-center gap-2.5">
+                    <Monogram name={p.full_name} size="xs" tone={toneForRole(p.role)} />
+                    <span className="min-w-0">
+                      <span className="block truncate font-medium text-foreground">{p.full_name}</span>
+                      {p.specialization ? (
+                        <span className="block truncate text-xs text-muted-foreground">
+                          {p.specialization}
+                        </span>
+                      ) : null}
+                    </span>
                   </span>
-                </span>
-              </Td>
-              <Td>{ROLE_LABEL[p.role]}</Td>
-              <Td>
-                <span className="block truncate">{p.email ?? "—"}</span>
-                {p.phone ? (
-                  <span className="block text-xs tabular-nums text-muted-foreground">{p.phone}</span>
-                ) : null}
-              </Td>
-              <Td>
-                {p.suspended ? (
-                  <Badge variant="danger">Suspended</Badge>
-                ) : (
-                  <Badge variant="success">Active</Badge>
-                )}
-              </Td>
-              <Td className="text-right">
-                {/* Suspend and reactivate are true inverses, so this is the one
-                    place in the admin shell that can honestly offer an Undo. */}
-                <RowAction
-                  variant={p.suspended ? "outline" : "destructive"}
-                  pendingText={p.suspended ? "Reactivating…" : "Suspending…"}
-                  run={() => setAccountStatusAction(p.id, p.suspended ? "active" : "suspended")}
-                  success={
-                    p.suspended
-                      ? `Reactivated ${p.full_name}`
-                      : `Suspended ${p.full_name} — locked out everywhere`
-                  }
-                  undo={{
-                    label: "Undo",
-                    run: () => setAccountStatusAction(p.id, p.suspended ? "suspended" : "active"),
-                    success: p.suspended
-                      ? `${p.full_name} is suspended again`
-                      : `${p.full_name} is active again`,
-                  }}
-                >
-                  {p.suspended ? "Reactivate" : "Suspend"}
-                </RowAction>
-              </Td>
-            </Tr>
-          ))}
-        </AdminTable>
+                </Td>
+                <Td>{ROLE_LABEL[p.role]}</Td>
+                <Td>
+                  <span className="block truncate">{p.email ?? "—"}</span>
+                  {p.phone ? (
+                    <span className="block text-xs tabular-nums text-muted-foreground">{p.phone}</span>
+                  ) : null}
+                </Td>
+                <Td>
+                  {p.suspended ? (
+                    <Badge variant="danger">Suspended</Badge>
+                  ) : (
+                    <Badge variant="success">Active</Badge>
+                  )}
+                </Td>
+                <Td className="text-right">
+                  <StatusAction p={p} />
+                </Td>
+              </Tr>
+            ))}
+          </AdminTable>
+        </>
       )}
     </div>
+  );
+}
+
+/** Suspend and reactivate are true inverses, so this is the one place in the admin
+ * shell that can honestly offer an Undo. Shared by the phone row and the table. */
+function StatusAction({ p }: { p: CareTeamRow }) {
+  return (
+    <RowAction
+      variant={p.suspended ? "outline" : "destructive"}
+      pendingText={p.suspended ? "Reactivating…" : "Suspending…"}
+      run={() => setAccountStatusAction(p.id, p.suspended ? "active" : "suspended")}
+      success={
+        p.suspended ? `Reactivated ${p.full_name}` : `Suspended ${p.full_name} — locked out everywhere`
+      }
+      undo={{
+        label: "Undo",
+        run: () => setAccountStatusAction(p.id, p.suspended ? "suspended" : "active"),
+        success: p.suspended ? `${p.full_name} is suspended again` : `${p.full_name} is active again`,
+      }}
+    >
+      {p.suspended ? "Reactivate" : "Suspend"}
+    </RowAction>
   );
 }
