@@ -45,14 +45,26 @@ function medicationsTable(value: unknown): TableData {
   };
 }
 
-function foodFrequencyKv(value: unknown): KvData {
-  const out: KvData = {};
-  if (value && typeof value === "object" && !Array.isArray(value)) {
-    for (const [row, col] of Object.entries(value as Record<string, unknown>)) {
-      out[row] = textOr(col);
-    }
-  }
-  return out;
+/** The grid's rows in the onboarding template's order (onboarding.v1.json). */
+const FOOD_ROWS = ["Fruits", "Vegetables", "Dairy", "Protein", "Processed foods", "Sweets"];
+
+/**
+ * "How often do they eat…" as ONE row, a food per line: "Fruits — Few times a week".
+ *
+ * It used to spread into six kv rows keyed by the food. A report's sections are
+ * stored as jsonb, which re-orders object keys by length, so the six scattered
+ * among the other diet rows — "Protein: Rarely" beside "Protein (g / day)" — and
+ * read as a column of bare frequencies. One row keeps the food beside its answer.
+ * Migration 0052 rewrites already-issued reports to exactly this shape.
+ */
+export function foodFrequencyKv(value: unknown): KvData {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const grid = value as Record<string, unknown>;
+  const order = [...FOOD_ROWS, ...Object.keys(grid).filter((k) => !FOOD_ROWS.includes(k))];
+  const lines = order
+    .filter((food) => textOr(grid[food], "") !== "")
+    .map((food) => `${food} — ${textOr(grid[food])}`);
+  return { "How often they eat": lines.length ? lines.join("\n") : "—" };
 }
 
 export function buildOnboardingSummary(input: OnboardingSummaryInput): ReportContent {

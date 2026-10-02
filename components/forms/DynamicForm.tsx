@@ -491,7 +491,7 @@ function RepeatGroup({
         onClick={add}
         className="inline-flex items-center gap-1.5 rounded-lg border border-input px-3 py-2 text-sm font-medium hover:bg-muted"
       >
-        <Plus className="size-4" /> Add another
+        <Plus className="size-4" /> {field.addLabel ?? "Add another"}
       </button>
     </div>
   );

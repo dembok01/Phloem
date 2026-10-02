@@ -37,6 +37,7 @@ const formField: z.ZodType<FormField> = z.lazy(() =>
     allowOther: z.boolean().optional(),
     showIf: showIf.optional(),
     subfields: z.array(formField).optional(),
+    addLabel: z.string().optional(),
     rows: z.array(z.string()).optional(),
     cols: z.array(z.string()).optional(),
   }),

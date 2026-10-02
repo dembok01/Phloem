@@ -1711,3 +1711,46 @@ needed.
   keeps its word, the pipeline is still a side-by-side board, nothing overflows.
 - Opening the doctor report for the audit wrote one truthful audit row
   (`report.viewed` by the seeded admin).
+
+## Doctor requests: new medicines, readable food frequency (2026-09-30 → 10-02)
+
+### 1. "Few times a week, few times a week…" (onboarding food habits)
+
+- **Cause, on screen:** the clinician member page's Onboarding tab
+  (`renderScopedValue`, used by doctor / nutritionist / trainer, and the
+  psychologist's context) joined a grid answer's *values* —
+  `Object.values(v).join(", ")` — so "How often do they eat…" lost every food name.
+- **Cause, in the report:** the summary stored the six foods as six kv rows. Report
+  sections are jsonb, which re-orders keys by length, so they scattered among the other
+  diet rows ("Protein: Rarely" beside "Protein (g / day)") and read as bare frequencies.
+- **Fix:** the tab renders a grid answer as "Food: answer" lines; the builder writes one
+  "How often they eat" row, a food per line in the form's order
+  (`foodFrequencyKv`, tested in `lib/reports/build/onboarding-summary.test.ts`).
+  Migration **0052** rewrote all **18** issued onboarding summaries to that shape from
+  their own stored values and cleared `pdf_path` on the 10 that had a cached PDF, so the
+  next download re-renders. Dry-run reviewed before applying.
+
+### 2. "Add a new medicine" in the consult form
+
+- The medication list (`doctor_initial.med_recon`, `doctor_review.med_changes`) already
+  repeated, but its only actions — Continue / Modify / Stop / Flag — describe a medicine
+  the member already takes, and the button said "Add another".
+- **0052** adds `doctor_initial` **v2** and `doctor_review` **v3** (the 0023 pattern:
+  derived in SQL, old versions kept for their responses, one active per key): a
+  "New medicine" action (`new_medicine`, printed "New medicine" in the report), a
+  one-line hint, and an "Add a medicine" button via a new optional template key
+  `addLabel` (types + zod schema + DynamicForm; default stays "Add another").
+- Drafts are looked up by consultation, not template, and field ids are unchanged, so
+  drafts in progress keep their answers. No RPC validates option values.
+- `supabase/templates/doctor_initial.v2.json` / `doctor_review.v3.json` generated from
+  the repo's previous versions with the same transform; their canonical-jsonb md5 equals
+  the live rows' `md5(schema::text)`, so `scripts/seed.ts` activates the same versions.
+
+### Verification
+
+Strict `tsc` clean; `npm run test:unit` **122/122** (2 new). 0052 self-checks passed
+(one active version per key; New medicine on both forms; no summary left with the old
+food rows); verified after: v2/v3 active, 18 reports carry "How often they eat", 0
+cached onboarding PDFs. Both new template files parse through `parseFormTemplate` with
+`addLabel`, hint and the new action intact. Not exercised in a browser: the consult form
+needs a doctor account (the demo doctor is suspended on the live project).

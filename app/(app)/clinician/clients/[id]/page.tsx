@@ -444,7 +444,7 @@ function ScopedList({ data }: { data: Record<string, unknown> }) {
   );
 }
 
-function renderScopedValue(v: unknown): string {
+function renderScopedValue(v: unknown): React.ReactNode {
   if (Array.isArray(v)) {
     return v
       .map((item) =>
@@ -455,7 +455,21 @@ function renderScopedValue(v: unknown): string {
       .filter(Boolean)
       .join("; ") || "—";
   }
-  if (v && typeof v === "object") return Object.values(v as Record<string, unknown>).filter(Boolean).join(", ");
+  // A grid answer ("How often do they eat…") is label → answer. Joining only the
+  // values printed "Few times a week, Few times a week, …" with no food named.
+  if (v && typeof v === "object") {
+    const pairs = Object.entries(v as Record<string, unknown>).filter(([, x]) => x != null && x !== "");
+    if (pairs.length === 0) return "—";
+    return (
+      <ul className="space-y-0.5">
+        {pairs.map(([label, answer]) => (
+          <li key={label}>
+            <span className="text-muted-foreground">{label}:</span> {String(answer)}
+          </li>
+        ))}
+      </ul>
+    );
+  }
   return v === "" || v == null ? "—" : String(v);
 }
 

@@ -35,6 +35,8 @@ export type FormField = {
   showIf?: ShowIf;
   /** repeat_group: the columns of each row. */
   subfields?: FormField[];
+  /** repeat_group: the add button's words, e.g. "Add a medicine". Default "Add another". */
+  addLabel?: string;
   /** frequency_grid: row labels. */
   rows?: string[];
   /** frequency_grid: column labels (the selectable options per row). */
