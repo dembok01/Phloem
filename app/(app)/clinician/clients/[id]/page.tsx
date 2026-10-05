@@ -20,6 +20,7 @@ import { CLEARED, resolveClearance } from "@/lib/clearance";
 import { ClinicalForm } from "@/components/forms/ClinicalForm";
 import { FeedbackForm } from "@/components/forms/FeedbackForm";
 import { DocumentList, type DocumentRow } from "@/components/documents/document-list";
+import { currentConsult } from "@/lib/current-consult";
 import { MeasureTrends } from "@/components/charts/measure-trends";
 import { CasePanel } from "@/components/cases/case-panel";
 import { MemberTimeline } from "@/components/member-timeline";
@@ -759,7 +760,7 @@ async function FormPanel({
   // The submittable consultation for this role: meeting done + report pending.
   const { data: consults } = await supabase
     .from("consultations")
-    .select("id, cycle_id, meeting_status, report_status, scheduled_at")
+    .select("id, cycle_id, meeting_status, report_status, scheduled_at, created_at")
     .eq("member_id", memberId)
     .eq("type", role);
   const submittable = (consults ?? []).find(
@@ -776,7 +777,7 @@ async function FormPanel({
   }
 
   if (!submittable) {
-    const latest = (consults ?? [])[0];
+    const latest = currentConsult(consults ?? []);
     const submitted = latest?.report_status === "submitted";
     // Post-submit is a doorway, not a dead end (C4): link to the report it made.
     const lastOwnReport = submitted

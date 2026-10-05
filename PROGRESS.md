@@ -1817,3 +1817,32 @@ their first meeting or report.
   other reviews and no monthly feedback; the performance report says "No review this
   month".
 - Month 1 unchanged: initial consultations open on assignment.
+
+## "Can't add the report" — Dr. Riya / Sunitha Suresh (2026-10-05)
+
+### What the data shows
+
+- Month-2 doctor meeting scheduled 1 Oct 15:00 IST, marked done by the coordinator at
+  15:21. Dr. Riya's session was active 13:34–~15:48 that day; nothing again until 5 Oct.
+- 5 Oct: draft created 14:39 (first time the form was ever rendered for her), every
+  autosave 204, one `submit_clinical_form` call → 200 at 14:54; report filed. No
+  4xx/5xx from her account in the retained logs (free plan keeps ~1 day).
+- Her in-app notices "Meeting done — submit your form" (1 Oct) and "Report overdue"
+  (4 Oct) are unread; no email goes out until Resend is configured.
+
+### Bug found
+
+`FormPanel`, when nothing is submittable, described `consults[0]` from an UNORDERED
+query. Postgres returns Sunitha's August intake (submitted) first, so while the month-2
+meeting waited to be marked done the tab said **"Your report for this consultation is
+in"** with a link to the intake report, instead of "The form opens after the coordinator
+marks the meeting done". Every doctor with a monthly review pending was exposed.
+
+Fix: `lib/current-consult.ts` — the open consultation (report pending, not cancelled)
+first, else the newest; FormPanel selects `created_at` and uses it. Tested in
+`lib/current-consult.test.ts` with Sunitha's row order. Only call site with this pattern
+(`todayConsults[0]` on the client list is sorted first).
+
+Not changed: only admin/coordinator can mark a meeting done (§3).
+
+Verification: strict `tsc` clean; `npm run test:unit` 124/124.
