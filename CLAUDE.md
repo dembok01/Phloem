@@ -76,10 +76,17 @@ borrowable.
 **Program start (user-mandated 2026-09-22, migration 0046 — overrides the §1 core loop
 and the §6 `activate_program` gate).** The program starts when the **doctor submits the
 initial report**, from the day after that consultation — inside `submit_clinical_form`,
-so doctors gain no permission. Nutritionist, trainer and psychologist no longer gate it;
-each joins the monthly cycle (review consultation, day-27 feedback, performance report)
-once its own initial report is in (`_role_started`). The coordinator's Start button is
-the fallback; backdating a start (`activate_program(member, start)`) is admin-only.
+so doctors gain no permission. Nutritionist, trainer and psychologist no longer gate it.
+The coordinator's Start button is the fallback; backdating a start
+(`activate_program(member, start)`) is admin-only.
+
+**Monthly round follows the doctor (owner decision 2026-10-02, migration 0053).** A cycle
+from month 2 opens with the doctor's review only. When that doctor consultation is
+marked done (any path — a trigger on `consultations`), the nutritionist's, trainer's and
+psychologist's reviews for the month open for every *assigned* role, whatever happened
+to their first meeting or report. "Part of this month" (`_role_in_cycle`, used for the
+day-27 feedback and the performance report) = has this month's review; month 1 keeps
+the old meaning (initial report in, `_role_started`).
 
 ## Current phase
 

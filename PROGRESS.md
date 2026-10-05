@@ -1754,3 +1754,66 @@ food rows); verified after: v2/v3 active, 18 reports carry "How often they eat",
 cached onboarding PDFs. Both new template files parse through `parseFormTemplate` with
 `addLabel`, hint and the new action intact. Not exercised in a browser: the consult form
 needs a doctor account (the demo doctor is suspended on the live project).
+
+## The monthly round follows the doctor (2026-10-02 → 10-05, migration 0053)
+
+### The report
+
+The coordinator could not schedule month-2 dietitian reviews for Mohammed and Haseena
+Haja although their cycle 2 had started.
+
+### Root cause (not the doctor's pending report)
+
+`_open_review_consults` opened a cycle's round only for roles whose initial report was in
+(`_role_started`), and it ran only at rollover and at a backdated start. Mohammed's
+dietitian submitted on 22 Sep, eight days after cycle 2 opened, so no month-2 review was
+created and nothing would create one before month 3 (Sunitha Suresh, same). Haseena's
+dietitian had never started — her initial meeting was cancelled.
+
+### Owner decision → 0053
+
+Everything in a month revolves around the doctor's consultation: once the doctor's
+month-N consultation is held, the other roles' month-N reviews open — independent of
+their first meeting or report.
+
+- `_open_review_consults` → the doctor's review only (rollover, backdated start).
+- `_open_round_after_doctor(cycle)` + trigger `consultations_doctor_opens_round` (after
+  insert/update of `meeting_status`, doctor + cycle + `done`) → reviews for every
+  ASSIGNED nutritionist/trainer/psychologist; active cycles only, so a late "done" on a
+  closed month cannot create hidden rows the hygiene job would nag about.
+- `_role_in_cycle(cycle, role)`: month 1 = `_role_started` (unchanged); month 2+ = has
+  this month's (non-cancelled) review. Used by `run_daily_jobs` (feedback drafts, overdue
+  check) and `_build_performance` ("Feedback pending" vs "No review this month").
+- Feedback drafts are attempted each day from end-3 (idempotent) so a review opened late
+  still gets its form.
+- `run_daily_jobs` / `_build_performance` reproduced from 0046 after verifying the repo
+  bodies' md5 equals the live `prosrc`; only `0053` blocks differ.
+- Coordinator member page: a line explaining that this month's nutritionist and trainer
+  reviews open once the doctor's consultation is marked done; the "received outside"
+  hint no longer promises it joins the cycle. CLAUDE.md updated.
+
+### Verification
+
+- Dry run before applying: 5 reviews to open (Haseena nutritionist; Mohammed and Sunitha
+  nutritionist + trainer), no month-2+ cycle without a doctor review, no early-opened
+  reviews to reconcile.
+- The first apply call died in the MCP transport after hours with "Invalid or expired
+  requestState"; `pg_stat_activity` showed nothing running or blocked, and nothing had
+  been applied (no migration row, trigger or functions). Re-applied cleanly. The applied
+  header comment is shortened; the code is identical to the repo file.
+- After: migration recorded, trigger enabled, helpers not executable by `authenticated`;
+  the 5 reviews exist (three already held by the coordinator by 10-05); Mohammed's
+  `_role_in_cycle` = doctor/nutritionist/trainer true.
+- Trigger probe in a rolled-back block on Dibesh Bulhar (cycle 3, doctor unscheduled):
+  marking the doctor done opened nutritionist + trainer (`to_schedule`); afterwards his
+  cycle shows the doctor row only.
+- `_build_performance` for Mohammed's cycle 2: "Feedback pending: trainer, nutritionist".
+
+### Consequences of the rule (reported to the owner)
+
+- A role can get a monthly review without ever having met the member (Haseena's
+  dietitian; Mohammed's trainer, whose initial report is still pending).
+- If a doctor's monthly consultation is cancelled or never held, that month has no
+  other reviews and no monthly feedback; the performance report says "No review this
+  month".
+- Month 1 unchanged: initial consultations open on assignment.

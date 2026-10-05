@@ -195,6 +195,7 @@ export default async function CoordinatorMemberPage({
   const activeCycleConsults = activeCycle
     ? allConsults.filter((c) => c.cycle_id === activeCycle.id)
     : [];
+  const activeDoctorConsult = activeCycleConsults.find((c) => c.type === "doctor");
   const shownConsults = [...initialConsults, ...activeCycleConsults].sort(
     (a, b) => CARE_ROLES.indexOf(a.type) - CARE_ROLES.indexOf(b.type),
   );
@@ -407,7 +408,7 @@ export default async function CoordinatorMemberPage({
                           <span>
                             Received outside the dashboard
                             <span className="block text-xs text-muted-foreground">
-                              e.g. sent on WhatsApp — it counts as their plan, so they join the monthly cycle
+                              e.g. sent on WhatsApp — it counts as their plan
                             </span>
                           </span>
                         </label>
@@ -446,6 +447,16 @@ export default async function CoordinatorMemberPage({
               </div>
             ))
           )}
+          {/* 0053: a month's review round runs from the doctor. Until the doctor's
+              consultation is marked done there is nothing else to schedule — say so,
+              rather than leave an empty-looking month. */}
+          {activeCycle && activeCycle.number > 1 && activeDoctorConsult?.meeting_status !== "done" ? (
+            <p className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
+              Cycle {activeCycle.number}: the {ROLE_LABEL.nutritionist.toLowerCase()} and{" "}
+              {ROLE_LABEL.trainer.toLowerCase()} reviews open once the doctor&apos;s consultation
+              for this cycle is marked done.
+            </p>
+          ) : null}
         </CardContent>
       </Card>
 
