@@ -3,7 +3,6 @@ import { buttonVariants } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header";
 import { FlashToast } from "@/components/ui/toast";
 import { MembersTable, type MemberRow } from "@/components/admin/members-table";
-import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
 import { hasHighFlag, parseRedFlags } from "@/lib/red-flags";
 import { MEMBER_STATUS_LABEL, type MemberStatus } from "@/lib/member-status";
@@ -63,7 +62,7 @@ export default async function MembersPage({
           </span>
         }
         actions={
-          <Link href="/admin/members/new" className={cn(buttonVariants(), "pressable")}>
+          <Link href="/admin/members/new" className={buttonVariants()}>
             Enroll member
           </Link>
         }

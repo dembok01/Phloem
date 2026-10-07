@@ -6,7 +6,6 @@ import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import type { ActionResult } from "@/lib/action-result";
-import { cn } from "@/lib/utils";
 
 /**
  * A row's action: one click fires it, a toast confirms, and an Undo appears
@@ -76,7 +75,7 @@ export function RowAction({
       variant={variant}
       disabled={pending}
       onClick={fire}
-      className={cn("pressable", className)}
+      className={className}
     >
       {pending ? (
         <span className="inline-flex items-center gap-1.5">

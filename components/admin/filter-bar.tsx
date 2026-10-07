@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { Search, X } from "lucide-react";
+import { Chip as ToggleChip } from "@/components/ui/chip";
 import { cn } from "@/lib/utils";
 
 /**
@@ -19,12 +20,6 @@ export type Chip = {
   label: string;
   count: number;
   tone?: "danger" | "warning" | "success";
-};
-
-const TONE: Record<string, string> = {
-  danger: "data-[on=true]:bg-danger data-[on=true]:text-white",
-  warning: "data-[on=true]:bg-warning data-[on=true]:text-white",
-  success: "data-[on=true]:bg-success data-[on=true]:text-white",
 };
 
 /** Mirror a filter into the querystring without a server round trip. */
@@ -101,7 +96,7 @@ export function FilterBar({
             onChange={(e) => onQuery(e.target.value)}
             placeholder={placeholder}
             aria-label={placeholder}
-            className="h-10 w-full rounded-lg border border-input bg-card pl-9 pr-9 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-search-cancel-button]:hidden"
+            className="h-10 w-full rounded-lg border border-input bg-card pl-9 pr-9 text-sm outline-none transition-colors hover:border-foreground/60 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-search-cancel-button]:hidden"
           />
           {query ? (
             <button
@@ -125,20 +120,24 @@ export function FilterBar({
           several rows and pushing the list down. It bleeds to the screen edge like
           NavTabs, so a chip cut off at the edge says "swipe". The shown/total line
           goes to screen readers only there; the chips already carry every count. */}
-      <div className="-mx-4 flex items-center gap-1.5 overflow-x-auto px-4 [scrollbar-width:none] sm:-mx-6 sm:px-6 md:mx-0 md:flex-wrap md:overflow-visible md:px-0 [&::-webkit-scrollbar]:hidden">
-        <ChipButton on={active === null} onClick={() => onSelect(null)} count={total}>
+      {/* py-1.5 on phones: room for each chip's 44px touch area inside the scroller. */}
+      <div className="-mx-4 flex items-center gap-1.5 overflow-x-auto px-4 max-md:py-1.5 [scrollbar-width:none] sm:-mx-6 sm:px-6 md:mx-0 md:flex-wrap md:overflow-visible md:px-0 [&::-webkit-scrollbar]:hidden">
+        <ToggleChip selected={active === null} onClick={() => onSelect(null)} count={total}>
           All
-        </ChipButton>
+        </ToggleChip>
         {chips.map((c) => (
-          <ChipButton
+          <ToggleChip
             key={c.value}
-            on={active === c.value}
-            tone={c.tone}
+            selected={active === c.value}
+            tone={c.tone ?? "neutral"}
             count={c.count}
             onClick={() => onSelect(active === c.value ? null : c.value)}
+            // A zero-count chip stays clickable but recedes — hiding it would make
+            // the row of filters jump around as data changes, worse than a dim chip.
+            className={cn(c.count === 0 && active !== c.value && "opacity-45")}
           >
             {c.label}
-          </ChipButton>
+          </ToggleChip>
         ))}
         <p
           aria-live="polite"
@@ -152,39 +151,5 @@ export function FilterBar({
         </p>
       </div>
     </div>
-  );
-}
-
-function ChipButton({
-  on,
-  tone,
-  count,
-  onClick,
-  children,
-}: {
-  on: boolean;
-  tone?: Chip["tone"];
-  count: number;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      data-on={on}
-      aria-pressed={on}
-      onClick={onClick}
-      // A zero-count chip stays clickable but recedes — hiding it would make the
-      // row of filters jump around as data changes, which is worse than a dim chip.
-      className={cn(
-        "pressable inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium whitespace-nowrap max-md:min-h-8",
-        "data-[on=false]:hover:bg-muted data-[on=true]:border-transparent",
-        count === 0 && !on && "opacity-45",
-        tone ? TONE[tone] : "data-[on=true]:bg-foreground data-[on=true]:text-background",
-      )}
-    >
-      {children}
-      <span className="tabular-nums opacity-70">{count}</span>
-    </button>
   );
 }

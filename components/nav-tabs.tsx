@@ -4,13 +4,14 @@ import * as React from "react";
 import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import { Loader2 } from "lucide-react";
+import { TAB_TRACK, tabClass } from "@/components/tab-styles";
 import { cn } from "@/lib/utils";
 
 export type NavItem = { href: string; label: string; exact?: boolean };
 
 /** Horizontal section sub-nav with active-link highlighting (§10 shells).
  * `exact` items (typically the index tab) match only their own path, not children.
- * Pill-style active state; scrolls horizontally on small screens instead of wrapping. */
+ * Segmented-control look; scrolls horizontally on small screens instead of wrapping. */
 export function NavTabs({ items }: { items: NavItem[] }) {
   const pathname = usePathname();
   const activeRef = React.useRef<HTMLAnchorElement>(null);
@@ -23,7 +24,7 @@ export function NavTabs({ items }: { items: NavItem[] }) {
       className="-mx-4 overflow-x-auto px-4 sm:-mx-6 sm:px-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       aria-label="Section"
     >
-      <div className="flex w-max gap-1 rounded-full border bg-card p-1 shadow-card">
+      <div className={cn("flex w-max gap-1 rounded-full", TAB_TRACK)}>
         {items.map((item) => {
           const active =
             pathname === item.href ||
@@ -35,12 +36,7 @@ export function NavTabs({ items }: { items: NavItem[] }) {
               ref={active ? activeRef : undefined}
               href={item.href}
               aria-current={active ? "page" : undefined}
-              className={cn(
-                "rounded-full px-4 py-1.5 text-sm font-medium whitespace-nowrap transition-colors",
-                active
-                  ? "bg-secondary text-secondary-foreground"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
-              )}
+              className={tabClass(active)}
             >
               <TabLabel label={item.label} />
             </Link>

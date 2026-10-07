@@ -1846,3 +1846,63 @@ first, else the newest; FormPanel selects `created_at` and uses it. Tested in
 Not changed: only admin/coordinator can mark a meeting done (§3).
 
 Verification: strict `tsc` clean; `npm run test:unit` 124/124.
+
+## Clickability foundations — Phase 1 of the affordance plan (2026-10-07)
+
+Plan: `docs/AFFORDANCE-AND-ONBOARDING-PLAN.md`. Presentation-only: no migration, RLS or
+RPC touched, so the §16 suite was not re-run.
+
+### Root causes fixed (all in shared primitives)
+
+- **No hand cursor on any Button.** Tailwind v4's preflight gives `<button>` the arrow
+  cursor and nothing restored it: 160 of 351 clickable elements on 10 staff screens
+  showed an arrow. One base-layer rule in `globals.css` (buttons, ARIA roles, summary,
+  select, checkboxes/radios; `not-allowed` when disabled).
+- **Control edges at 1.2–1.5:1.** `--input` retuned `#c9d6cc` → `#78897e` (3.7:1 on white,
+  3.4:1 on the inset ground; elderly `#5a6b60`; dark `#6c8174`). Inputs, selects, toggle
+  switches' off-track and form chips inherit it. The empty state moved to `border-border`
+  (it is not a control).
+- **Button** (`components/ui/button.tsx`): hover now darkens (`--primary-hover` #185a41) instead
+  of fading to 80%; primary has the card shadow and a 1px hover lift; `outline` is raised
+  (white face, `input/60` edge, `shadow-xs`) so it reads on the inset list ground;
+  `secondary` is the tonal row action (Phloem tint + inset ring); press = `scale(.97)` at
+  160ms for every Button (reduced-motion and elderly keep only colour); `sm` 32 → 36px,
+  `icon-sm` 32 → 36px; on `pointer: coarse` every Button and Chip gets a 44px hit area
+  (`::after`, no reflow). `.pressable` removed from the three Buttons that also had it.
+- **Status vs action:** `Badge` is now a flat 6px tag with no edge; new `components/ui/chip.tsx`
+  (bordered pill, hover, press, `aria-pressed`, optional tick + count) used by the admin
+  `FilterBar` and "Flagged first". `ConsultStatusChips` lost its pill border.
+- **Links:** `.link` class (Phloem, underline at 35% → solid on hover). Adoption is Phase 5.
+- **Rows:** `ListRow` always shows its chevron when it opens something, nudges it on hover,
+  and supports `href` + `action` together (title stretched over the row, action above it).
+  `Tr` takes `href` — the whole admin table row opens the member (name stays the real
+  link; cmd-click opens a tab; releasing a text selection does not navigate); chevron
+  column via `ThOpen`/`TdOpen`. Members phone rows gained the chevron.
+- **Tabs:** NavTabs and the clinician member rail share `components/tab-styles.ts`: a
+  recessed track with the current tab raised as a white pill.
+- **Callout** (`components/ui/callout.tsx`): with an action it shows a button-shaped
+  "Open …" inside a whole-card link; without one it is a flat muted note. Adopted on the
+  clinician overview ("Your consultation form is due" / read-only "Their … is due").
+
+### Verification
+
+- `tsc --noEmit` clean · `eslint` clean · `npm run test:unit` 124/124 · `npm run build` ✓ ·
+  impeccable detector: no findings on the changed files.
+- Same read-only probe (admin login, 10 routes, 1440 + 390px), before → after:
+  arrow-cursor clickables **160 → 20**, and all 20 are pipeline cards with the intentional
+  `cursor-grab`; edges under 1.5:1 **7 → 4** (the four are phone/WhatsApp chips — Phase 5).
+  Sub-32px targets 133 → 130: the rest are per-surface (Mark read, Read the report, desk
+  switcher, timeline links) and belong to Phase 5.
+- Screenshots reviewed at desktop and phone: segmented tabs, raised Schedule buttons,
+  chip vs tag distinction, members rows with chevrons, muted read-only callout.
+
+### Assumptions / deviations from the plan
+
+- Planned a separate `tonal` variant; upgraded `secondary` instead (it had no call
+  sites as a variant, and two near-identical variants would drift).
+- Planned a 2px Phloem left edge on row hover; dropped it — a coloured side stripe on
+  list items is a pattern the design floor rejects, and the fill + chevron nudge carry it.
+- Chips are 32px tall (Material's chip height), not 36px; touch gets 44px via the hit area.
+- Disabled Buttons keep `pointer-events-none` (safe with `render`-as-link Buttons), so
+  their `not-allowed` cursor does not show; Phase 2.8 (disabled-with-a-reason) revisits.
+- Dark mode is not shipped; its tokens were updated for parity only.

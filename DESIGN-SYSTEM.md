@@ -119,6 +119,27 @@ state with no animation. Everything else moves 150–250ms ease-out or not at al
 - **Vocabulary:** *member* everywhere (not client/patient); *care team*; *cycle*;
   *program*. Dates human ("Wed, 15 Jul"), IST.
 
+### 5a · Affordance — what you can press must look pressable (2026-10-07)
+
+- **Hand cursor** on every pressable element (base rule in `globals.css`); `not-allowed`
+  when disabled. `cursor-grab` only for draggable cards.
+- **Control edges** use `--input` `#78897e` (3.7:1 on white, ≥3:1 on the inset ground) —
+  inputs, selects, toggle chips, switch tracks. `--border` is for structure only
+  (dividers, card edges) and is deliberately quieter.
+- **Buttons:** hover darkens (`--primary-hover`), never fades; press is `scale(.97)` at
+  160ms; `outline` is raised (white face + soft edge + `shadow-xs`); `secondary` is the
+  tonal row action. Never add `.pressable` to a Button. Touch targets reach 44px via an
+  invisible hit area.
+- **A tag states, a chip acts.** `Badge` = flat 6px tint, no edge, no hover. `Chip` =
+  bordered pill, hover, press, `aria-pressed`, a tick when several can be on.
+- **Links look like links:** `.link` (Phloem, underline at 35% → solid on hover). Inside
+  prose a link is always underlined.
+- **A row that opens shows a chevron** (it nudges on hover). Table rows with `href` open
+  from anywhere in the row; the name stays the real link.
+- **Tabs** are a segmented control: recessed track, the current tab raised in white.
+- **Callouts:** one that leads somewhere shows a button; one that only informs is a flat
+  muted note.
+
 ## 6 · Self-critique (against the generic-default test)
 
 *What would the lazy version of this brief produce?* White background, emerald-500,

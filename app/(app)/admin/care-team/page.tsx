@@ -93,7 +93,7 @@ export default async function CareTeamPage({
                   ))}
                 </select>
               </div>
-              <SubmitButton className="pressable w-full" pendingText="Sending…">
+              <SubmitButton className="w-full" pendingText="Sending…">
                 Send invite
               </SubmitButton>
               <p className="text-xs text-muted-foreground">

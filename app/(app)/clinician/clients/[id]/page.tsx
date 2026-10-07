@@ -31,6 +31,8 @@ import { IssueChips } from "@/components/issue-chips";
 import { computeIssues, type Issue } from "@/lib/issues";
 import type { FormValues } from "@/components/forms/types";
 import { parseFormTemplate } from "@/components/forms/schema";
+import { TAB_TRACK, tabClass } from "@/components/tab-styles";
+import { Callout } from "@/components/ui/callout";
 
 type CareRole = Database["public"]["Enums"]["care_role"];
 
@@ -188,18 +190,13 @@ export default async function ClinicianClientPage({
         className="sm:-mx-6 sm:overflow-x-auto sm:px-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         aria-label="Member sections"
       >
-        <div className="flex flex-wrap gap-1 rounded-2xl border bg-card p-1 shadow-card sm:w-max sm:flex-nowrap sm:rounded-full">
+        <div className={cn("flex flex-wrap gap-1 rounded-2xl sm:w-max sm:flex-nowrap sm:rounded-full", TAB_TRACK)}>
           {tabs.map(([key, label]) => (
             <Link
               key={key}
               href={`/clinician/clients/${id}?tab=${key}`}
               aria-current={key === activeTab ? "page" : undefined}
-              className={cn(
-                "rounded-full px-4 py-1.5 text-sm font-medium whitespace-nowrap transition-colors max-sm:px-3 max-sm:py-2",
-                key === activeTab
-                  ? "bg-secondary text-secondary-foreground"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
-              )}
+              className={tabClass(key === activeTab, "max-sm:px-3 max-sm:py-2")}
             >
               {label}
             </Link>
@@ -376,18 +373,14 @@ async function OverviewPanel({
         </div>
       ) : null}
       {formDue && !readOnly ? (
-        <Link
-          href={`/clinician/clients/${memberId}?tab=form`}
-          className="flex items-center gap-3 rounded-xl border border-warning/50 bg-warning-tint p-4 font-medium transition-colors hover:border-warning"
+        <Callout
+          icon={FileCheck2}
+          action={{ href: `/clinician/clients/${memberId}?tab=form`, label: "Open the form" }}
         >
-          <FileCheck2 className="size-5 shrink-0 text-warning" aria-hidden />
-          Your consultation form is due — open it
-        </Link>
+          Your consultation form is due.
+        </Callout>
       ) : formDue ? (
-        <div className="flex items-center gap-3 rounded-xl border border-warning/50 bg-warning-tint p-4 font-medium">
-          <FileCheck2 className="size-5 shrink-0 text-warning" aria-hidden />
-          Their consultation form is due.
-        </div>
+        <Callout icon={FileCheck2}>Their consultation form is due.</Callout>
       ) : null}
       <Card>
         <CardHeader>

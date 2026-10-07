@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import { formatDateTimeIST } from "@/lib/datetime";
 
 // §10 dual-status chip, redesigned (C3): meeting and report state as one
-// two-segment pill — shape + icon + tint, never color alone, readable in half
+// two-segment tag — shape + icon + tint, never color alone, readable in half
 // a second. Vocabulary is fixed app-wide: To schedule → Scheduled → Done;
 // Pending → Submitted.
 
@@ -23,7 +23,7 @@ export function ConsultStatusChips({
   return (
     <span
       className={cn(
-        "inline-flex items-stretch divide-x divide-border overflow-hidden rounded-full border bg-card",
+        "inline-flex items-stretch divide-x divide-card overflow-hidden rounded-sm",
         className,
       )}
     >

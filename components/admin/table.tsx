@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowDown, ArrowUp, ChevronRight, ChevronsUpDown } from "lucide-react";
 import type { SortDir } from "@/lib/admin-filters";
 import { cn } from "@/lib/utils";
 
@@ -59,26 +60,70 @@ export function PhoneList({ label, children }: { label: string; children: React.
   );
 }
 
+/**
+ * A table row. With `href`, the WHOLE row opens it: before this only the name
+ * was a link, and it looked like plain text, so the row gave no sign it led
+ * anywhere. The row keeps a real <a> (the name) for keyboard, screen readers and
+ * right-click; the row's own click is the mouse convenience on top. Pair it with
+ * `ThOpen` / `TdOpen` for the trailing chevron.
+ */
 export function Tr({
   children,
   className,
   pending,
+  href,
 }: {
   children: React.ReactNode;
   className?: string;
   /** Dims the row while its own action is in flight. */
   pending?: boolean;
+  href?: string;
 }) {
+  const router = useRouter();
+
+  function open(e: React.MouseEvent<HTMLTableRowElement>) {
+    if (!href) return;
+    // A control inside the row does its own job (the name link already navigates).
+    if ((e.target as HTMLElement).closest("a, button, input, select, textarea, label, summary")) return;
+    // Letting go of a text selection is not a click on the row.
+    if (window.getSelection()?.toString()) return;
+    if (e.metaKey || e.ctrlKey) window.open(href, "_blank", "noopener");
+    else router.push(href);
+  }
+
   return (
     <tr
+      onClick={href ? open : undefined}
       className={cn(
-        "border-b transition-colors last:border-0 hover:bg-muted/50",
+        "group/tr border-b transition-colors last:border-0 hover:bg-muted/50",
+        href && "cursor-pointer hover:bg-secondary/45",
         pending && "pointer-events-none opacity-50",
         className,
       )}
     >
       {children}
     </tr>
+  );
+}
+
+/** Header cell for the trailing chevron column of a linked row. */
+export function ThOpen() {
+  return (
+    <th className="w-10 p-0">
+      <span className="sr-only">Open</span>
+    </th>
+  );
+}
+
+/** The chevron that says "this row opens". Nudges right as the row is hovered. */
+export function TdOpen() {
+  return (
+    <td className="w-10 pr-3 text-muted-foreground">
+      <ChevronRight
+        className="size-4 transition-[translate,color] duration-(--motion-press) ease-out group-hover/tr:translate-x-0.5 group-hover/tr:text-foreground"
+        aria-hidden
+      />
+    </td>
   );
 }
 

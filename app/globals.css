@@ -46,6 +46,7 @@
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
@@ -96,6 +97,7 @@
   --popover-foreground: #1f2a24;
   --primary: #1e6b4e; /* Phloem */
   --primary-foreground: #ffffff;
+  --primary-hover: #185a41; /* hover DARKENS — 8.2:1 with white text */
   --secondary: #e7f1ec;
   --secondary-foreground: #17513b;
   --muted: #edf2ed;
@@ -103,8 +105,12 @@
   --accent: #e7f1ec;
   --accent-foreground: #17513b;
   --destructive: #a63a24; /* Clay */
-  --border: #dce5dd;
-  --input: #c9d6cc;
+  --border: #dce5dd; /* structure only — dividers, card edges */
+  /* Control edges: inputs, selects, toggle chips, switch tracks. 3.7:1 on white,
+     3.4:1 on the inset list ground — WCAG 1.4.11. At #c9d6cc (1.5:1) an empty
+     field or an unselected chip had no edge you could find; `--border` is for
+     structure and is deliberately quieter. Outline buttons take it at 60%. */
+  --input: #78897e;
   --ring: #1e6b4e;
   --success: #1e6b4e;
   --success-tint: #e7f1ec;
@@ -174,6 +180,7 @@
   --popover-foreground: #e8eee9;
   --primary: #6fbf9a;
   --primary-foreground: #10241b;
+  --primary-hover: #8fd1b2;
   --secondary: #23332b;
   --secondary-foreground: #cfe5d9;
   --muted: #212d26;
@@ -182,7 +189,7 @@
   --accent-foreground: #cfe5d9;
   --destructive: #d9765f;
   --border: #2c3a31;
-  --input: #35453b;
+  --input: #6c8174; /* 3.7:1 on the dark card */
   --ring: #6fbf9a;
   --success: #6fbf9a;
   --success-tint: #1d2f26;
@@ -224,6 +231,7 @@
 .elderly {
   --muted-foreground: #3f4e45; /* 8.8:1 on white — AAA */
   --border: #c4d1c6; /* firmer edges for low vision */
+  --input: #5a6b60; /* control edges at 5.7:1 */
   font-size: 20px;
 }
 
@@ -259,6 +267,28 @@
     background: var(--secondary);
     color: var(--secondary-foreground);
   }
+  /* The hand cursor on everything you can press. Tailwind v4's preflight resets
+     <button> to `cursor: default` and nothing here put it back, so 46% of the
+     clickable elements on the staff screens showed an arrow (2026-10-07 probe:
+     160 of 351). In the base layer, so a `cursor-*` utility still wins. */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="tab"],
+  [role="radio"],
+  [role="checkbox"],
+  [role="switch"],
+  [role="option"],
+  [role="menuitem"],
+  summary,
+  select:not(:disabled),
+  input:is([type="checkbox"], [type="radio"], [type="file"]):not(:disabled),
+  label:has(> input:is([type="checkbox"], [type="radio"]):not(:disabled)) {
+    cursor: pointer;
+  }
+  :disabled,
+  [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
 }
 
 @layer components {
@@ -272,12 +302,47 @@
     color: var(--muted-foreground);
   }
 
+  /* A text link that looks like one. Links that sat in body colour with no
+     underline (notification titles, breadcrumbs, "10 reports overdue") read as
+     plain text. The underline rests at 35% so a paragraph with links stays calm,
+     and goes solid on hover. Inside prose, links always carry it. */
+  .link {
+    color: var(--primary);
+    font-weight: 500;
+    text-decoration-line: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+    text-decoration-color: color-mix(in oklab, currentColor 35%, transparent);
+    transition:
+      text-decoration-color var(--motion-press) var(--motion-ease-out),
+      color var(--motion-press) var(--motion-ease-out);
+  }
+  .link:hover {
+    color: var(--primary-hover);
+    text-decoration-color: currentColor;
+  }
+
+  /* Touch: every Button and Chip is at least a 44px target, whatever it looks like. The
+     small sizes stay visually small (dense staff rows) and grow an invisible hit
+     area instead, so nothing reflows. Button is `relative` for this. */
+  @media (pointer: coarse) {
+    [data-slot="button"]::after,
+    [data-slot="chip"]::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: max(100%, 44px);
+      height: max(100%, 44px);
+      translate: -50% -50%;
+    }
+  }
+
   /* Press feedback for the family's primary controls. The portal navigates by
      <Link>, which gets none of Button's active state, so on touch a tap reads as
      unresponsive. Transform-only, so it composites and never triggers layout.
-     Deliberately NOT applied to staff surfaces: Button keeps its own
-     `active:translate-y-px`, and the two conventions stay internally consistent
-     for their own audience (Portal Elevation W3).
+     Never put it on a Button: Button carries its own `active:scale-[.97]` (on the
+     `scale` property), and the two would compound.
 
      It owns the colour transition too, rather than sitting alongside
      `transition-colors`: Tailwind's utilities layer is emitted after components,

@@ -2,12 +2,13 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { CopyCheck, ShieldAlert, UsersRound } from "lucide-react";
+import { ChevronRight, CopyCheck, ShieldAlert, UsersRound } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Chip } from "@/components/ui/chip";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Monogram } from "@/components/monogram";
-import { FilterBar, syncUrl, type Chip } from "./filter-bar";
-import { AdminTable, PhoneList, SortTh, Td, Th, Tr, useSort } from "./table";
+import { FilterBar, syncUrl, type Chip as FilterChip } from "./filter-bar";
+import { AdminTable, PhoneList, SortTh, Td, TdOpen, Th, ThOpen, Tr, useSort } from "./table";
 import { matchesQuery, sortRows } from "@/lib/admin-filters";
 import { duplicateNameIds } from "@/lib/member-duplicates";
 import { MEMBER_STATUS_LABEL, memberStatusVariant, type MemberStatus } from "@/lib/member-status";
@@ -60,7 +61,7 @@ export function MembersTable({
   const [flaggedFirst, setFlaggedFirst] = React.useState(false);
   const { sort, onSort } = useSort<SortKey>("full_name");
 
-  const chips: Chip[] = React.useMemo(
+  const chips: FilterChip[] = React.useMemo(
     () =>
       STATUS_ORDER.map((s) => ({
         value: s,
@@ -112,23 +113,19 @@ export function MembersTable({
         noun="members"
       >
         {flaggedCount > 0 ? (
-          <button
-            type="button"
-            aria-pressed={flaggedFirst}
+          <Chip
+            selected={flaggedFirst}
+            tone="danger"
             aria-label="Flagged first"
             onClick={() => setFlaggedFirst((v) => !v)}
-            className={cn(
-              "pressable inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg border px-3 text-sm font-medium",
-              flaggedFirst
-                ? "border-transparent bg-danger text-white"
-                : "hover:bg-muted",
-            )}
+            count={flaggedCount}
+            // Squared to sit level with the search field beside it.
+            className="h-10 rounded-lg"
           >
             <ShieldAlert className="size-4" aria-hidden />
             {/* Icon + count on phones, so it shares the search row. */}
             <span className="hidden sm:inline">Flagged first</span>
-            <span className="tabular-nums opacity-70">{flaggedCount}</span>
-          </button>
+          </Chip>
         ) : null}
       </FilterBar>
 
@@ -180,6 +177,7 @@ export function MembersTable({
                       aria-label="Another member shares this name"
                     />
                   ) : null}
+                  <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
                 </Link>
               </li>
             ))}
@@ -195,11 +193,12 @@ export function MembersTable({
                 <SortTh id="city" label="City" sort={sort} onSort={onSort} />
                 <Th>Caregiver</Th>
                 <SortTh id="status" label="Status" sort={sort} onSort={onSort} />
+                <ThOpen />
               </>
             }
           >
             {visible.map((m) => (
-              <Tr key={m.id} className={cn(m.high && "bg-danger-tint/40")}>
+              <Tr key={m.id} href={`/admin/members/${m.id}`} className={cn(m.high && "bg-danger-tint/40")}>
                 <Td>
                   <Link
                     href={`/admin/members/${m.id}`}
@@ -235,6 +234,7 @@ export function MembersTable({
                     {MEMBER_STATUS_LABEL[m.status]}
                   </Badge>
                 </Td>
+                <TdOpen />
               </Tr>
             ))}
           </AdminTable>

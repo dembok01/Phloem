@@ -25,7 +25,7 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        "relative isolate flex flex-col items-center justify-center gap-2 overflow-hidden rounded-xl border border-dashed border-input bg-card/50 px-6 py-12 text-center",
+        "relative isolate flex flex-col items-center justify-center gap-2 overflow-hidden rounded-xl border border-dashed border-border bg-card/50 px-6 py-12 text-center",
         className,
       )}
     >

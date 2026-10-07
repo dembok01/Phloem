@@ -59,6 +59,12 @@ export function List({
  * queue's primary control undiscoverable — the "seven shouting buttons" defect
  * (D3) is solved by the recessed ground and the hierarchy, not by hiding the
  * thing the row exists to do.
+ *
+ * A row with `href` always shows its chevron, and the chevron nudges on hover:
+ * that is the signal that the row opens. With `href` AND `action` the row still
+ * opens — the title is the real link, stretched over the row, and the action
+ * sits above it — so a row never has to choose between "opens" and "does".
+ * (A button inside an <a> is invalid HTML, which is why this is not one Link.)
  */
 export function ListRow({
   href,
@@ -83,13 +89,28 @@ export function ListRow({
   chips?: React.ReactNode;
   className?: string;
 }) {
+  const stretched = Boolean(href && action);
+
+  const titleNode = stretched ? (
+    <Link
+      href={href!}
+      // The ::after covers the whole row, so a click anywhere opens it; the
+      // focus ring is drawn on that cover, not around the words.
+      className="block truncate font-medium text-foreground no-underline outline-none after:absolute after:inset-0 after:content-[''] focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-ring"
+    >
+      {title}
+    </Link>
+  ) : (
+    <span className="block truncate font-medium text-foreground">{title}</span>
+  );
+
   const body = (
     <>
       {leading ? <span className="shrink-0">{leading}</span> : null}
 
       <span className="min-w-0 flex-1">
         {eyebrow ? <span className="eyebrow block text-[10.5px] leading-tight">{eyebrow}</span> : null}
-        <span className="block truncate font-medium text-foreground">{title}</span>
+        {titleNode}
         {detail ? (
           <span className="block truncate text-sm text-muted-foreground">{detail}</span>
         ) : null}
@@ -102,10 +123,13 @@ export function ListRow({
         </span>
       ) : null}
 
-      {action ? <span className="shrink-0">{action}</span> : null}
+      {action ? <span className="relative z-10 shrink-0">{action}</span> : null}
 
-      {href && !action ? (
-        <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+      {href ? (
+        <ChevronRight
+          className="size-4 shrink-0 text-muted-foreground transition-[translate,color] duration-(--motion-press) ease-out group-hover/row:translate-x-0.5 group-hover/row:text-foreground"
+          aria-hidden
+        />
       ) : null}
     </>
   );
@@ -116,13 +140,17 @@ export function ListRow({
     tone !== "none" &&
       "before:absolute before:inset-y-0 before:left-0 before:w-[3px] before:content-['']",
     RAIL[tone],
-    href && "pressable hover:bg-card focus-visible:bg-card",
+    // `.pressable` owns the transition shorthand, so the stretched row (which
+    // does not scale — its button presses on its own) declares its own.
+    href && !stretched && "pressable hover:bg-card focus-visible:bg-card",
+    stretched &&
+      "transition-colors duration-(--motion-press) hover:bg-card has-[a:focus-visible]:bg-card",
     className,
   );
 
   return (
     <li className="bg-transparent">
-      {href ? (
+      {href && !stretched ? (
         <Link href={href} className={cn(shell, "no-underline")}>
           {body}
         </Link>
