@@ -66,7 +66,7 @@ export function MemberPhotoUpload({ memberId, hasPhoto }: { memberId: string; ha
         type="button"
         disabled={busy}
         onClick={() => inputRef.current?.click()}
-        className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline disabled:opacity-60"
+        className="link inline-flex items-center gap-1.5 text-sm disabled:opacity-60"
       >
         <ImagePlus className="size-4" aria-hidden />
         {hasPhoto ? "Change photo" : "Add a photo"}

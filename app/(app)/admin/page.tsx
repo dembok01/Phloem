@@ -458,7 +458,10 @@ export default async function AdminOverviewPage() {
                   const m = p.members as { id: string; full_name: string; status: string };
                   return (
                     <li key={p.id} className="flex items-center justify-between gap-3 py-2.5">
-                      <Link href={`/admin/members/${m.id}`} className="font-medium hover:underline">
+                      <Link
+                        href={`/admin/members/${m.id}`}
+                        className="-my-1.5 inline-block py-1.5 font-medium hover:text-primary hover:underline"
+                      >
                         {m.full_name}
                       </Link>
                       <span className="flex items-center gap-2 text-sm text-muted-foreground">

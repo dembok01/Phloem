@@ -57,12 +57,7 @@ export function LensChrome({
             <form action={setLens}>
               <input type="hidden" name="lens" value="" />
               <input type="hidden" name="to" value="/admin" />
-              <SubmitButton
-                variant="ghost"
-                size="sm"
-                className="h-7 shrink-0 px-2 text-xs max-sm:h-9"
-                pendingText="Leaving…"
-              >
+              <SubmitButton variant="outline" size="sm" className="shrink-0" pendingText="Leaving…">
                 Back to admin
               </SubmitButton>
             </form>

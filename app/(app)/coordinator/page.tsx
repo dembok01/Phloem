@@ -4,6 +4,7 @@ import {
   CalendarClock,
   CalendarPlus,
   CheckCheck,
+  ChevronRight,
   FileClock,
   PartyPopper,
   Sunrise,
@@ -168,20 +169,24 @@ export default async function CoordinatorTodayPage() {
                     {rows.length > 1 ? (
                       <Link
                         href={`/coordinator/members/${memberId}`}
-                        className="mb-1.5 inline-flex items-center gap-2 text-sm font-medium hover:underline max-sm:min-h-10"
+                        className="group/row mb-1 inline-flex min-h-9 items-center gap-2 rounded-md text-sm font-medium text-foreground hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring max-sm:min-h-10"
                       >
                         <Monogram name={rows[0]!.subject} size="xs" />
                         {rows[0]!.subject}
                         <span className="font-data text-xs text-muted-foreground">
                           {rows.length} actions
                         </span>
+                        <ChevronRight
+                          className="size-4 text-muted-foreground transition-[translate,color] duration-(--motion-press) ease-out group-hover/row:translate-x-0.5 group-hover/row:text-primary"
+                          aria-hidden
+                        />
                       </Link>
                     ) : null}
                     <List stagger={g.bucket !== "week"}>
                       {rows.map((t, i) => (
                         <ListRow
                           key={i}
-                          href={t.scheduleFor ? undefined : t.href}
+                          href={t.href}
                           tone={g.tone === "danger" ? "danger" : "none"}
                           leading={
                             rows.length > 1 ? (

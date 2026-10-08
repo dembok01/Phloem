@@ -92,7 +92,7 @@ export function NotificationList({ items }: { items: NotificationItem[] }) {
                 }}
               >
                 <input type="hidden" name="id" value={n.id} />
-                <SubmitButton variant="ghost" size="xs" pendingText="…" className="max-sm:h-10 max-sm:px-3">
+                <SubmitButton variant="ghost" size="sm" pendingText="…">
                   Mark read
                 </SubmitButton>
               </form>

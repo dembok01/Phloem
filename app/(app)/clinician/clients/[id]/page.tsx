@@ -1,7 +1,7 @@
 import { cache, Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CheckCircle2, Eye, FileCheck2, FilePlus2, Lock, Pencil, ShieldAlert } from "lucide-react";
+import { CheckCircle2, ChevronLeft, Eye, FileCheck2, FilePlus2, Lock, Pencil, ShieldAlert } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CardSkeleton } from "@/components/ui/skeleton";
 import { Who5Card } from "@/components/charts/who5-card";
@@ -153,7 +153,11 @@ export default async function ClinicianClientPage({
           <Monogram name={member.full_name} size="xl" tone={toneForRole(role)} ring />
           <div className="min-w-0 flex-1">
             <p className="eyebrow">
-              <Link href="/clinician/clients" className="hover:text-foreground hover:underline">
+              <Link
+                href="/clinician/clients"
+                className="-my-2 inline-flex items-center gap-0.5 py-2 hover:text-foreground hover:underline"
+              >
+                <ChevronLeft className="size-3.5" aria-hidden />
                 My members
               </Link>
             </p>
@@ -506,7 +510,7 @@ async function DirectivesPanel({ memberId }: { supabase: SB; memberId: string })
             {sections.map((s, i) => (
               <ReadonlySection key={i} section={s} />
             ))}
-            <ReportPeek reportId={report.id} className="text-sm text-primary hover:underline">
+            <ReportPeek reportId={report.id} className="link text-sm">
               Read the full doctor report →
             </ReportPeek>
           </>
@@ -694,7 +698,7 @@ async function ReportsPanel({
                     {amendable ? (
                       <Link
                         href={`/clinician/clients/${memberId}/reports/${r.id}/edit`}
-                        className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                        className="link inline-flex items-center gap-1 text-xs"
                       >
                         <Pencil className="size-3.5" aria-hidden /> Correct this report
                       </Link>
@@ -812,7 +816,7 @@ async function FormPanel({
           {lastOwnReport && AMENDABLE_TYPES.has(lastOwnReport.type) ? (
             <Link
               href={`/clinician/clients/${memberId}/reports/${lastOwnReport.id}/edit`}
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+              className="link inline-flex items-center gap-1.5 text-sm"
             >
               <Pencil className="size-3.5" aria-hidden /> Something wrong? Correct it
             </Link>
@@ -974,7 +978,7 @@ async function ManualReviewPanel({ supabase, memberId, userId }: { supabase: SB;
           <CardDescription>
             For a follow-up consultation you held that has no review scheduled here. It becomes a doctor&apos;s
             review report, like one from a monthly review.{" "}
-            <Link href={`/clinician/clients/${memberId}?tab=form`} className="text-primary hover:underline">
+            <Link href={`/clinician/clients/${memberId}?tab=form`} className="link">
               Cancel
             </Link>
           </CardDescription>

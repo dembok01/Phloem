@@ -120,7 +120,7 @@ export function NotificationBell() {
             <div className="flex items-center justify-between border-b px-3 py-2">
               <span className="text-sm font-semibold">Notifications</span>
               {unread > 0 ? (
-                <button type="button" onClick={markAll} className="text-xs text-primary hover:underline">
+                <button type="button" onClick={markAll} className="link text-xs">
                   Mark all read
                 </button>
               ) : null}

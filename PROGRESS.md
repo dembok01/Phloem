@@ -2047,3 +2047,54 @@ none added, only small unobtrusive presentation changes. Consequences:
 - The owner confirmed the other visible Phase 3 additions stay: the "Optional" tag, "Choose all
   that apply", the review screen before sending, and the one-tap "None" buttons (none of them
   changes or adds a question; "None" writes the same text people were typing).
+
+## Surface sweep — Phase 5 of the affordance plan (2026-10-08)
+
+Plan: `docs/AFFORDANCE-AND-ONBOARDING-PLAN.md` §5 Phase 5. Presentation-only: no migration, RLS
+or RPC touched, so the §16 suite was not re-run. Driven by a re-run of the read-only affordance
+probe (admin login, GET-only, the Phase 1 route list incl. three borrowed-doctor screens).
+
+### What changed
+
+- **Header + lens bar:** the desk switcher is a 36px control with a visible edge
+  (`border-input/60`, stronger on hover / open); the Search (⌘K) button gets the same edge;
+  "Back to admin" is a real outline button at 36px. Sign out was already a labelled ghost button.
+- **Coordinator Today:** every row opens the member, including rows with **Schedule** (it sits
+  above the row's stretched link); Schedule is the tonal (`secondary`) button; a member's group
+  header is a 36px link with a chevron that nudges.
+- **Coordinator member:** phone and WhatsApp are outline buttons (36px, real edge; WhatsApp keeps
+  its green); the assign `<select>` matches the Reassign button beside it (card face, control
+  edge, hover); "Create a check-in link" is tonal and "Send on WhatsApp" uses the primary button.
+- **Renewal:** the 3 / 6 / 12-month picker uses the shared `Chip`.
+- **Pipeline:** cards carry a control edge (`border-input/50`) and stop transitioning `all`.
+- **Notifications:** Mark read is a 36px ghost button (44px hit area on touch).
+- **Timeline / reports / admin member:** "Read the report" is a `.link` at 32px; the share-with-
+  family switch is a 32px target; the renewal list's names are 32px links.
+- **Clinician member:** the "My members" eyebrow is a back link with a chevron and a 32px target.
+- **Text links:** `.link` adopted for the primary-coloured text links (clinician member page
+  ×4, report page, member photo upload, the bell's "Mark all read").
+
+### Verification
+
+- Probe, 10 screens, 1440 and 390px — before → after:
+  arrow-cursor clickables 0 → **0** · control edges under 1.5:1 **47 → 0** · targets under 32px
+  **72 → 0** (desktop) and **3 → 0** (phone). The probe was rebuilt for this phase (the Phase 1
+  copy was lost with its scratch directory); it counts an always-on `::after` hit area and treats
+  a control as findable if its edge *or* its face stands off the ground, so its numbers are not
+  directly comparable with Phase 1's.
+- `tsc --noEmit` clean · `eslint` clean on changed files · `npm run build` ✓ · `npm run test:unit`
+  128/128 · impeccable detector `[]`.
+- Screenshots reviewed (desktop + phone): Today queue, coordinator member, phone header with the
+  lens bar, borrowed-doctor member page.
+
+### Assumptions / deviations
+
+- "10 reports overdue → link to the filtered list": no filtered overdue-report list exists (the
+  Overdue tile also lands on Members), so it stays text rather than link somewhere that does not
+  filter.
+- No unread rail on notifications: a coloured side stripe on list items is rejected by the design
+  floor; the dot and tint already mark unread.
+- Mark read is 36px (the Button `sm` size), not 40px; touch gets 44px through the hit area.
+- Raw `<button>`s were converted where the probe or the plan flagged them; the rest are bespoke
+  controls (form choices, sort headers, switches) that already meet the targets.
+- The portal was not probed: admin cannot borrow the family shell. It inherits the primitives.

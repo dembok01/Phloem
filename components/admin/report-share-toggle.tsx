@@ -37,7 +37,7 @@ function Switch({ shared }: { shared: boolean }) {
       disabled={pending}
       aria-label={shared ? "Shared with family — turn off" : "Not shared — share with family"}
       className={cn(
-        "inline-flex items-center gap-2 rounded-full text-xs font-medium transition-opacity disabled:opacity-60 max-sm:min-h-10",
+        "inline-flex min-h-8 items-center gap-2 rounded-full text-xs font-medium transition-opacity disabled:opacity-60 max-sm:min-h-10",
       )}
     >
       <span

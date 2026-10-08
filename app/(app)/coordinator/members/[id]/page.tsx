@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { MessageCircle, Phone } from "lucide-react";
 import { ActivationMoment } from "@/components/activation-moment";
 import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Monogram } from "@/components/monogram";
@@ -35,7 +36,7 @@ const ROLE_LABEL: Record<CareRole, string> = {
 };
 
 const SELECT_CLASS =
-  "h-9 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
+  "h-9 rounded-lg border border-input bg-card px-2.5 text-sm outline-none transition-colors duration-(--motion-press) hover:border-foreground/60 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
 const ERRORS: Record<string, string> = {
   invalid: "Please check the form and try again.",
@@ -525,11 +526,8 @@ function ContactBlock({
       <p className="font-medium">{name}</p>
       <div className="flex flex-wrap gap-2 pt-1">
         {tel ? (
-          <a
-            href={tel}
-            className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-sm hover:bg-muted max-sm:min-h-10 max-sm:px-3"
-          >
-            <Phone className="size-3.5" /> {phone ?? whatsapp}
+          <a href={tel} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "tabular-nums")}>
+            <Phone aria-hidden /> {phone ?? whatsapp}
           </a>
         ) : (
           <span className="text-sm text-muted-foreground">No phone on file</span>
@@ -539,9 +537,9 @@ function ContactBlock({
             href={wa}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-sm text-success hover:bg-muted max-sm:min-h-10 max-sm:px-3"
+            className={cn(buttonVariants({ variant: "outline", size: "sm" }), "text-success hover:text-success")}
           >
-            <MessageCircle className="size-3.5" /> WhatsApp
+            <MessageCircle aria-hidden /> WhatsApp
           </a>
         ) : null}
       </div>

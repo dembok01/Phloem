@@ -12,8 +12,8 @@ import { CalendarHeart, Check, PhoneCall } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Chip } from "@/components/ui/chip";
 import { useToast } from "@/components/ui/toast";
-import { cn } from "@/lib/utils";
 import {
   completeRenewal,
   proposeRenewal,
@@ -87,20 +87,9 @@ export function RenewalPanel({
               <legend className="text-sm font-medium">How long should the next programme run?</legend>
               <div className="flex flex-wrap gap-1.5">
                 {MONTH_OPTIONS.map((m) => (
-                  <button
-                    key={m}
-                    type="button"
-                    aria-pressed={months === m}
-                    onClick={() => setMonths(m)}
-                    className={cn(
-                      "rounded-full border px-3 py-1.5 text-sm font-medium transition-colors",
-                      months === m
-                        ? "border-transparent bg-secondary text-secondary-foreground"
-                        : "bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground",
-                    )}
-                  >
+                  <Chip key={m} tone="primary" selected={months === m} onClick={() => setMonths(m)}>
                     {m} months
-                  </button>
+                  </Chip>
                 ))}
               </div>
             </fieldset>

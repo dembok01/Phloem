@@ -140,7 +140,7 @@ export function CommandPalette({ desk = "coordinator" }: { desk?: keyof typeof D
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="pressable inline-flex h-9 items-center gap-2 rounded-full border bg-card pl-3 pr-1.5 text-sm text-muted-foreground hover:border-primary/40 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        className="pressable inline-flex h-9 items-center gap-2 rounded-full border border-input/60 bg-card pl-3 pr-1.5 text-sm text-muted-foreground hover:border-input hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
       >
         <Search className="size-4" aria-hidden />
         <span>Search</span>

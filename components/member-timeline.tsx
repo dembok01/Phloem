@@ -80,7 +80,7 @@ const MEETING_STATUS: Record<string, string> = {
 };
 
 const ENTRY_ACTION =
-  "inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring max-md:min-h-8";
+  "link inline-flex min-h-8 items-center gap-1 text-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
 
 const monthFmt = new Intl.DateTimeFormat("en-IN", {
   month: "long",

@@ -114,7 +114,7 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
                 {newer ? (
                   <Link
                     href={`/reports/${newer.id}`}
-                    className="block text-xs text-primary hover:underline"
+                    className="link block text-xs"
                   >
                     A newer version (v{newer.version}) replaced this one
                   </Link>

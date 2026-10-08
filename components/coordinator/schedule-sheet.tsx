@@ -34,7 +34,7 @@ export function ScheduleSheet({
     <>
       <Button
         type="button"
-        variant="outline"
+        variant="secondary"
         size="sm"
         onClick={() => setOpen(true)}
         aria-haspopup="dialog"

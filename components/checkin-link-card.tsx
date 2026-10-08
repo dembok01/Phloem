@@ -8,7 +8,7 @@
 // behind a button: a coordinator on the phone to a family often reads it aloud.
 import * as React from "react";
 import { Check, Copy, Link2, MessageCircle, Trash2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { waMeLink } from "@/lib/wa";
 import { createCheckinLink, revokeCheckinLink } from "@/app/(app)/program-actions";
@@ -70,7 +70,7 @@ export function CheckinLinkCard({
                 href={waHref}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/80"
+                className={buttonVariants({ size: "sm" })}
               >
                 <MessageCircle className="size-4" aria-hidden /> Send on WhatsApp
               </a>
@@ -117,7 +117,7 @@ export function CheckinLinkCard({
         </>
       ) : (
         <Button
-          variant="outline"
+          variant="secondary"
           size="sm"
           loading={pending}
           disabled={pending}

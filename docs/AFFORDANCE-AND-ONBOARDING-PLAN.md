@@ -1,6 +1,6 @@
 # PHLOEM — Clickability, Micro-interactions & Onboarding Questionnaire Plan
 
-**Date:** 2026-10-07 · **Status:** Phase 1 ✅ built (2026-10-07) · Phase 2 ✅ · Phase 3 ✅ built (2026-10-08) · **Phase 4 cancelled** (client: the configured questions are never changed or added to) · Phase 5 not started · see `PROGRESS.md`
+**Date:** 2026-10-07 · **Status:** Phase 1 ✅ built (2026-10-07) · Phase 2 ✅ · Phase 3 ✅ built (2026-10-08) · **Phase 4 cancelled** (client: the configured questions are never changed or added to) · Phase 5 ✅ built (2026-10-08) · see `PROGRESS.md`
 **Builds on:** `DESIGN-SYSTEM.md` (the world stays the same: Loam/Paper/Phloem, Bricolage/Atkinson/Plex,
 growth rings), `docs/VISUAL-ELEVATION-PLAN.md` (V1–V4 shipped), `DESIGN-PROPOSALS.md` P-7 (now
 taken up in Phase 4).
@@ -305,6 +305,12 @@ Apply the Phase 1–2 vocabulary where screens bypass it (51 raw `<button>`s →
 
 **Acceptance:** final probe run (targets in §7), one batched desktop + phone screenshot pass, detector
 run, `PROGRESS.md` entry, commit.
+
+**Result (2026-10-08):** on the 10 probed screens at 1440 and 390px: arrow-cursor clickables **0**,
+control edges under 1.5:1 **0** (from 47), targets under 32px **0** (from 72 on desktop, 3 on phone).
+Not done: "10 reports overdue" stays text (there is no filtered overdue list to link to); no unread
+rail on notifications (a coloured side stripe is rejected by the design floor — the dot and tint mark
+unread); the portal was not probed (admin cannot borrow it).
 
 ---
 

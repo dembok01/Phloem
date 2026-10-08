@@ -156,7 +156,7 @@ export function PipelineBoard({
                       }}
                       aria-disabled={pending}
                       className={cn(
-                        "group block cursor-grab rounded-lg border bg-card p-3 shadow-card transition-all hover:-translate-y-px hover:border-primary/40 hover:shadow-pop active:cursor-grabbing",
+                        "group block cursor-grab rounded-lg border border-input/50 bg-card p-3 shadow-card transition-[translate,box-shadow,border-color] duration-(--motion-press) ease-out hover:-translate-y-px hover:border-primary/60 hover:shadow-pop active:cursor-grabbing",
                         dragId === m.id && "opacity-50",
                       )}
                     >
