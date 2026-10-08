@@ -167,6 +167,7 @@ function InviteActions({ inv, className }: { inv: InviteRow; className?: string 
         pendingText="Revoking…"
         run={() => revokeInviteAction(inv.id)}
         success={`Invite to ${inv.email} revoked`}
+        doneText="Revoked"
       >
         Revoke
       </RowAction>

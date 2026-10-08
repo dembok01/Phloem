@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import type { ActionResult } from "@/lib/action-result";
@@ -19,6 +19,10 @@ import type { ActionResult } from "@/lib/action-result";
  *
  * Both the action and its undo write audit rows, which is the accepted cost of
  * single-click: the log records what happened, including the reversal.
+ *
+ * On success the button itself says it worked ("✓ Revoked") for a beat before
+ * the row refreshes, so the confirmation sits where the eye already is, not
+ * only in a toast at the screen's edge.
  */
 export function RowAction({
   children,
@@ -26,6 +30,7 @@ export function RowAction({
   variant = "outline",
   run,
   success,
+  doneText,
   undo,
   className,
 }: {
@@ -35,12 +40,17 @@ export function RowAction({
   run: () => Promise<ActionResult<unknown>>;
   /** Toast copy on success — repeats the verb of the button (DESIGN-SYSTEM §5). */
   success: string;
+  /** What the button says for a beat once it has worked, e.g. "Revoked". */
+  doneText: string;
   undo?: { label: string; run: () => Promise<ActionResult<unknown>>; success: string };
   className?: string;
 }) {
   const { toast } = useToast();
   const router = useRouter();
   const [pending, start] = React.useTransition();
+  const [done, setDone] = React.useState(false);
+  const timer = React.useRef<ReturnType<typeof setTimeout>>(undefined);
+  React.useEffect(() => () => clearTimeout(timer.current), []);
 
   function fire() {
     start(async () => {
@@ -49,7 +59,17 @@ export function RowAction({
         toast("error", result.error);
         return;
       }
-      router.refresh();
+      setDone(true);
+      // The refresh and the label's reset land in one transition, so the button
+      // never flashes its old verb before the row redraws.
+      timer.current = setTimeout(
+        () =>
+          start(() => {
+            setDone(false);
+            router.refresh();
+          }),
+        1200,
+      );
       toast(
         "success",
         success,
@@ -73,11 +93,16 @@ export function RowAction({
       type="button"
       size="sm"
       variant={variant}
-      disabled={pending}
-      onClick={fire}
+      disabled={pending && !done}
+      onClick={done ? undefined : fire}
       className={className}
     >
-      {pending ? (
+      {done ? (
+        <span className="inline-flex items-center gap-1.5">
+          <Check className="mark-in size-3.5" aria-hidden />
+          {doneText}
+        </span>
+      ) : pending ? (
         <span className="inline-flex items-center gap-1.5">
           <Loader2 className="size-3.5 animate-spin" aria-hidden />
           {pendingText}

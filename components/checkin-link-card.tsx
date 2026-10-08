@@ -82,15 +82,18 @@ export function CheckinLinkCard({
                 try {
                   await navigator.clipboard.writeText(url);
                   setCopied(true);
-                  setTimeout(() => setCopied(false), 1500);
+                  setTimeout(() => setCopied(false), 1200);
                 } catch {
                   toast("error", "Couldn't copy — select the link above instead.");
                 }
               }}
             >
-              {copied ? <Check className="size-4" aria-hidden /> : <Copy className="size-4" aria-hidden />}
+              {copied ? <Check className="mark-in size-4" aria-hidden /> : <Copy className="size-4" aria-hidden />}
               {copied ? "Copied" : "Copy link"}
             </Button>
+            <span role="status" className="sr-only">
+              {copied ? "Check-in link copied" : ""}
+            </span>
             <Button
               variant="ghost"
               size="sm"

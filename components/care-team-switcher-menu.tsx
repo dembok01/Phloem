@@ -86,7 +86,7 @@ export function CareTeamSwitcherMenu({
       {open ? (
         <div
           role="menu"
-          className="absolute right-0 z-50 mt-2 max-h-[70vh] w-72 overflow-y-auto rounded-xl border bg-card p-1 shadow-pop"
+          className="absolute right-0 z-50 mt-2 max-h-[70vh] w-72 overflow-y-auto rounded-xl border bg-card p-1 shadow-pop origin-top-right animate-in fade-in-0 zoom-in-[0.97] slide-in-from-top-1 duration-(--motion-pop) ease-out"
         >
           {Object.entries(groups).map(([group, items]) => (
             <div key={group}>

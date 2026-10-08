@@ -18,7 +18,7 @@ export function CopyField({ value, label }: { value: string; label?: string }) {
       return;
     }
     setStatus("copied");
-    setTimeout(() => setStatus("idle"), 1500);
+    setTimeout(() => setStatus("idle"), 1200);
   }
 
   return (
@@ -31,11 +31,16 @@ export function CopyField({ value, label }: { value: string; label?: string }) {
           onFocus={(event) => event.currentTarget.select()}
           className="h-9 min-w-0 font-mono text-xs"
         />
-        <Button type="button" variant="outline" size="sm" onClick={copy} aria-live="polite">
-          {status === "copied" ? <Check aria-hidden /> : <Copy aria-hidden />}
+        <Button type="button" variant="outline" size="sm" onClick={copy}>
+          {/* The icon swaps and the tick grows in, on the button that was pressed. */}
+          {status === "copied" ? <Check className="mark-in" aria-hidden /> : <Copy aria-hidden />}
           {status === "copied" ? "Copied" : "Copy"}
         </Button>
       </div>
+      {/* Stays mounted so the change of its text is what gets announced. */}
+      <span role="status" className="sr-only">
+        {status === "copied" ? "Copied to the clipboard" : ""}
+      </span>
       {status === "error" ? (
         <p role="status" className="text-xs text-muted-foreground">
           Copy is unavailable. Select the link above and copy it manually.

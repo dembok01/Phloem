@@ -55,7 +55,9 @@ export function Chip({
       )}
       {...props}
     >
-      {check && selected ? <Check className="size-3.5 shrink-0" strokeWidth={2.5} aria-hidden /> : null}
+      {check && selected ? (
+        <Check className="mark-in size-3.5 shrink-0" strokeWidth={2.5} aria-hidden />
+      ) : null}
       {children}
       {count != null ? <span className="tabular-nums opacity-70">{count}</span> : null}
     </button>

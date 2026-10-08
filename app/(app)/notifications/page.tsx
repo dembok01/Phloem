@@ -1,13 +1,12 @@
-import Link from "next/link";
 import { Bell } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/page-header";
-import { formatDateTimeIST } from "@/lib/datetime";
-import { markAllRead, markOneRead } from "./actions";
+import { markAllRead } from "./actions";
+import { NotificationList } from "./notification-list";
 
-// §12 notification page: full list with mark-read; every row deep-links.
+// §12 notification page: full list with mark-read; every card with a link opens it.
 export default async function NotificationsPage() {
   const supabase = await createClient();
   const { data: notifs } = await supabase
@@ -42,38 +41,7 @@ export default async function NotificationsPage() {
           description="Updates about consultations, reports, and your program will arrive here as they happen."
         />
       ) : (
-        <ul className="space-y-2">
-          {list.map((n) => (
-            <li
-              key={n.id}
-              className={`flex items-start gap-3 rounded-lg border p-3 ${n.read_at ? "bg-card" : "border-primary/30 bg-primary/5"}`}
-            >
-              <span
-                className={`mt-1.5 size-2 shrink-0 rounded-full ${n.read_at ? "bg-transparent" : "bg-primary"}`}
-                aria-hidden
-              />
-              <div className="min-w-0 flex-1">
-                {n.link ? (
-                  <Link href={n.link} className="font-medium hover:underline max-sm:inline-block max-sm:py-1.5">
-                    {n.title}
-                  </Link>
-                ) : (
-                  <span className="font-medium">{n.title}</span>
-                )}
-                {n.body ? <p className="text-sm text-muted-foreground">{n.body}</p> : null}
-                <p className="text-xs text-muted-foreground">{formatDateTimeIST(n.created_at)}</p>
-              </div>
-              {!n.read_at ? (
-                <form action={markOneRead}>
-                  <input type="hidden" name="id" value={n.id} />
-                  <SubmitButton variant="ghost" size="xs" pendingText="…" className="max-sm:h-10 max-sm:px-3">
-                    Mark read
-                  </SubmitButton>
-                </form>
-              ) : null}
-            </li>
-          ))}
-        </ul>
+        <NotificationList items={list} />
       )}
     </section>
   );

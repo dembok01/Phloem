@@ -1,6 +1,6 @@
 # PHLOEM — Clickability, Micro-interactions & Onboarding Questionnaire Plan
 
-**Date:** 2026-10-07 · **Status:** Phase 1 ✅ built (2026-10-07, see `PROGRESS.md`) · Phases 2–5 not started · **Owner decisions needed:** §6
+**Date:** 2026-10-07 · **Status:** Phase 1 ✅ built (2026-10-07) · Phase 2 ✅ built (2026-10-08) · see `PROGRESS.md` · Phases 3–5 not started · **Owner decisions needed:** §6
 **Builds on:** `DESIGN-SYSTEM.md` (the world stays the same: Loam/Paper/Phloem, Bricolage/Atkinson/Plex,
 growth rings), `docs/VISUAL-ELEVATION-PLAN.md` (V1–V4 shipped), `DESIGN-PROPOSALS.md` P-7 (now
 taken up in Phase 4).
@@ -201,6 +201,11 @@ mode are already handled by the global rule.
 **Acceptance:** keyboard walk (every new state reachable without a mouse), reduced-motion check, no
 layout shift (CLS stays 0 on the probed pages), probe re-run, and the impeccable detector run once on
 the changed files.
+
+**Result (2026-10-08):** built as specified except: the segmented "fill slides" (2.6) is limited to the
+NavTabs pill (form choices are separate wrapping chips); the clinician member page's server-rendered
+`?tab=` rail does not glide; the done-state lives on `RowAction` (Revoke / Suspend / Reactivate) —
+Today's Schedule opens a sheet, not a row action. Details in `PROGRESS.md`.
 
 ### Phase 3 · Questionnaire experience (presentation-only) · ~1 day
 

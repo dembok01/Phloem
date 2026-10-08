@@ -13,11 +13,15 @@ import { cn } from "@/lib/utils";
 export const TAB_TRACK =
   "bg-[color-mix(in_oklab,var(--muted),var(--foreground)_4%)] p-1 ring-1 ring-foreground/[0.06] ring-inset";
 
-export function tabClass(active: boolean, className?: string): string {
+/** The raised face of the current tab. NavTabs paints it once, on a pill that
+ * glides between tabs; the server-rendered rail paints it on the tab itself. */
+export const TAB_FACE = "bg-card shadow-card ring-1 ring-foreground/[0.08]";
+
+export function tabClass(active: boolean, className?: string, { face = true } = {}): string {
   return cn(
-    "rounded-full px-4 py-1.5 text-sm font-medium whitespace-nowrap transition-[color,background-color,box-shadow] duration-(--motion-press) ease-out",
+    "relative rounded-full px-4 py-1.5 text-sm font-medium whitespace-nowrap transition-[color,background-color,box-shadow] duration-(--motion-press) ease-out",
     active
-      ? "bg-card text-primary shadow-card ring-1 ring-foreground/[0.08]"
+      ? cn("text-primary", face && TAB_FACE)
       : "text-muted-foreground hover:bg-card/70 hover:text-foreground",
     className,
   );

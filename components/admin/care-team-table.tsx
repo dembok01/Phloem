@@ -207,6 +207,7 @@ function StatusAction({ p }: { p: CareTeamRow }) {
       success={
         p.suspended ? `Reactivated ${p.full_name}` : `Suspended ${p.full_name} — locked out everywhere`
       }
+      doneText={p.suspended ? "Reactivated" : "Suspended"}
       undo={{
         label: "Undo",
         run: () => setAccountStatusAction(p.id, p.suspended ? "suspended" : "active"),

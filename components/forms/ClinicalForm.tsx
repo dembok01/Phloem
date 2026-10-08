@@ -133,7 +133,7 @@ export function ClinicalForm({
             <Lock className="mt-0.5 size-5 shrink-0 text-danger" aria-hidden />
             <div className="text-sm">
               <p className="font-semibold">Form locked</p>
-              <p>{lockedReason ?? "This form is not available yet."}</p>
+              <p id="form-locked-reason">{lockedReason ?? "This form is not available yet."}</p>
             </div>
           </div>
         ) : null}
@@ -172,7 +172,15 @@ export function ClinicalForm({
             Your own assessment leads the report — structured fields standardize it.
           </p>
           <div className="ml-auto flex items-center gap-4">
-            {!locked ? <SaveIndicator state={saveState} /> : null}
+            {/* A disabled Submit says why, beside itself: the banner explaining the
+                lock can be a long scroll above this sticky bar. */}
+            {locked ? (
+              <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">
+                <Lock className="size-3.5" aria-hidden /> Locked
+              </span>
+            ) : (
+              <SaveIndicator state={saveState} />
+            )}
             <span
               className="hidden items-center gap-2 sm:inline-flex"
               aria-label={`${progress}% of required fields complete`}
@@ -187,7 +195,12 @@ export function ClinicalForm({
               </span>
               <span className="font-data text-xs text-muted-foreground">{progress}%</span>
             </span>
-            <Button type="button" onClick={submit} disabled={locked || submitting}>
+            <Button
+              type="button"
+              onClick={submit}
+              disabled={locked || submitting}
+              aria-describedby={locked ? "form-locked-reason" : undefined}
+            >
               {submitting ? <Loader2 className="animate-spin" aria-hidden /> : null}
               {submitting ? "Submitting…" : "Submit & generate report"}
             </Button>

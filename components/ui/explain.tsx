@@ -19,7 +19,10 @@ import { Tooltip } from "@base-ui/react/tooltip";
 import { Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const POPUP = "max-w-72 rounded-xl border bg-popover px-3 py-2.5 text-popover-foreground shadow-pop";
+// Grows from the (i) it belongs to and fades out the same way: Base UI sets the
+// starting/ending attributes and the transform origin.
+const POPUP =
+  "max-w-72 origin-(--transform-origin) rounded-xl border bg-popover px-3 py-2.5 text-popover-foreground shadow-pop transition-[opacity,scale] duration-(--motion-pop) ease-out data-[ending-style]:scale-[0.97] data-[ending-style]:opacity-0 data-[starting-style]:scale-[0.97] data-[starting-style]:opacity-0";
 
 function Body({ what, next }: { what: string; next?: string }) {
   return (

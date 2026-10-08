@@ -139,6 +139,12 @@ state with no animation. Everything else moves 150–250ms ease-out or not at al
 - **Tabs** are a segmented control: recessed track, the current tab raised in white.
 - **Callouts:** one that leads somewhere shows a button; one that only informs is a flat
   muted note.
+- **Feedback motion on staff screens (2026-10-08):** only in answer to the user's own
+  action, 120–200ms — a row action confirms on itself ("✓ Revoked") before the row
+  refreshes; a read lands at once (dot shrinks, tint fades); the tab pill glides; ticks
+  and dots grow in (`.mark-in`); popovers grow from their trigger. No entrance
+  choreography on pages seen many times a day.
+- **A disabled control says why**, beside itself (`aria-describedby` to the reason).
 
 ## 6 · Self-critique (against the generic-default test)
 

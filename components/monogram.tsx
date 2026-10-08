@@ -46,6 +46,7 @@ export function Monogram({
   return (
     <span
       aria-hidden
+      data-slot="monogram"
       className={cn(
         "inline-flex shrink-0 items-center justify-center rounded-full font-display font-semibold",
         TONE[tone],

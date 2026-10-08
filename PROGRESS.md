@@ -1906,3 +1906,64 @@ RPC touched, so the §16 suite was not re-run.
 - Disabled Buttons keep `pointer-events-none` (safe with `render`-as-link Buttons), so
   their `not-allowed` cursor does not show; Phase 2.8 (disabled-with-a-reason) revisits.
 - Dark mode is not shipped; its tokens were updated for parity only.
+
+## Feedback motion — Phase 2 of the affordance plan (2026-10-08)
+
+Plan: `docs/AFFORDANCE-AND-ONBOARDING-PLAN.md` §5 Phase 2. Presentation-only: no migration,
+RLS or RPC touched, so the §16 suite was not re-run. Budget kept from Portal Elevation:
+staff screens move only in answer to the user's own action, 120–200ms.
+
+### What changed
+
+- **Row actions confirm on themselves** (`components/admin/row-action.tsx`): after a
+  successful Revoke / Suspend / Reactivate the button reads "✓ Revoked" etc. for 1.2s, then
+  the refresh and the label reset land in one transition (no flash of the old verb). New
+  required `doneText` prop; both call sites pass it.
+- **Notifications** (`app/(app)/notifications/notification-list.tsx`, new client list):
+  Mark read is optimistic (`useOptimistic`: the dot shrinks, the tint fades at once; a failed
+  write is undone by the server's answer). A card with a link is the link, whole (stretched
+  title link, focus ring on the card), and opening it marks it read through the browser
+  client — the same RLS-scoped (`notif_own`) write the bell already makes.
+- **Tab pill glides** (`components/nav-tabs.tsx`): one measured pill moves between tabs
+  (translate + width, 200ms, in-out curve); before hydration the active tab paints its own
+  face (`TAB_FACE` in `tab-styles.ts`), so nothing is ever unmarked; a ResizeObserver keeps
+  it aligned when a tab's spinner or a late font changes widths.
+- **Ticks and dots grow in** (`.mark-in`, 150ms, in `globals.css`): Chip tick, copy ticks,
+  and (Phase 3) the form's radio dots and checkbox ticks.
+- **Copy feedback** (`copy-field.tsx`, `checkin-link-card.tsx`): 1.2s, the tick grows in, and a
+  stable `role=status` region announces "Copied" (the old `aria-live` sat on the button).
+- **Row hover answers in the role hue:** a monogram in a `ListRow` or admin table row gains a
+  2px ring of its own role colour on hover (`data-slot="monogram"` + one CSS rule).
+- **Disabled with a reason:** the locked clinical form's Submit, in a sticky bar far below
+  the lock banner, now shows a lock and "Locked" beside it and points `aria-describedby` at the
+  reason. The other disabled-by-state controls already said why (thread composer); lens
+  desks render no disabled write controls (the write tabs are not rendered).
+- **Popovers grow, not pop:** bell dropdown, desk switcher menu and command palette enter
+  with fade + 0.97 scale from their trigger corner (200ms); `Explain` popups use Base UI's
+  starting/ending styles both ways. The Sheet already used the drawer curve + backdrop fade.
+
+### Verification
+
+- `tsc --noEmit` clean · `eslint` clean on changed files · `npm run build` ✓ ·
+  `npm run test:unit` 128/128 · impeccable detector: `[]`.
+- Browser (admin login, GET-only), dev and production build, 1280 + 390px: after a tab change
+  the pill sits exactly on the active tab (Members: offset 96 / width 90 = pill 96px / 90px,
+  `transition-property: translate, width`); monogram ring + chevron nudge on row hover; bell
+  dropdown; notifications list renders (42 unread) with whole-card links.
+- **Not exercised in the browser:** Mark read / open-marks-read and the row-action done state —
+  each writes to the hosted (real-client) database, so they were reviewed in code only.
+  CLS was not measured; the motion uses transform / opacity / box-shadow, plus `width` on the
+  absolutely-positioned pill (which moves no sibling).
+- `next dev` logs a hydration mismatch in the app header around the desk switcher on
+  `/admin` and `/notifications`; it does not occur on the production build, and the header
+  markup is not part of this change.
+
+### Assumptions / deviations
+
+- 2.6 "the segmented control's fill slides" applies to the NavTabs pill only; the form's
+  choices are separate chips that wrap, where a travelling fill would read as noise.
+- The clinician member page's tab rail is server-rendered (`?tab=` links) and does not glide.
+- 2.3 named "✓ Scheduled": Today's Schedule opens the scheduling sheet and is not a
+  `RowAction`; the done state covers every `RowAction` call site instead.
+- Popovers that are conditionally rendered animate on enter only (exit would need them kept
+  mounted).

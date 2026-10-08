@@ -476,6 +476,29 @@
     animation: fade-swap var(--motion-pop) var(--motion-ease-out) backwards;
   }
 
+  /* A tick or a radio dot arriving: the mark of "yes, that one" grows into place
+     instead of blinking on. It is mounted only while selected, so the animation
+     plays exactly once per choice. `scale`, not `transform`, so it composes with
+     anything else on the element. */
+  @keyframes mark-in {
+    from {
+      opacity: 0;
+      scale: 0.4;
+    }
+  }
+  .mark-in {
+    animation: mark-in 150ms var(--motion-ease-out) backwards;
+  }
+
+  /* A row's monogram answers the hover in its own role hue, so the eye finds which
+     row it is about to open. Box-shadow, so the 28px mark never changes size. */
+  [data-slot="monogram"] {
+    transition: box-shadow var(--motion-press) var(--motion-ease-out);
+  }
+  :is(.group\/row, .group\/tr):hover [data-slot="monogram"] {
+    box-shadow: 0 0 0 2px color-mix(in oklab, currentColor 30%, transparent);
+  }
+
   /* The wait bar (components/nav-progress.tsx). Hidden for its first 120ms so a
      quick answer never flickers it. Above sheets and dialogs (z-50): a wait is
      worth knowing about whatever is open. Under reduced motion and elderly mode

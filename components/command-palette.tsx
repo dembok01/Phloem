@@ -149,14 +149,14 @@ export function CommandPalette({ desk = "coordinator" }: { desk?: keyof typeof D
 
       {!open ? null : (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-foreground/20 p-4 pt-[12vh] backdrop-blur-[2px]"
+      className="fixed inset-0 z-50 flex items-start justify-center bg-foreground/20 p-4 pt-[12vh] backdrop-blur-[2px] animate-in fade-in-0 duration-(--motion-pop) ease-out"
       onClick={() => setOpen(false)}
       role="dialog"
       aria-modal="true"
       aria-label="Command palette"
     >
       <div
-        className="w-full max-w-lg overflow-hidden rounded-xl border bg-popover shadow-pop"
+        className="w-full max-w-lg overflow-hidden rounded-xl border bg-popover shadow-pop animate-in fade-in-0 zoom-in-[0.97] slide-in-from-top-2 duration-(--motion-pop) ease-out"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-2 border-b px-4">

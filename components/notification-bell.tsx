@@ -116,7 +116,7 @@ export function NotificationBell() {
       {open ? (
         <>
           <div className="fixed inset-0 z-30" aria-hidden onClick={() => setOpen(false)} />
-          <div className="absolute right-0 z-40 mt-2 w-80 overflow-hidden rounded-xl border bg-popover shadow-pop">
+          <div className="absolute right-0 z-40 mt-2 w-80 overflow-hidden rounded-xl border bg-popover shadow-pop origin-top-right animate-in fade-in-0 zoom-in-[0.97] slide-in-from-top-1 duration-(--motion-pop) ease-out">
             <div className="flex items-center justify-between border-b px-3 py-2">
               <span className="text-sm font-semibold">Notifications</span>
               {unread > 0 ? (
