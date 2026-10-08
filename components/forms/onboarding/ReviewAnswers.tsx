@@ -21,7 +21,7 @@ export function ReviewAnswers({
   cards: Card[];
   values: FormValues;
   hints: Record<string, FieldHint>;
-  /** Re-voices a card's fields exactly as the card itself showed them. */
+  /** A card's fields exactly as the card itself showed them. */
   present: (fields: FormField[]) => FormField[];
   onEdit: (cardIndex: number) => void;
 }) {

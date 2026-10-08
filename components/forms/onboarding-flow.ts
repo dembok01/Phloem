@@ -61,9 +61,9 @@ export const FIELD_HINTS: Record<string, FieldHint> = {
   food_allergies: { none: true },
 };
 
-/** Who the questions speak to: the member ("you", when they answer for
- * themselves), or a family member answering about them — by first name, or
- * "they" when no name is known. */
+/** Who is answering: the member themself ("you"), or a family member answering
+ * about them (by first name). Used for the wizard's own headings only — never
+ * for the template's questions. */
 export type Voice = { self: boolean; name: string | null };
 
 /** First name for warmth, but initialed names ("K. V. Gopalan") keep the full
@@ -80,33 +80,18 @@ export function voiceOf(values: FormValues, memberName?: string | null): Voice {
   return { self, name: self ? null : firstNameOf(memberName) };
 }
 
-type FieldCopy = Partial<Pick<FormField, "label" | "addLabel">>;
-
 /**
- * Wording that depends on who is answering, plus the list buttons' verbs. The
- * template stays the source of every question; this only re-voices the few
- * labels that address someone, so a caregiver is not asked "Why are you
- * joining?" about their mother, nor a member "Do they need painkillers?".
+ * The list buttons' words ("Add a condition", not "Add another"). Button text
+ * only, never a question: the client has asked that the configured questions
+ * are not re-worded or added to, so every label comes from the template as is.
  */
-export function fieldCopy({ self, name }: Voice): Record<string, FieldCopy> {
-  const subject = self ? "you" : (name ?? "they");
-  const possessive = self ? "your" : name ? `${name}'s` : "their";
-  // "Do you / Do they" but "Does Leela".
-  const does = self || !name ? `Do ${subject}` : `Does ${subject}`;
-  const is = self || !name ? `are ${subject}` : `is ${subject}`;
-  return {
-    conditions: { addLabel: "Add a condition" },
-    medications: { addLabel: "Add a medicine" },
-    painkillers_needed: { label: `${does} need painkillers for it? Which ones?` },
-    food_frequency: { label: `How often ${does.split(" ")[0].toLowerCase()} ${subject} eat…` },
-    goals: { label: `What are ${possessive} goals?` },
-    reason: { label: `Why ${is} joining PHLOEM? What matters most?` },
-  };
-}
+const LIST_BUTTONS: Record<string, string> = {
+  conditions: "Add a condition",
+  medications: "Add a medicine",
+};
 
-/** Apply `fieldCopy` to a card's fields (unknown ids pass through untouched). */
-export function withCopy(fields: FormField[], copy: Record<string, FieldCopy>): FormField[] {
-  return fields.map((f) => (copy[f.id] ? { ...f, ...copy[f.id] } : f));
+export function withListButtons(fields: FormField[]): FormField[] {
+  return fields.map((f) => (LIST_BUTTONS[f.id] ? { ...f, addLabel: LIST_BUTTONS[f.id] } : f));
 }
 
 // The authored grouping. Order matches the template's sections. Each chapter's

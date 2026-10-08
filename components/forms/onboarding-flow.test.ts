@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseFormTemplate } from "./schema";
 import { requiredMessage, toggleChoice } from "./logic";
-import { FIELD_HINTS, fieldCopy, firstNameOf, voiceOf, withCopy } from "./onboarding-flow";
+import { FIELD_HINTS, firstNameOf, voiceOf, withListButtons } from "./onboarding-flow";
 import type { FormField } from "./types";
 
 const template = parseFormTemplate(
@@ -34,37 +34,29 @@ test("required messages say how to fix the answer", () => {
   assert.equal(requiredMessage(f("textarea")), "Type an answer.");
 });
 
-test("the questions speak to whoever is answering", () => {
-  const self = fieldCopy(voiceOf({ relationship_to_caregiver: "Self" }, "Leela Varma"));
-  assert.equal(self.reason.label, "Why are you joining PHLOEM? What matters most?");
-  assert.equal(self.painkillers_needed.label, "Do you need painkillers for it? Which ones?");
-  assert.equal(self.food_frequency.label, "How often do you eat…");
-  assert.equal(self.goals.label, "What are your goals?");
+test("the configured questions are shown exactly as written", () => {
+  // Client requirement: no question is re-worded or added. Only the two list
+  // buttons get their own words.
+  const all = template.sections.flatMap((sec) => sec.fields);
+  const shown = withListButtons(all);
+  assert.equal(shown.length, all.length);
+  shown.forEach((f, i) => {
+    assert.deepEqual({ ...f, addLabel: null }, { ...all[i], addLabel: null }, `${f.id} changed`);
+  });
+  assert.deepEqual(
+    shown.filter((f, i) => f.addLabel !== all[i].addLabel).map((f) => f.id),
+    ["conditions", "medications"],
+  );
 
-  const named = fieldCopy(voiceOf({ relationship_to_caregiver: "Mother" }, "Leela Varma"));
-  assert.equal(named.reason.label, "Why is Leela joining PHLOEM? What matters most?");
-  assert.equal(named.painkillers_needed.label, "Does Leela need painkillers for it? Which ones?");
-  assert.equal(named.food_frequency.label, "How often does Leela eat…");
-  assert.equal(named.goals.label, "What are Leela's goals?");
-
-  const unnamed = fieldCopy(voiceOf({}, null));
-  assert.equal(unnamed.reason.label, "Why are they joining PHLOEM? What matters most?");
-  assert.equal(unnamed.painkillers_needed.label, "Do they need painkillers for it? Which ones?");
-  assert.equal(unnamed.food_frequency.label, "How often do they eat…");
-
+  // Who is answering only drives the wizard's own headings.
+  assert.equal(voiceOf({ relationship_to_caregiver: "Self" }, "Leela Varma").self, true);
+  assert.equal(voiceOf({ relationship_to_caregiver: "Mother" }, "Leela Varma").name, "Leela");
   assert.equal(firstNameOf("K. V. Gopalan"), "K. V. Gopalan");
 });
 
-test("every re-voiced field and None shortcut exists in the template", () => {
-  for (const id of Object.keys(fieldCopy({ self: false, name: null }))) {
-    assert.ok(byId.has(id), `fieldCopy names unknown field ${id}`);
-  }
+test("every None shortcut sits on a free-text question in the template", () => {
   for (const [id, hint] of Object.entries(FIELD_HINTS)) {
     assert.ok(byId.has(id), `FIELD_HINTS names unknown field ${id}`);
     if (hint.none) assert.equal(byId.get(id)?.type, "textarea", `${id}: None shortcut needs a textarea`);
   }
-  // Copy changes words only: ids, types and required rules pass through.
-  const [before] = template.sections[1].fields;
-  const [after] = withCopy([before], { [before.id]: { label: "changed" } });
-  assert.deepEqual({ ...after, label: before.label }, before);
 });

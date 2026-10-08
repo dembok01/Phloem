@@ -35,12 +35,11 @@ import {
   buildCards,
   cardIndexOfField,
   FIELD_HINTS,
-  fieldCopy,
   firstNameOf,
   voiceOf,
-  withCopy,
+  withListButtons,
 } from "./onboarding-flow";
-import type { FormField, FormTemplateSchema, FormValues } from "./types";
+import type { FormTemplateSchema, FormValues } from "./types";
 import { SaveIndicator } from "./onboarding/SaveIndicator";
 import { useAutosaveDraft } from "./useAutosaveDraft";
 import { OnboardingProgress } from "./onboarding/OnboardingProgress";
@@ -139,11 +138,11 @@ export function OnboardingWizard({
   const isLast = cardIndex === cards.length - 1;
   const flags = computeRedFlags(values);
   const showFlagBanner = hasHighFlag(flags);
-  // The questions speak to whoever is answering: "you" when the member answers
-  // for themselves, their first name when a family member answers for them.
+  // The wizard's own headings speak to whoever is answering ("Check your
+  // answers" / "Check Leela's answers"). The questions are shown exactly as
+  // configured; only the list buttons get their words ("Add a medicine").
   const voice = voiceOf(values, memberName);
-  const copy = fieldCopy(voice);
-  const present = (fields: FormField[]) => withCopy(fields, copy);
+  const present = withListButtons;
   const firstName = firstNameOf(memberName) ?? "";
   const possessive = voice.self ? "your" : firstName ? `${firstName}'s` : "the";
   const currentErrors = current.fields.filter((f) => errors.has(f.id)).length;

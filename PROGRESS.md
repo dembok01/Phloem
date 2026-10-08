@@ -1993,10 +1993,10 @@ stored answer shapes are unchanged), so the §16 suite was not re-run.
   least one medicine."), a count line, and focus + scroll to the *first* missing question (the
   control itself, not a "None" shortcut or a − stepper); a gap on another card goes to that card.
 - **Focus follows the card:** after Continue / Back the new card's heading takes focus.
-- **Voice follows who is answering** (`fieldCopy` in `onboarding-flow.ts`): "Self" reads
-  "you/your", a family member reads the member's first name ("Why is Leela joining PHLOEM?"),
-  "they" only without a name. Five labels plus the welcome, review and completion headings;
-  list buttons read "Add a condition" / "Add a medicine".
+- **Headings follow who is answering:** the welcome, review and completion headings read
+  "you" for the member and the member's first name for a family member. (Re-wording five
+  question labels the same way was built and then reverted — see the client rule below.)
+  List buttons read "Add a condition" / "Add a medicine".
 - **Repeat lists:** a tonal Add button, a labelled "Remove" under each row (it no longer
   overlaps the second column's label), and the caret moves into the new row.
 - **Review before submit** (`onboarding/ReviewAnswers.tsx`): the last card's button is "Review
@@ -2017,9 +2017,8 @@ stored answer shapes are unchanged), so the §16 suite was not re-run.
   Begin → focus on the card heading; blocked Continue on measurements → focus in `weight_kg`,
   "Enter a number.", "One question above still needs an answer."; consent radiogroup
   ArrowRight → No, ArrowLeft → Yes; "Add a condition" → focus in the new row; symptoms
-  Breathlessness + Dizziness + None → None only, then Dizziness → Dizziness only; labels
-  "Does Leela need painkillers…", "Why is Leela joining PHLOEM?"; review "Check Leela's
-  answers" with focus on its heading; Edit → "Back to review" → review; Send → completion.
+  Breathlessness + Dizziness + None → None only, then Dizziness → Dizziness only; review "Check Leela's answers"
+  with focus on its heading; Edit → "Back to review" → review; Send → completion.
   No console errors on the preview. Production build: `/dev/onboarding-preview` → 404.
 - Not done: a real screen-reader pass (roles, names and focus were checked in the DOM only).
 
@@ -2034,3 +2033,17 @@ stored answer shapes are unchanged), so the §16 suite was not re-run.
   presentation-only was taken (focus to the heading, Edit returns to the review, radio vs
   checkbox semantics). Its content changes — "Not sure" answers, gates, falls, moving
   questions later — belong to Phase 4 and its decisions.
+
+### Client rule — the configured questions are not changed (2026-10-08)
+
+The client has asked that the onboarding questions stay exactly as configured: none re-worded,
+none added, only small unobtrusive presentation changes. Consequences:
+
+- **Phase 4 (onboarding v2: new questions, structured red-flag inputs) is cancelled.** No
+  migration 0054, no template v2, no red-flag change.
+- The Phase 3 voice map that re-worded five labels was reverted; `withListButtons` now changes
+  only the two list buttons' words, and a unit test asserts every template field reaches the
+  screen unchanged apart from that.
+- The owner confirmed the other visible Phase 3 additions stay: the "Optional" tag, "Choose all
+  that apply", the review screen before sending, and the one-tap "None" buttons (none of them
+  changes or adds a question; "None" writes the same text people were typing).

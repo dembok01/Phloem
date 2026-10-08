@@ -1,6 +1,6 @@
 # PHLOEM — Clickability, Micro-interactions & Onboarding Questionnaire Plan
 
-**Date:** 2026-10-07 · **Status:** Phase 1 ✅ built (2026-10-07) · Phase 2 ✅ · Phase 3 ✅ built (2026-10-08) · see `PROGRESS.md` · Phases 4–5 not started · **Owner decisions needed:** §6
+**Date:** 2026-10-07 · **Status:** Phase 1 ✅ built (2026-10-07) · Phase 2 ✅ · Phase 3 ✅ built (2026-10-08) · **Phase 4 cancelled** (client: the configured questions are never changed or added to) · Phase 5 not started · see `PROGRESS.md`
 **Builds on:** `DESIGN-SYSTEM.md` (the world stays the same: Loam/Paper/Phloem, Bricolage/Atkinson/Plex,
 growth rings), `docs/VISUAL-ELEVATION-PLAN.md` (V1–V4 shipped), `DESIGN-PROPOSALS.md` P-7 (now
 taken up in Phase 4).
@@ -226,13 +226,17 @@ Can ship before Phase 4. It doesn't touch the template, red flags, report builde
 **Acceptance:** unit tests for the exclusive-None logic and the voice map; keyboard and screen-reader
 walk through every card in the preview; phone at 390px; `test:unit` + build.
 
-**Result (2026-10-08):** all nine built. Deviations: the voice uses the member's first name when a
-family member answers ("Does Leela need…", "they" only without a name), as the redesign proposal
-suggests; the consent sentence is deliberately not re-voiced; the preview route is also live on
+**Result (2026-10-08):** built, except **3.6 (voice) — reverted the same day**: the client requires
+every configured question to be shown exactly as written, so labels are never re-worded (only the
+wizard's own headings and the list buttons' words follow the respondent). The preview route is also live on
 Vercel *preview* deployments (production still 404s) so the owner can check it there. A real
 screen-reader pass was not done (ARIA roles, names and focus were checked in a headless browser).
 
 ### Phase 4 · Questionnaire content v2 (template version 2 + DB) · ~2 days · *needs §6 sign-off*
+
+> **Cancelled 2026-10-08.** The client has asked that the configured onboarding questions are not
+> changed and nothing is added to them; only small, unobtrusive presentation changes are allowed.
+> This section is kept for the record. Do not build it without a new instruction from the client.
 
 Uses the established **versioning, not mutation** pattern (0023/0052): insert `onboarding` v2 as
 active, keep v1 for the 20 existing responses, **keep every v1 field id stable**, and only add new
@@ -313,7 +317,8 @@ run, `PROGRESS.md` entry, commit.
 | D3 | Staff motion level. | **Feedback-only** (as above). Richer motion stays on the portal and onboarding. |
 | D4 | Add the **dev-only onboarding preview** route. | **Yes**: it's the only way to verify questionnaire work without a live member in onboarding. |
 
-Phases 1, 2, 3 and 5 don't depend on D1 or D2 and can start right away.
+**Outcome (2026-10-08):** D3 and D4 were built as recommended (Phases 2 and 3). D1 and D2 are moot —
+Phase 4 is cancelled at the client's request.
 
 ---
 
@@ -324,9 +329,9 @@ Phases 1, 2, 3 and 5 don't depend on D1 or D2 and can start right away.
 | Clickables with arrow cursor | 160 / 351 | **0** |
 | Control edges < 1.5:1 | 7 | **0** (inputs and chips ≥ 3:1) |
 | Targets < 32px | 133 (incl. inline prose links) | **0** apart from inline prose links; `pointer: coarse` ≥ 44px |
-| Required answers that need typing | 16 | **~8** (4 of them prefilled) |
-| Required "guess a number" questions | 1 (`protein_grams`) | **0** |
-| Direct falls question | none | **yes** (after D1) |
+| Required answers that need typing | 16 | n/a — Phase 4 cancelled (questions unchanged) |
+| Required "guess a number" questions | 1 (`protein_grams`) | n/a — Phase 4 cancelled |
+| Direct falls question | none | n/a — Phase 4 cancelled |
 
 ---
 
