@@ -5,7 +5,7 @@
 // wraps them, and soft UI hints (units / steppers). The template
 // (`onboarding.v1.json`) stays the single source of truth for the questions
 // themselves, so nothing here touches red-flags, reports, or role-scoped reads.
-import type { FieldHint, FormField, FormSection, FormTemplateSchema } from "./types";
+import type { FieldHint, FormField, FormSection, FormTemplateSchema, FormValues } from "./types";
 
 export type { FieldHint } from "./types";
 
@@ -53,7 +53,61 @@ export const FIELD_HINTS: Record<string, FieldHint> = {
   sleep_hours: { unit: "hrs", stepper: true, min: 0, max: 16, step: 0.5 },
   water_liters: { unit: "L", stepper: true, min: 0, max: 10, step: 0.5 },
   protein_grams: { unit: "g", stepper: true, min: 0, max: 400, step: 5 },
+  // A third of the real answers to these were a typed "None".
+  surgeries_injuries: { none: true },
+  family_history: { none: true },
+  hospitalizations: { none: true },
+  allergies: { none: true },
+  food_allergies: { none: true },
 };
+
+/** Who the questions speak to: the member ("you", when they answer for
+ * themselves), or a family member answering about them — by first name, or
+ * "they" when no name is known. */
+export type Voice = { self: boolean; name: string | null };
+
+/** First name for warmth, but initialed names ("K. V. Gopalan") keep the full
+ * name rather than a lone letter. */
+export function firstNameOf(fullName?: string | null): string | null {
+  const full = (fullName ?? "").trim();
+  if (!full) return null;
+  const first = full.split(/\s+/)[0] ?? "";
+  return /^[A-Za-z]\.?$/.test(first) ? full : first;
+}
+
+export function voiceOf(values: FormValues, memberName?: string | null): Voice {
+  const self = values.relationship_to_caregiver === "Self";
+  return { self, name: self ? null : firstNameOf(memberName) };
+}
+
+type FieldCopy = Partial<Pick<FormField, "label" | "addLabel">>;
+
+/**
+ * Wording that depends on who is answering, plus the list buttons' verbs. The
+ * template stays the source of every question; this only re-voices the few
+ * labels that address someone, so a caregiver is not asked "Why are you
+ * joining?" about their mother, nor a member "Do they need painkillers?".
+ */
+export function fieldCopy({ self, name }: Voice): Record<string, FieldCopy> {
+  const subject = self ? "you" : (name ?? "they");
+  const possessive = self ? "your" : name ? `${name}'s` : "their";
+  // "Do you / Do they" but "Does Leela".
+  const does = self || !name ? `Do ${subject}` : `Does ${subject}`;
+  const is = self || !name ? `are ${subject}` : `is ${subject}`;
+  return {
+    conditions: { addLabel: "Add a condition" },
+    medications: { addLabel: "Add a medicine" },
+    painkillers_needed: { label: `${does} need painkillers for it? Which ones?` },
+    food_frequency: { label: `How often ${does.split(" ")[0].toLowerCase()} ${subject} eat…` },
+    goals: { label: `What are ${possessive} goals?` },
+    reason: { label: `Why ${is} joining PHLOEM? What matters most?` },
+  };
+}
+
+/** Apply `fieldCopy` to a card's fields (unknown ids pass through untouched). */
+export function withCopy(fields: FormField[], copy: Record<string, FieldCopy>): FormField[] {
+  return fields.map((f) => (copy[f.id] ? { ...f, ...copy[f.id] } : f));
+}
 
 // The authored grouping. Order matches the template's sections. Each chapter's
 // cards reference field ids; any field the template has but a chapter forgets is

@@ -7,8 +7,13 @@
 // per-chapter progress with a growth-ring signature, a prefill "confirm the
 // basics" card, calm between-chapter interludes, debounced autosave with an
 // always-visible confidence indicator, resume-where-left-off, per-card required
-// validation, the §11/§13 red-flag banner, final submit via `submit_onboarding`,
-// and a quiet completion moment.
+// validation that names what is missing and puts the caret on it, the §11/§13
+// red-flag banner, a review of every answer before the final submit via
+// `submit_onboarding`, and a quiet completion moment.
+//
+// `preview` runs the same wizard over synthetic answers with autosave paused and
+// no submit (the dev-only /dev/onboarding-preview route), so the questionnaire can
+// be seen and checked without a real member in onboarding.
 //
 // Scope note: this file only changes *how* the existing template is presented.
 // The questions, required rules, red-flag engine, data-split and reports are
@@ -26,13 +31,22 @@ import { cn } from "@/lib/utils";
 import { computeRedFlags, hasHighFlag } from "@/lib/red-flags";
 import { DynamicForm } from "./DynamicForm";
 import { missingRequiredFields } from "./logic";
-import { buildCards, cardIndexOfField, FIELD_HINTS } from "./onboarding-flow";
-import type { FormTemplateSchema, FormValues } from "./types";
+import {
+  buildCards,
+  cardIndexOfField,
+  FIELD_HINTS,
+  fieldCopy,
+  firstNameOf,
+  voiceOf,
+  withCopy,
+} from "./onboarding-flow";
+import type { FormField, FormTemplateSchema, FormValues } from "./types";
 import { SaveIndicator } from "./onboarding/SaveIndicator";
 import { useAutosaveDraft } from "./useAutosaveDraft";
 import { OnboardingProgress } from "./onboarding/OnboardingProgress";
 import { PrefillReviewCard } from "./onboarding/PrefillReviewCard";
 import { InterludeCard } from "./onboarding/InterludeCard";
+import { ReviewAnswers } from "./onboarding/ReviewAnswers";
 import { DocumentUploader } from "@/components/documents/document-uploader";
 import { submitOnboarding } from "@/app/(app)/portal/onboarding/[memberId]/actions";
 
@@ -42,12 +56,15 @@ export function OnboardingWizard({
   memberName,
   responseId,
   initialAnswers,
+  preview = false,
 }: {
   template: FormTemplateSchema;
   memberId: string;
   memberName?: string;
   responseId: string;
   initialAnswers: FormValues;
+  /** Synthetic run: nothing is saved and nothing is submitted. */
+  preview?: boolean;
 }) {
   const router = useRouter();
   const cards = React.useMemo(() => buildCards(template), [template]);
@@ -58,6 +75,10 @@ export function OnboardingWizard({
   const [values, setValues] = React.useState<FormValues>(initialAnswers);
   const [cardIndex, setCardIndex] = React.useState(0);
   const [welcome, setWelcome] = React.useState(false);
+  // The review-before-submit screen, and whether an Edit from it is in progress
+  // (that card's Continue then returns straight to the review).
+  const [reviewing, setReviewing] = React.useState(false);
+  const [returnToReview, setReturnToReview] = React.useState(false);
   const [done, setDone] = React.useState(false);
   const [errors, setErrors] = React.useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = React.useState(false);
@@ -67,7 +88,11 @@ export function OnboardingWizard({
   // were Forward, quietly breaking the wizard's spatial model.
   const [direction, setDirection] = React.useState<1 | -1>(1);
   const calm = useCalmMotion();
-  const saveState = useAutosaveDraft(responseId, values);
+  const saveState = useAutosaveDraft(responseId, values, { paused: preview });
+  // Where focus goes after the next render: the new card's heading after a move,
+  // or the first unanswered question after a blocked Continue. A ref, not state:
+  // the render that needs it is already being caused by the move or the errors.
+  const pendingFocus = React.useRef<{ field: string } | "heading" | null>(null);
 
   // Resume the card the caregiver last reached; first-ever visit gets the welcome.
   React.useEffect(() => {
@@ -76,18 +101,52 @@ export function OnboardingWizard({
       setWelcome(true);
       return;
     }
+    if (raw === "review") {
+      setReviewing(true);
+      return;
+    }
     const saved = Number(raw);
     if (Number.isInteger(saved) && saved >= 0 && saved < cards.length) setCardIndex(saved);
   }, [storageKey, cards.length]);
+
+  React.useEffect(() => {
+    const target = pendingFocus.current;
+    if (!target) return;
+    pendingFocus.current = null;
+    if (target === "heading") {
+      document.getElementById("onboarding-card-heading")?.focus({ preventScroll: true });
+      return;
+    }
+    const block = document.querySelector<HTMLElement>(`[data-field="${target.field}"]`);
+    if (!block) return;
+    block.scrollIntoView({ block: "center", behavior: calm ? "auto" : "smooth" });
+    // In priority order, not document order: a textarea's "None" shortcut and a
+    // number's "−" stepper come first in the DOM but are not the answer itself.
+    const control = [
+      '[role="radio"][tabindex="0"]',
+      '[role="checkbox"]',
+      'input:not([type="hidden"])',
+      "textarea",
+      "select",
+      "button",
+    ]
+      .map((sel) => block.querySelector<HTMLElement>(sel))
+      .find(Boolean);
+    control?.focus({ preventScroll: true });
+  });
 
   const current = cards[cardIndex];
   const isLast = cardIndex === cards.length - 1;
   const flags = computeRedFlags(values);
   const showFlagBanner = hasHighFlag(flags);
-  // First name for warmth — but initialed names ("K. V. Gopalan") fall back to
-  // the full name rather than a lone letter.
-  const firstToken = (memberName ?? "").split(" ")[0] ?? "";
-  const firstName = /^[A-Za-z]\.?$/.test(firstToken) ? (memberName ?? "") : firstToken;
+  // The questions speak to whoever is answering: "you" when the member answers
+  // for themselves, their first name when a family member answers for them.
+  const voice = voiceOf(values, memberName);
+  const copy = fieldCopy(voice);
+  const present = (fields: FormField[]) => withCopy(fields, copy);
+  const firstName = firstNameOf(memberName) ?? "";
+  const possessive = voice.self ? "your" : firstName ? `${firstName}'s` : "the";
+  const currentErrors = current.fields.filter((f) => errors.has(f.id)).length;
 
   function onChange(key: string, value: unknown) {
     setValues((v) => ({ ...v, [key]: value }));
@@ -99,32 +158,85 @@ export function OnboardingWizard({
     });
   }
 
-  function goTo(idx: number) {
+  function goTo(idx: number, { scroll = true } = {}) {
     setDirection(idx >= cardIndex ? 1 : -1);
     setCardIndex(idx);
     window.localStorage.setItem(storageKey, String(idx));
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    if (scroll) {
+      window.scrollTo({ top: 0, behavior: calm ? "auto" : "smooth" });
+      pendingFocus.current = "heading";
+    }
   }
 
   function begin() {
     setWelcome(false);
     window.localStorage.setItem(storageKey, "0");
+    pendingFocus.current = "heading";
   }
 
-  function next() {
-    const missing = missingRequiredFields(current.fields, values);
-    if (missing.length > 0) {
-      setErrors(new Set(missing.map((f) => f.id)));
-      window.scrollTo({ top: 0, behavior: "smooth" });
+  /** Mark a card's unanswered questions, take the caregiver to that card, and
+   * put the caret on the first one — scrolled to it, not to the top. */
+  function flagCard(idx: number) {
+    const missing = missingRequiredFields(cards[idx].fields, values);
+    setErrors(new Set(missing.map((f) => f.id)));
+    if (idx !== cardIndex) {
+      setReviewing(false);
+      goTo(idx, { scroll: false });
+    }
+    if (missing[0]) pendingFocus.current = { field: missing[0].id };
+  }
+
+  /** The card holding the first unanswered required question, or -1. */
+  function firstGapCard(): number {
+    for (const section of template.sections) {
+      const missing = missingRequiredFields(section.fields, values);
+      if (missing.length > 0) return cardIndexOfField(cards, missing[0].id);
+    }
+    return -1;
+  }
+
+  function openReview() {
+    const gap = firstGapCard();
+    if (gap >= 0) {
+      flagCard(gap);
       return;
     }
     setErrors(new Set());
-    goTo(Math.min(cardIndex + 1, cards.length - 1));
+    setReturnToReview(false);
+    setReviewing(true);
+    window.localStorage.setItem(storageKey, "review");
+    window.scrollTo({ top: 0, behavior: calm ? "auto" : "smooth" });
+    pendingFocus.current = "heading";
+  }
+
+  function next() {
+    if (missingRequiredFields(current.fields, values).length > 0) {
+      flagCard(cardIndex);
+      return;
+    }
+    setErrors(new Set());
+    if (isLast || returnToReview) {
+      openReview();
+      return;
+    }
+    goTo(cardIndex + 1);
   }
 
   function back() {
     setErrors(new Set());
     goTo(Math.max(cardIndex - 1, 0));
+  }
+
+  function editFromReview(idx: number) {
+    setReviewing(false);
+    setReturnToReview(true);
+    setErrors(new Set());
+    goTo(idx);
+  }
+
+  function leaveReview() {
+    setReviewing(false);
+    goTo(cards.length - 1);
   }
 
   function jumpToSection(sectionIndex: number) {
@@ -135,18 +247,20 @@ export function OnboardingWizard({
   }
 
   async function submit() {
-    // Validate every section; jump to the card holding the first gap.
-    for (const section of template.sections) {
-      const missing = missingRequiredFields(section.fields, values);
-      if (missing.length > 0) {
-        setErrors(new Set(missing.map((f) => f.id)));
-        const target = cardIndexOfField(cards, missing[0].id);
-        if (target >= 0) goTo(target);
-        return;
-      }
+    // The review is only reachable with every card valid, but answers can be
+    // edited in another tab; check once more and go to the gap if there is one.
+    const gap = firstGapCard();
+    if (gap >= 0) {
+      flagCard(gap);
+      return;
     }
     setErrors(new Set());
     setSubmitError(null);
+    if (preview) {
+      window.localStorage.removeItem(storageKey);
+      setDone(true);
+      return;
+    }
     setSubmitting(true);
     try {
       // The action persists these answers authoritatively, then runs
@@ -199,28 +313,47 @@ export function OnboardingWizard({
           <div className="space-y-1">
             <p className="font-display text-2xl font-semibold">Thank you</p>
             <p className="text-muted-foreground">
-              {firstName ? `${firstName}'s` : "The"} onboarding is complete. Your care coordinator
-              reviews the answers and assembles the care team — you&apos;ll hear from us soon.
+              {possessive.charAt(0).toUpperCase() + possessive.slice(1)} onboarding is complete. Your care coordinator reviews the answers and assembles the
+              care team — you&apos;ll hear from us soon.
             </p>
           </div>
         </div>
 
-        <div className="rounded-2xl border bg-card p-6 shadow-card sm:p-8">
-          <h3 className="font-display text-lg font-semibold">Have any recent reports?</h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Add blood work, prescriptions or discharge summaries now — or anytime from your
-            dashboard.
-          </p>
-          <div className="mt-4">
-            <DocumentUploader memberId={memberId} />
+        {preview ? (
+          <div className="text-center">
+            <Button
+              size="lg"
+              variant="outline"
+              onClick={() => {
+                setDone(false);
+                setReviewing(false);
+                setCardIndex(0);
+                setWelcome(true);
+              }}
+            >
+              Start the preview again
+            </Button>
           </div>
-        </div>
+        ) : (
+          <>
+            <div className="rounded-2xl border bg-card p-6 shadow-card sm:p-8">
+              <h3 className="font-display text-lg font-semibold">Have any recent reports?</h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Add blood work, prescriptions or discharge summaries now — or anytime from your
+                dashboard.
+              </p>
+              <div className="mt-4">
+                <DocumentUploader memberId={memberId} />
+              </div>
+            </div>
 
-        <div className="text-center">
-          <Button size="lg" onClick={() => router.push("/portal?onboarded=1")}>
-            Go to the portal
-          </Button>
-        </div>
+            <div className="text-center">
+              <Button size="lg" onClick={() => router.push("/portal?onboarded=1")}>
+                Go to the portal
+              </Button>
+            </div>
+          </>
+        )}
       </div>
     );
   }
@@ -235,7 +368,7 @@ export function OnboardingWizard({
           </span>
           <div className="space-y-2">
             <h2 className="font-display text-2xl font-semibold">
-              Let&apos;s get to know {firstName || "your family member"}
+              Let&apos;s get to know {voice.self ? "you" : firstName || "your family member"}
             </h2>
             <p className="text-muted-foreground">
               A few short questions at a time — about health, daily life and goals. Most families
@@ -261,6 +394,87 @@ export function OnboardingWizard({
     );
   }
 
+  const saveSlot = preview ? (
+    <span className="text-xs text-muted-foreground">Preview — nothing is saved</span>
+  ) : (
+    <SaveIndicator state={saveState} />
+  );
+
+  const flagBanner = showFlagBanner ? (
+    <div className="flex gap-3 rounded-xl border border-warning/40 bg-warning-tint p-4">
+      <AlertTriangle className="mt-0.5 size-5 shrink-0 text-warning" aria-hidden />
+      <div className="text-sm">
+        <p className="font-medium">A doctor will review before any exercise begins.</p>
+        <p>
+          Based on your answers:{" "}
+          {flags.filter((f) => f.severity === "high").map((f) => f.label).join(", ")}. This is
+          only to keep the member safe — there is nothing you need to do right now.
+        </p>
+      </div>
+    </div>
+  ) : null;
+
+  if (reviewing) {
+    return (
+      <div className="mx-auto max-w-2xl space-y-6">
+        <div className="flex items-center justify-between gap-3 text-sm">
+          <span className="eyebrow">Review</span>
+          {saveSlot}
+        </div>
+        <div className="space-y-1">
+          <h2
+            id="onboarding-card-heading"
+            tabIndex={-1}
+            className="font-display text-xl font-semibold outline-none sm:text-2xl"
+          >
+            Check {possessive} answers
+          </h2>
+          <p className="text-muted-foreground">
+            This is what the care team will read. Tap Edit to change anything — you&apos;ll come
+            straight back here.
+          </p>
+        </div>
+
+        {flagBanner}
+
+        <ReviewAnswers
+          cards={cards}
+          values={values}
+          hints={FIELD_HINTS}
+          present={present}
+          onEdit={editFromReview}
+        />
+
+        {submitError ? (
+          <p role="alert" className="rounded-xl border border-danger/30 bg-danger-tint p-3 text-sm text-danger">
+            {submitError}
+          </p>
+        ) : null}
+
+        <div className="flex items-center justify-between gap-3">
+          <Button type="button" variant="outline" size="lg" onClick={leaveReview} disabled={submitting}>
+            Back
+          </Button>
+          <Button type="button" size="lg" onClick={submit} disabled={submitting}>
+            {submitting ? <Loader2 className="animate-spin" aria-hidden /> : null}
+            {submitting ? "Sending…" : "Send to the care team"}
+          </Button>
+        </div>
+
+        {preview ? null : (
+          <div className="text-center">
+            <Link
+              href="/portal"
+              className="text-sm text-muted-foreground underline-offset-4 hover:underline"
+            >
+              Finish later — your answers are saved
+            </Link>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div className="space-y-3">
@@ -273,24 +487,12 @@ export function OnboardingWizard({
               </span>
             ) : null}
           </span>
-          <SaveIndicator state={saveState} />
+          {saveSlot}
         </div>
         <OnboardingProgress cards={cards} cardIndex={cardIndex} onJumpToSection={jumpToSection} />
       </div>
 
-      {showFlagBanner ? (
-        <div className="flex gap-3 rounded-xl border border-warning/40 bg-warning-tint p-4">
-          <AlertTriangle className="mt-0.5 size-5 shrink-0 text-warning" aria-hidden />
-          <div className="text-sm">
-            <p className="font-medium">A doctor will review before any exercise begins.</p>
-            <p>
-              Based on your answers:{" "}
-              {flags.filter((f) => f.severity === "high").map((f) => f.label).join(", ")}. This is
-              only to keep the member safe — there is nothing you need to do right now.
-            </p>
-          </div>
-        </div>
-      ) : null}
+      {flagBanner}
 
       {/* Enter-only, deliberately. AnimatePresence with mode="wait" would hold the
           new card back until the old one left, doubling the felt latency on a
@@ -310,13 +512,19 @@ export function OnboardingWizard({
         ) : (
           <>
             {current.title ? (
-              <h2 className="font-display text-xl font-semibold">{current.title}</h2>
+              <h2
+                id="onboarding-card-heading"
+                tabIndex={-1}
+                className="font-display text-xl font-semibold outline-none"
+              >
+                {current.title}
+              </h2>
             ) : null}
             {current.lead ? <p className="mt-1 text-muted-foreground">{current.lead}</p> : null}
             <div className={cn(current.title || current.lead ? "mt-4" : "")}>
               {current.kind === "review" ? (
                 <PrefillReviewCard
-                  fields={current.fields}
+                  fields={present(current.fields)}
                   values={values}
                   onChange={onChange}
                   errors={errors}
@@ -324,11 +532,12 @@ export function OnboardingWizard({
                 />
               ) : (
                 <DynamicForm
-                  fields={current.fields}
+                  fields={present(current.fields)}
                   values={values}
                   onChange={onChange}
                   errors={errors}
                   hints={FIELD_HINTS}
+                  markOptional
                 />
               )}
             </div>
@@ -336,9 +545,11 @@ export function OnboardingWizard({
         )}
       </motion.div>
 
-      {errors.size > 0 ? (
-        <p role="alert" className="text-sm text-danger">
-          Please complete the required fields marked above before continuing.
+      {currentErrors > 0 ? (
+        <p role="alert" className="text-sm font-medium text-danger">
+          {currentErrors === 1
+            ? "One question above still needs an answer."
+            : `${currentErrors} questions above still need an answer.`}
         </p>
       ) : null}
       {submitError ? (
@@ -351,26 +562,21 @@ export function OnboardingWizard({
         <Button type="button" variant="outline" size="lg" onClick={back} disabled={cardIndex === 0 || submitting}>
           Back
         </Button>
-        {isLast ? (
-          <Button type="button" size="lg" onClick={submit} disabled={submitting}>
-            {submitting ? <Loader2 className="animate-spin" aria-hidden /> : null}
-            {submitting ? "Submitting…" : "Finish onboarding"}
-          </Button>
-        ) : (
-          <Button type="button" size="lg" onClick={next} disabled={submitting}>
-            Continue
-          </Button>
-        )}
+        <Button type="button" size="lg" onClick={next} disabled={submitting}>
+          {returnToReview ? "Back to review" : isLast ? "Review answers" : "Continue"}
+        </Button>
       </div>
 
-      <div className="text-center">
-        <Link
-          href="/portal"
-          className="text-sm text-muted-foreground underline-offset-4 hover:underline"
-        >
-          Finish later — your answers are saved
-        </Link>
-      </div>
+      {preview ? null : (
+        <div className="text-center">
+          <Link
+            href="/portal"
+            className="text-sm text-muted-foreground underline-offset-4 hover:underline"
+          >
+            Finish later — your answers are saved
+          </Link>
+        </div>
+      )}
     </div>
   );
 }

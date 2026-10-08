@@ -58,3 +58,47 @@ export function missingRequiredFields(fields: FormField[], values: FormValues): 
     (f) => f.required && isFieldVisible(f, values) && !isAnswered(f, values[f.id]),
   );
 }
+
+/** The option that means "none of these" ("None", "none", "None of these"). */
+export function isNoneOption(value: string): boolean {
+  return /^none\b/i.test(value.trim());
+}
+
+/**
+ * Toggle one choice in a multiselect, keeping "None" exclusive: choosing None
+ * clears the rest, and choosing anything else clears None. The stored shape is
+ * unchanged (a string array); this only stops a contradictory answer such as
+ * "None" alongside "Chest pain".
+ */
+export function toggleChoice(selected: string[], value: string): string[] {
+  if (selected.includes(value)) return selected.filter((v) => v !== value);
+  if (isNoneOption(value)) return [value];
+  return [...selected.filter((v) => !isNoneOption(v)), value];
+}
+
+/** What a missing required answer needs, in words that say how to fix it. */
+export function requiredMessage(field: FormField): string {
+  switch (field.type) {
+    case "boolean":
+      return "Choose Yes or No.";
+    case "select":
+    case "scale_1_5":
+    case "scale_0_5":
+    case "scale_1_10":
+      return "Choose one answer.";
+    case "multiselect":
+      return "Choose at least one.";
+    case "repeat_group": {
+      const thing = field.addLabel?.match(/^Add (?:a|an) (.+)$/i)?.[1];
+      return thing ? `Add at least one ${thing}.` : "Add at least one.";
+    }
+    case "frequency_grid":
+      return "Choose an answer for every row.";
+    case "number":
+      return "Enter a number.";
+    case "date":
+      return "Choose a date.";
+    default:
+      return "Type an answer.";
+  }
+}

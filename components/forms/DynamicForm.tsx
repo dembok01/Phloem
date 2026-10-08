@@ -5,11 +5,18 @@
 // select/multiselect, repeat_group cards, and frequency grids. Controlled: the
 // parent owns `values` and receives every change via `onChange(key, value)`
 // (repeat/other companions write sibling keys, hence key-addressed).
-import { Minus, Plus, Trash2 } from "lucide-react";
+//
+// Choices say what kind of choice they are. One answer (Yes/No, a select, a
+// scale) is a radiogroup: a dot, arrow keys, one tab stop. Several answers is a
+// set of checkboxes: a ticked box and "Choose all that apply". They used to be
+// identical chips, so nothing said whether a second tap added or replaced.
+import * as React from "react";
+import { Check, Minus, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { isFieldVisible } from "./logic";
+import { isFieldVisible, requiredMessage, toggleChoice } from "./logic";
 import {
   SCALE_RANGES,
   type FieldHint,
@@ -19,15 +26,28 @@ import {
 } from "./types";
 
 const CONTROL =
-  "h-11 w-full min-w-0 rounded-lg border border-input bg-transparent px-3 text-base outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50";
+  "h-11 w-full min-w-0 rounded-lg border border-input bg-card px-3 text-base outline-none transition-colors duration-(--motion-press) hover:border-foreground/60 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:bg-muted disabled:opacity-50";
 
 const SEG_BASE =
-  "inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border px-3 py-2 text-base font-medium transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50";
+  "inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-lg border px-3 py-2 text-base font-medium outline-none select-none transition-[color,background-color,border-color,scale] duration-(--motion-press) ease-out active:scale-[0.97] motion-reduce:active:scale-100 elderly:active:scale-100 focus-visible:ring-3 focus-visible:ring-ring/50";
 const SEG_ON = "border-primary bg-primary text-primary-foreground";
-const SEG_OFF = "border-input bg-background hover:bg-muted";
+const SEG_OFF =
+  "border-input bg-card text-foreground hover:border-foreground/60 hover:bg-[color-mix(in_oklab,var(--card),var(--foreground)_4%)]";
 
 const STEP_BTN =
-  "inline-flex size-11 shrink-0 items-center justify-center rounded-lg border border-input bg-background text-foreground transition-colors hover:bg-muted disabled:opacity-40 outline-none focus-visible:ring-3 focus-visible:ring-ring/50";
+  "inline-flex size-11 shrink-0 items-center justify-center rounded-lg border border-input bg-card text-foreground transition-[background-color,border-color,scale] duration-(--motion-press) ease-out hover:border-foreground/60 hover:bg-muted active:scale-[0.97] motion-reduce:active:scale-100 elderly:active:scale-100 disabled:opacity-40 outline-none focus-visible:ring-3 focus-visible:ring-ring/50";
+
+/** Types answered by picking or adding, not typing: labelled as a group. */
+const GROUP_TYPES = new Set<FormField["type"]>([
+  "boolean",
+  "select",
+  "multiselect",
+  "scale_1_5",
+  "scale_0_5",
+  "scale_1_10",
+  "repeat_group",
+  "frequency_grid",
+]);
 
 function segClass(active: boolean, invalid?: boolean): string {
   return cn(SEG_BASE, active ? SEG_ON : SEG_OFF, invalid && !active && "border-destructive");
@@ -39,6 +59,9 @@ function numberFromInput(raw: string): number | undefined {
   return Number.isNaN(n) ? undefined : n;
 }
 
+/** How a control is named and described: by its question, hint and error. */
+type A11y = { labelledBy?: string; describedBy?: string; required?: boolean };
+
 export type DynamicFormProps = {
   fields: FormField[];
   values: FormValues;
@@ -48,6 +71,10 @@ export type DynamicFormProps = {
   idPrefix?: string;
   /** Soft per-field UI hints (units / steppers). Omit ⇒ unchanged behavior. */
   hints?: Record<string, FieldHint>;
+  /** Tag the optional questions instead of starring the required ones — for
+   *  forms where most questions are required (onboarding), so the mark lands on
+   *  the minority. Clinical forms are mostly optional and keep the star. */
+  markOptional?: boolean;
 };
 
 export function DynamicForm({
@@ -57,6 +84,7 @@ export function DynamicForm({
   errors,
   idPrefix = "",
   hints,
+  markOptional = false,
 }: DynamicFormProps) {
   return (
     <div className="space-y-6">
@@ -71,6 +99,7 @@ export function DynamicForm({
             invalid={errors?.has(field.id) ?? false}
             idPrefix={idPrefix}
             hint={hints?.[field.id]}
+            markOptional={markOptional}
           />
         );
       })}
@@ -85,6 +114,7 @@ function FieldBlock({
   invalid,
   idPrefix,
   hint,
+  markOptional,
 }: {
   field: FormField;
   values: FormValues;
@@ -92,6 +122,7 @@ function FieldBlock({
   invalid: boolean;
   idPrefix: string;
   hint?: FieldHint;
+  markOptional: boolean;
 }) {
   const id = `${idPrefix}${field.id}`;
 
@@ -104,13 +135,50 @@ function FieldBlock({
     );
   }
 
+  const labelId = `${id}-label`;
+  const hintId = `${id}-hint`;
+  const errorId = `${id}-error`;
+  const hintText = [field.hint, field.type === "multiselect" ? "Choose all that apply." : null]
+    .filter(Boolean)
+    .join(" ");
+  const a11y: A11y = {
+    labelledBy: labelId,
+    describedBy: [hintText && hintId, invalid && errorId].filter(Boolean).join(" ") || undefined,
+    required: field.required,
+  };
+  const question = (
+    <>
+      {field.label}
+      {markOptional ? (
+        field.required ? null : (
+          <span className="ml-2 inline-block rounded-sm bg-muted px-1.5 py-0.5 align-[0.1em] text-xs font-medium text-muted-foreground">
+            Optional
+          </span>
+        )
+      ) : field.required ? (
+        <span className="text-destructive"> *</span>
+      ) : null}
+    </>
+  );
+
   return (
-    <div className="space-y-2">
-      <Label htmlFor={id} className="text-base">
-        {field.label}
-        {field.required ? <span className="text-destructive"> *</span> : null}
-      </Label>
-      {field.hint ? <p className="text-sm text-muted-foreground">{field.hint}</p> : null}
+    // `data-field` is how the wizard finds the first unanswered question to
+    // focus; scroll-mt keeps it clear of the sticky header when scrolled to.
+    <div className="scroll-mt-24 space-y-2" data-field={field.id}>
+      {GROUP_TYPES.has(field.type) ? (
+        <p id={labelId} className="text-base leading-snug font-medium">
+          {question}
+        </p>
+      ) : (
+        <Label htmlFor={id} id={labelId} className="block text-base leading-snug">
+          {question}
+        </Label>
+      )}
+      {hintText ? (
+        <p id={hintId} className="text-sm text-muted-foreground">
+          {hintText}
+        </p>
+      ) : null}
       {hint?.previous ? (
         <p className="font-data text-xs text-muted-foreground">
           Last time: <span className="text-foreground">{hint.previous}</span>
@@ -118,9 +186,22 @@ function FieldBlock({
       ) : null}
 
       {field.type === "repeat_group" ? (
-        <RepeatGroup field={field} value={values[field.id]} onChange={(v) => onChange(field.id, v)} invalid={invalid} idPrefix={id} />
+        <RepeatGroup
+          field={field}
+          value={values[field.id]}
+          onChange={(v) => onChange(field.id, v)}
+          invalid={invalid}
+          idPrefix={id}
+          a11y={a11y}
+        />
       ) : field.type === "frequency_grid" ? (
-        <FrequencyGrid field={field} value={values[field.id]} onChange={(v) => onChange(field.id, v)} invalid={invalid} />
+        <FrequencyGrid
+          field={field}
+          value={values[field.id]}
+          onChange={(v) => onChange(field.id, v)}
+          invalid={invalid}
+          a11y={a11y}
+        />
       ) : (
         <LeafControl
           field={field}
@@ -129,12 +210,17 @@ function FieldBlock({
           setValue={(v) => onChange(field.id, v)}
           invalid={invalid}
           hint={hint}
+          a11y={a11y}
           otherText={typeof values[`${field.id}_other`] === "string" ? (values[`${field.id}_other`] as string) : ""}
           setOtherText={(t) => onChange(`${field.id}_other`, t)}
         />
       )}
 
-      {invalid ? <p className="text-sm text-destructive">This field is required.</p> : null}
+      {invalid ? (
+        <p id={errorId} className="text-sm font-medium text-destructive">
+          {requiredMessage(field)}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -148,6 +234,7 @@ function LeafControl({
   setValue,
   invalid,
   hint,
+  a11y,
   otherText,
   setOtherText,
 }: {
@@ -157,9 +244,16 @@ function LeafControl({
   setValue: (v: unknown) => void;
   invalid: boolean;
   hint?: FieldHint;
+  a11y: A11y;
   otherText?: string;
   setOtherText?: (t: string) => void;
 }) {
+  const described = {
+    "aria-describedby": a11y.describedBy,
+    "aria-required": a11y.required || undefined,
+    "aria-invalid": invalid || undefined,
+  };
+
   switch (field.type) {
     case "text":
     case "date":
@@ -169,64 +263,75 @@ function LeafControl({
           type={field.type === "date" ? "date" : "text"}
           value={typeof value === "string" ? value : ""}
           onChange={(e) => setValue(e.target.value)}
-          aria-invalid={invalid}
+          {...described}
           className="h-11 text-base"
         />
       );
 
     case "number":
       return (
-        <NumberControl id={id} value={value} setValue={setValue} invalid={invalid} hint={hint} />
+        <NumberControl id={id} value={value} setValue={setValue} invalid={invalid} hint={hint} described={described} />
       );
 
-    case "textarea":
+    case "textarea": {
+      const text = typeof value === "string" ? value : "";
+      const isNone = /^none\.?$/i.test(text.trim());
       return (
-        <textarea
-          id={id}
-          rows={3}
-          value={typeof value === "string" ? value : ""}
-          onChange={(e) => setValue(e.target.value)}
-          aria-invalid={invalid}
-          className={cn(CONTROL, "h-auto min-h-24 py-2", invalid && "border-destructive")}
-        />
+        <div className="space-y-2">
+          {/* One tap for the commonest honest answer; it writes the same "None"
+              people were typing, so nothing downstream changes. */}
+          {hint?.none ? (
+            <button
+              type="button"
+              aria-pressed={isNone}
+              onClick={() => setValue(isNone ? "" : "None")}
+              className={segClass(isNone)}
+            >
+              <Tick on={isNone} />
+              None
+            </button>
+          ) : null}
+          <textarea
+            id={id}
+            rows={3}
+            value={text}
+            onChange={(e) => setValue(e.target.value)}
+            {...described}
+            className={cn(CONTROL, "h-auto min-h-24 py-2", invalid && "border-destructive")}
+          />
+        </div>
       );
+    }
 
     case "boolean":
       return (
-        <div className="flex gap-2" role="group">
-          {[
-            { label: "Yes", v: true },
-            { label: "No", v: false },
-          ].map((o) => (
-            <button
-              key={o.label}
-              type="button"
-              onClick={() => setValue(o.v)}
-              className={segClass(value === o.v, invalid)}
-            >
-              {o.label}
-            </button>
-          ))}
-        </div>
+        <RadioGroup
+          a11y={a11y}
+          invalid={invalid}
+          choices={[
+            { key: "yes", label: "Yes", checked: value === true, select: () => setValue(true) },
+            { key: "no", label: "No", checked: value === false, select: () => setValue(false) },
+          ]}
+        />
       );
 
     case "scale_1_5":
     case "scale_0_5":
     case "scale_1_10":
+      // Numbers in a row already read as a scale; a dot per number would only
+      // double its width and wrap it.
       return (
-        <div className="flex flex-wrap gap-2" role="group">
-          {SCALE_RANGES[field.type].map((n) => (
-            <button
-              key={n}
-              type="button"
-              onClick={() => setValue(n)}
-              className={segClass(value === n, invalid)}
-              aria-label={String(n)}
-            >
-              {n}
-            </button>
-          ))}
-        </div>
+        <RadioGroup
+          a11y={a11y}
+          invalid={invalid}
+          dot={false}
+          choices={SCALE_RANGES[field.type].map((n) => ({
+            key: String(n),
+            label: n,
+            checked: value === n,
+            select: () => setValue(n),
+          }))}
+        />
       );
 
     case "select":
@@ -236,6 +341,7 @@ function LeafControl({
           value={value}
           setValue={setValue}
           invalid={invalid}
+          a11y={a11y}
           otherText={otherText ?? ""}
           setOtherText={setOtherText}
         />
@@ -248,6 +354,7 @@ function LeafControl({
           value={value}
           setValue={setValue}
           invalid={invalid}
+          a11y={a11y}
           otherText={otherText ?? ""}
           setOtherText={setOtherText}
         />
@@ -256,6 +363,119 @@ function LeafControl({
     default:
       return null;
   }
+}
+
+/** The radio's dot: an empty ring, filled when chosen. */
+function Dot({ on }: { on: boolean }) {
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        "grid size-4 shrink-0 place-items-center rounded-full border-2",
+        on ? "border-current" : "border-input",
+      )}
+    >
+      {on ? <span className="mark-in size-1.5 rounded-full bg-current" /> : null}
+    </span>
+  );
+}
+
+/** The checkbox's box: empty, ticked when chosen. */
+function Tick({ on }: { on: boolean }) {
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        "grid size-4 shrink-0 place-items-center rounded-[4px] border-2",
+        on ? "border-current" : "border-input",
+      )}
+    >
+      {on ? <Check className="mark-in size-3" strokeWidth={3} /> : null}
+    </span>
+  );
+}
+
+type Choice = {
+  key: string;
+  label: React.ReactNode;
+  checked: boolean;
+  select: () => void;
+  ariaLabel?: string;
+};
+
+/**
+ * One answer from a set. A real radiogroup: a single tab stop (the chosen
+ * option, else the first), arrow keys move the choice, Home/End jump, exactly
+ * as a native radio set behaves.
+ */
+function RadioGroup({
+  choices,
+  a11y,
+  ariaLabel,
+  invalid,
+  dot = true,
+  className,
+  itemClassName,
+}: {
+  choices: Choice[];
+  a11y?: A11y;
+  /** For groups with no visible question element (a frequency-grid row). */
+  ariaLabel?: string;
+  invalid?: boolean;
+  dot?: boolean;
+  className?: string;
+  itemClassName?: string;
+}) {
+  const refs = React.useRef<(HTMLButtonElement | null)[]>([]);
+  const tabStop = Math.max(
+    0,
+    choices.findIndex((c) => c.checked),
+  );
+
+  function onKeyDown(e: React.KeyboardEvent, i: number) {
+    const last = choices.length - 1;
+    let next = -1;
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") next = i === last ? 0 : i + 1;
+    else if (e.key === "ArrowLeft" || e.key === "ArrowUp") next = i === 0 ? last : i - 1;
+    else if (e.key === "Home") next = 0;
+    else if (e.key === "End") next = last;
+    if (next < 0) return;
+    e.preventDefault();
+    choices[next].select();
+    refs.current[next]?.focus();
+  }
+
+  return (
+    <div
+      role="radiogroup"
+      aria-labelledby={ariaLabel ? undefined : a11y?.labelledBy}
+      aria-label={ariaLabel}
+      aria-describedby={a11y?.describedBy}
+      aria-required={a11y?.required || undefined}
+      aria-invalid={invalid || undefined}
+      className={cn("flex flex-wrap gap-2", className)}
+    >
+      {choices.map((c, i) => (
+        <button
+          key={c.key}
+          ref={(el) => {
+            refs.current[i] = el;
+          }}
+          type="button"
+          role="radio"
+          aria-checked={c.checked}
+          aria-label={c.ariaLabel}
+          tabIndex={i === tabStop ? 0 : -1}
+          onClick={c.select}
+          onKeyDown={(e) => onKeyDown(e, i)}
+          className={cn(segClass(c.checked, invalid), itemClassName)}
+        >
+          {dot ? <Dot on={c.checked} /> : null}
+          {c.label}
+        </button>
+      ))}
+    </div>
+  );
 }
 
 // Number entry. Plain input by default (unchanged); when a hint asks for it,
@@ -268,12 +488,14 @@ function NumberControl({
   setValue,
   invalid,
   hint,
+  described,
 }: {
   id: string;
   value: unknown;
   setValue: (v: unknown) => void;
   invalid: boolean;
   hint?: FieldHint;
+  described: React.AriaAttributes;
 }) {
   const num = typeof value === "number" ? value : undefined;
 
@@ -285,7 +507,8 @@ function NumberControl({
         inputMode="decimal"
         value={num ?? ""}
         onChange={(e) => setValue(numberFromInput(e.target.value))}
-        aria-invalid={invalid}
+        {...described}
+        aria-invalid={invalid || undefined}
         className={cn("h-11 text-base", hint?.unit && "pr-12")}
       />
       {hint?.unit ? (
@@ -326,6 +549,7 @@ function SelectControl({
   value,
   setValue,
   invalid,
+  a11y,
   otherText,
   setOtherText,
 }: {
@@ -333,6 +557,7 @@ function SelectControl({
   value: unknown;
   setValue: (v: unknown) => void;
   invalid: boolean;
+  a11y: A11y;
   otherText: string;
   setOtherText?: (t: string) => void;
 }) {
@@ -344,24 +569,23 @@ function SelectControl({
 
   return (
     <div className="space-y-2">
-      <div className="flex flex-wrap gap-2" role="group">
-        {options.map((o) => (
-          <button
-            key={o.value}
-            type="button"
-            onClick={() => setValue(o.value)}
-            className={segClass(current === o.value, invalid)}
-          >
-            {o.label}
-          </button>
-        ))}
-      </div>
+      <RadioGroup
+        a11y={a11y}
+        invalid={invalid}
+        choices={options.map((o) => ({
+          key: o.value,
+          label: o.label,
+          checked: current === o.value,
+          select: () => setValue(o.value),
+        }))}
+      />
       {otherSelected && setOtherText ? (
         <Input
           value={otherText}
           placeholder="Please specify"
+          aria-label={`${field.label}: other`}
           onChange={(e) => setOtherText(e.target.value)}
-          aria-invalid={invalid}
+          aria-invalid={invalid || undefined}
           className="h-11 text-base"
         />
       ) : null}
@@ -374,6 +598,7 @@ function MultiSelectControl({
   value,
   setValue,
   invalid,
+  a11y,
   otherText,
   setOtherText,
 }: {
@@ -381,6 +606,7 @@ function MultiSelectControl({
   value: unknown;
   setValue: (v: unknown) => void;
   invalid: boolean;
+  a11y: A11y;
   otherText: string;
   setOtherText?: (t: string) => void;
 }) {
@@ -388,29 +614,37 @@ function MultiSelectControl({
   const options = field.options ?? [];
   const otherSelected = field.allowOther && selected.includes("Other");
 
-  function toggle(v: string) {
-    setValue(selected.includes(v) ? selected.filter((x) => x !== v) : [...selected, v]);
-  }
-
   return (
     <div className="space-y-2">
-      <div className="flex flex-wrap gap-2" role="group">
-        {options.map((o) => (
-          <button
-            key={o.value}
-            type="button"
-            onClick={() => toggle(o.value)}
-            className={segClass(selected.includes(o.value), invalid)}
-            aria-pressed={selected.includes(o.value)}
-          >
-            {o.label}
-          </button>
-        ))}
+      <div
+        role="group"
+        aria-labelledby={a11y.labelledBy}
+        aria-describedby={a11y.describedBy}
+        className="flex flex-wrap gap-2"
+      >
+        {options.map((o) => {
+          const on = selected.includes(o.value);
+          return (
+            <button
+              key={o.value}
+              type="button"
+              role="checkbox"
+              aria-checked={on}
+              // "None" is exclusive: it clears the rest, and the rest clear it.
+              onClick={() => setValue(toggleChoice(selected, o.value))}
+              className={segClass(on, invalid)}
+            >
+              <Tick on={on} />
+              {o.label}
+            </button>
+          );
+        })}
       </div>
       {otherSelected && setOtherText ? (
         <Input
           value={otherText}
           placeholder="Please specify"
+          aria-label={`${field.label}: other`}
           onChange={(e) => setOtherText(e.target.value)}
           className="h-11 text-base"
         />
@@ -425,22 +659,33 @@ function RepeatGroup({
   onChange,
   invalid,
   idPrefix,
+  a11y,
 }: {
   field: FormField;
   value: unknown;
   onChange: (rows: RepeatRow[]) => void;
   invalid: boolean;
   idPrefix: string;
+  a11y: A11y;
 }) {
   const subfields = field.subfields ?? [];
   const rows: RepeatRow[] = Array.isArray(value) ? (value as RepeatRow[]) : [];
   const display = rows.length > 0 ? rows : [emptyRow(subfields)];
+  // Adding a row moves the caret into it, so "Add a medicine" is followed by
+  // typing the medicine, not by hunting for the new box.
+  const focusRow = React.useRef<number | null>(null);
+  React.useEffect(() => {
+    if (focusRow.current == null) return;
+    document.getElementById(`${idPrefix}-${focusRow.current}-${subfields[0]?.id}`)?.focus();
+    focusRow.current = null;
+  });
 
   function update(index: number, subId: string, v: unknown) {
     const next = display.map((r, i) => (i === index ? { ...r, [subId]: v } : r));
     onChange(next);
   }
   function add() {
+    focusRow.current = display.length;
     onChange([...display, emptyRow(subfields)]);
   }
   function remove(index: number) {
@@ -449,50 +694,63 @@ function RepeatGroup({
   }
 
   return (
-    <div className="space-y-3">
+    <div
+      role="group"
+      aria-labelledby={a11y.labelledBy}
+      aria-describedby={a11y.describedBy}
+      className="space-y-3"
+    >
       {display.map((row, i) => (
         <div
           key={i}
-          className={cn(
-            "relative rounded-lg border p-3",
-            invalid && i === 0 ? "border-destructive" : "border-border",
-          )}
+          className={cn("rounded-lg border p-3", invalid && i === 0 ? "border-destructive" : "border-border")}
         >
           <div className="grid gap-3 sm:grid-cols-2">
-            {subfields.map((sf) => (
-              <div key={sf.id} className="space-y-1">
-                <Label htmlFor={`${idPrefix}-${i}-${sf.id}`} className="text-sm text-muted-foreground">
-                  {sf.label}
-                </Label>
-                <LeafControl
-                  field={sf}
-                  id={`${idPrefix}-${i}-${sf.id}`}
-                  value={row[sf.id]}
-                  setValue={(v) => update(i, sf.id, v)}
-                  invalid={false}
-                />
-              </div>
-            ))}
+            {subfields.map((sf) => {
+              const subId = `${idPrefix}-${i}-${sf.id}`;
+              const subLabel = "block text-sm font-medium text-muted-foreground";
+              return (
+                <div key={sf.id} className="space-y-1">
+                  {GROUP_TYPES.has(sf.type) ? (
+                    <p id={`${subId}-label`} className={subLabel}>
+                      {sf.label}
+                    </p>
+                  ) : (
+                    <Label htmlFor={subId} id={`${subId}-label`} className={subLabel}>
+                      {sf.label}
+                    </Label>
+                  )}
+                  <LeafControl
+                    field={sf}
+                    id={subId}
+                    value={row[sf.id]}
+                    setValue={(v) => update(i, sf.id, v)}
+                    invalid={false}
+                    a11y={{ labelledBy: `${subId}-label` }}
+                  />
+                </div>
+              );
+            })}
           </div>
           {display.length > 1 ? (
-            <button
-              type="button"
-              onClick={() => remove(i)}
-              className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm text-muted-foreground hover:text-destructive"
-              aria-label="Remove row"
-            >
-              <Trash2 className="size-4" />
-            </button>
+            <div className="mt-2 flex justify-end">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => remove(i)}
+                className="text-muted-foreground hover:text-destructive"
+              >
+                <Trash2 aria-hidden />
+                Remove<span className="sr-only"> entry {i + 1}</span>
+              </Button>
+            </div>
           ) : null}
         </div>
       ))}
-      <button
-        type="button"
-        onClick={add}
-        className="inline-flex items-center gap-1.5 rounded-lg border border-input px-3 py-2 text-sm font-medium hover:bg-muted"
-      >
-        <Plus className="size-4" /> {field.addLabel ?? "Add another"}
-      </button>
+      <Button type="button" variant="secondary" onClick={add}>
+        <Plus aria-hidden /> {field.addLabel ?? "Add another"}
+      </Button>
     </div>
   );
 }
@@ -508,11 +766,13 @@ function FrequencyGrid({
   value,
   onChange,
   invalid,
+  a11y,
 }: {
   field: FormField;
   value: unknown;
   onChange: (grid: Record<string, string>) => void;
   invalid: boolean;
+  a11y: A11y;
 }) {
   const rows = field.rows ?? [];
   const cols = field.cols ?? [];
@@ -524,8 +784,8 @@ function FrequencyGrid({
   }
 
   return (
-    <>
-      {/* Mobile: each row its own card with full-size, tappable option buttons. */}
+    <div role="group" aria-labelledby={a11y.labelledBy} aria-describedby={a11y.describedBy}>
+      {/* Mobile: each row its own card, a radiogroup of full-size options. */}
       <div className="space-y-3 sm:hidden">
         {rows.map((r) => (
           <div
@@ -535,20 +795,19 @@ function FrequencyGrid({
               invalid && !grid[r] ? "border-destructive/60" : "border-border",
             )}
           >
-            <p className="mb-2 font-medium">{r}</p>
-            <div className="flex flex-wrap gap-2" role="group" aria-label={r}>
-              {cols.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => set(r, c)}
-                  aria-pressed={grid[r] === c}
-                  className={cn(segClass(grid[r] === c), "flex-1 basis-[45%] text-sm")}
-                >
-                  {c}
-                </button>
-              ))}
-            </div>
+            <p className="mb-2 font-medium" aria-hidden>
+              {r}
+            </p>
+            <RadioGroup
+              ariaLabel={r}
+              itemClassName="flex-1 basis-[45%] justify-start text-sm"
+              choices={cols.map((c) => ({
+                key: c,
+                label: c,
+                checked: grid[r] === c,
+                select: () => set(r, c),
+              }))}
+            />
           </div>
         ))}
       </div>
@@ -578,10 +837,14 @@ function FrequencyGrid({
                       aria-pressed={grid[r] === c}
                       aria-label={`${r}: ${c}`}
                       className={cn(
-                        "size-8 rounded-full border transition-colors",
-                        grid[r] === c ? "border-primary bg-primary" : "border-input bg-background hover:bg-muted",
+                        "inline-grid size-8 place-items-center rounded-full border transition-[background-color,border-color,scale] duration-(--motion-press) ease-out active:scale-90 motion-reduce:active:scale-100 elderly:active:scale-100 outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+                        grid[r] === c
+                          ? "border-primary bg-primary"
+                          : "border-input bg-card hover:border-foreground/60 hover:bg-muted",
                       )}
-                    />
+                    >
+                      {grid[r] === c ? <span className="mark-in size-2.5 rounded-full bg-primary-foreground" /> : null}
+                    </button>
                   </td>
                 ))}
               </tr>
@@ -589,6 +852,6 @@ function FrequencyGrid({
           </tbody>
         </table>
       </div>
-    </>
+    </div>
   );
 }

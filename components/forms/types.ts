@@ -77,6 +77,9 @@ export type FieldHint = {
   min?: number;
   max?: number;
   step?: number;
+  /** textarea: a one-tap "None" that fills the box with "None" — for questions
+   *  where that is the most common honest answer. Same stored string. */
+  none?: boolean;
 };
 
 /** The scale ranges keyed by field type. */

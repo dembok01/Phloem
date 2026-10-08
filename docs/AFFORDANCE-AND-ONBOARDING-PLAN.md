@@ -1,6 +1,6 @@
 # PHLOEM — Clickability, Micro-interactions & Onboarding Questionnaire Plan
 
-**Date:** 2026-10-07 · **Status:** Phase 1 ✅ built (2026-10-07) · Phase 2 ✅ built (2026-10-08) · see `PROGRESS.md` · Phases 3–5 not started · **Owner decisions needed:** §6
+**Date:** 2026-10-07 · **Status:** Phase 1 ✅ built (2026-10-07) · Phase 2 ✅ · Phase 3 ✅ built (2026-10-08) · see `PROGRESS.md` · Phases 4–5 not started · **Owner decisions needed:** §6
 **Builds on:** `DESIGN-SYSTEM.md` (the world stays the same: Loam/Paper/Phloem, Bricolage/Atkinson/Plex,
 growth rings), `docs/VISUAL-ELEVATION-PLAN.md` (V1–V4 shipped), `DESIGN-PROPOSALS.md` P-7 (now
 taken up in Phase 4).
@@ -225,6 +225,12 @@ Can ship before Phase 4. It doesn't touch the template, red flags, report builde
 
 **Acceptance:** unit tests for the exclusive-None logic and the voice map; keyboard and screen-reader
 walk through every card in the preview; phone at 390px; `test:unit` + build.
+
+**Result (2026-10-08):** all nine built. Deviations: the voice uses the member's first name when a
+family member answers ("Does Leela need…", "they" only without a name), as the redesign proposal
+suggests; the consent sentence is deliberately not re-voiced; the preview route is also live on
+Vercel *preview* deployments (production still 404s) so the owner can check it there. A real
+screen-reader pass was not done (ARIA roles, names and focus were checked in a headless browser).
 
 ### Phase 4 · Questionnaire content v2 (template version 2 + DB) · ~2 days · *needs §6 sign-off*
 

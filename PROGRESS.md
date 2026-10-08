@@ -1967,3 +1967,70 @@ staff screens move only in answer to the user's own action, 120–200ms.
   `RowAction`; the done state covers every `RowAction` call site instead.
 - Popovers that are conditionally rendered animate on enter only (exit would need them kept
   mounted).
+
+## Questionnaire experience — Phase 3 of the affordance plan (2026-10-08)
+
+Plan: `docs/AFFORDANCE-AND-ONBOARDING-PLAN.md` §5 Phase 3. Presentation-only: the template,
+required rules, red flags, report builder and scoped reads are untouched (onboarding stays v1;
+stored answer shapes are unchanged), so the §16 suite was not re-run.
+
+### What changed
+
+- **Choices say what kind they are** (`DynamicForm`, shared by onboarding, clinical and
+  feedback forms): one answer (Yes/No, select, scale) is a real `radiogroup` — a dot, one tab
+  stop, arrow keys / Home / End move the choice; several answers are `checkbox` chips with a
+  ticked box and "Choose all that apply". Every group is named by its question
+  (`aria-labelledby`, fixing the `<Label htmlFor>` that pointed at nothing) and described by its
+  hint and error; `aria-required` / `aria-invalid` on every control. Choices and steppers press
+  at `scale(.97)`; textareas match Input's edge and hover.
+- **"None" is exclusive** (`toggleChoice` in `logic.ts`): it clears the other choices and they
+  clear it — also fixes `doctor_initial`'s `diet_restrictions` "none".
+- **One-tap None** on `surgeries_injuries`, `family_history`, `hospitalizations`, `allergies`,
+  `food_allergies` (`FIELD_HINTS.none`): writes the same "None" people were typing.
+- **Optional, not required, is marked** on onboarding (`markOptional`): a quiet "Optional" tag
+  replaces 33 red stars. Clinical forms (mostly optional) keep the star.
+- **Errors that say how to fix it:** per type ("Enter a number.", "Choose Yes or No.", "Add at
+  least one medicine."), a count line, and focus + scroll to the *first* missing question (the
+  control itself, not a "None" shortcut or a − stepper); a gap on another card goes to that card.
+- **Focus follows the card:** after Continue / Back the new card's heading takes focus.
+- **Voice follows who is answering** (`fieldCopy` in `onboarding-flow.ts`): "Self" reads
+  "you/your", a family member reads the member's first name ("Why is Leela joining PHLOEM?"),
+  "they" only without a name. Five labels plus the welcome, review and completion headings;
+  list buttons read "Add a condition" / "Add a medicine".
+- **Repeat lists:** a tonal Add button, a labelled "Remove" under each row (it no longer
+  overlaps the second column's label), and the caret moves into the new row.
+- **Review before submit** (`onboarding/ReviewAnswers.tsx`): the last card's button is "Review
+  answers"; every answer by chapter as the care team will read it; each card's Edit returns
+  straight to the review ("Back to review"); "Send to the care team" submits. Resume remembers
+  the review.
+- **Preview route** `/dev/onboarding-preview`: the wizard over the checked-in v1 template with
+  invented answers ("Leela (sample)"), autosave paused and Send a no-op — no DB read or write.
+  Local dev and Vercel preview deployments only; production 404s. Still behind login.
+
+### Verification
+
+- `tsc --noEmit` clean · `eslint` clean · `npm run build` ✓ · `npm run test:unit` 128/128
+  (new `components/forms/onboarding-flow.test.ts`: exclusive None, messages, voice for self /
+  named / unnamed, and that every re-voiced field and None shortcut exists in the template) ·
+  impeccable detector `[]`.
+- Headless walk of the whole preview at 1280 and 390px, answering every required question:
+  Begin → focus on the card heading; blocked Continue on measurements → focus in `weight_kg`,
+  "Enter a number.", "One question above still needs an answer."; consent radiogroup
+  ArrowRight → No, ArrowLeft → Yes; "Add a condition" → focus in the new row; symptoms
+  Breathlessness + Dizziness + None → None only, then Dizziness → Dizziness only; labels
+  "Does Leela need painkillers…", "Why is Leela joining PHLOEM?"; review "Check Leela's
+  answers" with focus on its heading; Edit → "Back to review" → review; Send → completion.
+  No console errors on the preview. Production build: `/dev/onboarding-preview` → 404.
+- Not done: a real screen-reader pass (roles, names and focus were checked in the DOM only).
+
+### Assumptions / deviations
+
+- The voice uses the member's first name for family respondents (the redesign proposal's
+  suggestion) rather than "they"; the consent statement is not re-voiced — it is the text
+  being agreed to.
+- The preview is enabled on Vercel preview deployments too (`VERCEL_ENV=preview`), so the
+  owner can check the questionnaire there; the plan only said "404 in production", which holds.
+- From `docs/ONBOARDING-EXPERIENCE-REDESIGN.md` (untracked proposal), only what is
+  presentation-only was taken (focus to the heading, Edit returns to the review, radio vs
+  checkbox semantics). Its content changes — "Not sure" answers, gates, falls, moving
+  questions later — belong to Phase 4 and its decisions.

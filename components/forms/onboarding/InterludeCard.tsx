@@ -11,7 +11,9 @@ export function InterludeCard({ title, lead }: { title: string; lead: string }) 
       <span className="inline-flex size-12 items-center justify-center rounded-full bg-success-tint text-success">
         <Check className="size-6" aria-hidden />
       </span>
-      <h2 className="font-display text-xl font-semibold">{title}</h2>
+      <h2 id="onboarding-card-heading" tabIndex={-1} className="font-display text-xl font-semibold outline-none">
+        {title}
+      </h2>
       <p className="text-muted-foreground">{lead}</p>
     </div>
   );

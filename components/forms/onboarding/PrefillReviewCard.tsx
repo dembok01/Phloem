@@ -10,16 +10,23 @@ import { Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DynamicForm } from "../DynamicForm";
 import { isAnswered, isFieldVisible } from "../logic";
-import type { FieldHint, FormField, FormValues } from "../types";
+import { Button } from "@/components/ui/button";
+import type { FieldHint, FormField, FormValues, RepeatRow } from "../types";
 
-function displayValue(field: FormField, values: FormValues, hint?: FieldHint): string {
+/** An answer as a reader sees it: "Yes", "Diabetes · 10 years", "—" for none.
+ * Shared with the wizard's review-before-submit screen. */
+export function displayValue(field: FormField, values: FormValues, hint?: FieldHint): string {
   const raw = values[field.id];
   switch (field.type) {
     case "boolean":
       return raw === true ? "Yes" : raw === false ? "No" : "—";
     case "multiselect": {
       const arr = Array.isArray(raw) ? raw.filter((v): v is string => typeof v === "string") : [];
-      return arr.length > 0 ? arr.join(", ") : "—";
+      const other = values[`${field.id}_other`];
+      const shown = arr.map((v) =>
+        field.allowOther && v === "Other" && typeof other === "string" && other.trim() ? other : v,
+      );
+      return shown.length > 0 ? shown.join(", ") : "—";
     }
     case "select": {
       if (typeof raw !== "string" || raw === "") return "—";
@@ -32,7 +39,25 @@ function displayValue(field: FormField, values: FormValues, hint?: FieldHint): s
     case "number":
       if (typeof raw !== "number" || Number.isNaN(raw)) return "—";
       return hint?.unit ? `${raw} ${hint.unit}` : String(raw);
+    case "repeat_group": {
+      const rows = Array.isArray(raw) ? (raw as RepeatRow[]) : [];
+      const lines = rows
+        .map((row) =>
+          (field.subfields ?? [])
+            .map((sf) => row[sf.id])
+            .filter((v) => (typeof v === "string" ? v.trim() !== "" : v != null))
+            .join(" · "),
+        )
+        .filter(Boolean);
+      return lines.length > 0 ? lines.join("\n") : "—";
+    }
+    case "frequency_grid": {
+      const grid = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+      const lines = (field.rows ?? []).filter((r) => grid[r]).map((r) => `${r}: ${String(grid[r])}`);
+      return lines.length > 0 ? lines.join("\n") : "—";
+    }
     default:
+      if (typeof raw === "number") return String(raw);
       return typeof raw === "string" && raw.trim() ? raw : "—";
   }
 }
@@ -55,11 +80,11 @@ export function PrefillReviewCard({
   );
   const [editing, setEditing] = React.useState(hasGap);
 
-  // If the wizard surfaces a validation error on one of these fields, open to edit.
+  // If the wizard surfaces a validation error on one of these fields, open to
+  // edit — during render, not in an effect, so the inputs exist in the same
+  // commit and the wizard can move focus straight to the missing one.
   const flagged = !!errors && fields.some((f) => errors.has(f.id));
-  React.useEffect(() => {
-    if (flagged) setEditing(true);
-  }, [flagged]);
+  if (flagged && !editing) setEditing(true);
 
   if (editing) {
     return (
@@ -69,6 +94,7 @@ export function PrefillReviewCard({
         onChange={onChange}
         errors={errors}
         hints={hints}
+        markOptional
       />
     );
   }
@@ -91,13 +117,9 @@ export function PrefillReviewCard({
           </div>
         ))}
       </dl>
-      <button
-        type="button"
-        onClick={() => setEditing(true)}
-        className="inline-flex items-center gap-1.5 rounded-lg border border-input px-3 py-2 text-sm font-medium hover:bg-muted"
-      >
-        <Pencil className="size-4" aria-hidden /> Edit these details
-      </button>
+      <Button type="button" variant="secondary" onClick={() => setEditing(true)}>
+        <Pencil aria-hidden /> Edit these details
+      </Button>
     </div>
   );
 }
