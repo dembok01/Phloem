@@ -9,7 +9,7 @@ import type { FieldHint, FormField, FormSection, FormTemplateSchema, FormValues 
 
 export type { FieldHint } from "./types";
 
-export type CardKind = "fields" | "review" | "interlude";
+export type CardKind = "fields" | "review";
 
 /** A single screen in the guided flow. */
 export type Card = {
@@ -19,13 +19,15 @@ export type Card = {
   sectionTitle: string;
   /** 0-based chapter (section) index. */
   sectionIndex: number;
-  /** 1-based position among the section's answerable cards (interludes excluded). */
+  /** 1-based position among the section's cards. */
   indexWithinSection: number;
-  /** Count of answerable cards in the section (interludes excluded). */
+  /** Count of cards in the section. */
   cardsInSection: number;
   title?: string;
   lead?: string;
-  /** Resolved fields to render (empty for interludes). */
+  /** A one-line "chapter done, here's what's next" note on a chapter's first card. */
+  opener?: { title: string; lead: string };
+  /** Resolved fields to render. */
   fields: FormField[];
 };
 
@@ -38,8 +40,9 @@ type CardSpec = {
 
 type ChapterSpec = {
   sectionId: string;
-  /** Shown on the interlude that precedes this chapter (omit for the first). */
-  interlude?: { title: string; lead: string };
+  /** Shown above this chapter's first card (omit for the first chapter). It used
+   * to be a screen of its own that cost a tap; now it rides on the card. */
+  opener?: { title: string; lead: string };
   cards: CardSpec[];
 };
 
@@ -128,9 +131,9 @@ const FLOW: ChapterSpec[] = [
   },
   {
     sectionId: "s2",
-    interlude: {
-      title: "That's the introductions done",
-      lead: "Next, a few health details the care team reads before they meet you. Take your time — everything saves as you go.",
+    opener: {
+      title: "That's the introductions done.",
+      lead: "Next, a few health details the care team reads before they meet you.",
     },
     cards: [
       {
@@ -172,9 +175,9 @@ const FLOW: ChapterSpec[] = [
   },
   {
     sectionId: "s3",
-    interlude: {
-      title: "Thank you — that's the medical history",
-      lead: "Now a little about daily life and movement. About two minutes.",
+    opener: {
+      title: "Thank you — that's the medical history.",
+      lead: "Now a little about daily life and movement.",
     },
     cards: [
       {
@@ -192,8 +195,8 @@ const FLOW: ChapterSpec[] = [
   },
   {
     sectionId: "s4",
-    interlude: {
-      title: "Almost there",
+    opener: {
+      title: "Almost there.",
       lead: "A quick look at eating and hydration.",
     },
     cards: [
@@ -207,8 +210,8 @@ const FLOW: ChapterSpec[] = [
   },
   {
     sectionId: "s5",
-    interlude: {
-      title: "Last chapter",
+    opener: {
+      title: "Last chapter.",
       lead: "What you're hoping for — then you're done.",
     },
     cards: [
@@ -268,21 +271,6 @@ export function buildCards(template: FormTemplateSchema): Card[] {
     }
     const sectionIndex = template.sections.findIndex((s) => s.id === section.id);
 
-    if (chapter.interlude && chapterIdx > 0) {
-      cards.push({
-        id: `interlude-${section.id}`,
-        kind: "interlude",
-        sectionId: section.id,
-        sectionTitle: section.title,
-        sectionIndex,
-        indexWithinSection: 0,
-        cardsInSection: 0,
-        title: chapter.interlude.title,
-        lead: chapter.interlude.lead,
-        fields: [],
-      });
-    }
-
     const placed = new Set<string>();
     const sectionCards: Card[] = [];
     for (const spec of chapter.cards) {
@@ -322,38 +310,19 @@ export function buildCards(template: FormTemplateSchema): Card[] {
       });
     }
 
-    // Number the answerable cards within the section.
+    // Number the cards within the section.
     sectionCards.forEach((card, i) => {
       card.indexWithinSection = i + 1;
       card.cardsInSection = sectionCards.length;
     });
+    if (chapter.opener && chapterIdx > 0 && sectionCards[0]) sectionCards[0].opener = chapter.opener;
     cards.push(...sectionCards);
   });
 
   return cards;
 }
 
-/** Index of the first answerable card that contains the given field, or -1. */
+/** Index of the first card that contains the given field, or -1. */
 export function cardIndexOfField(cards: Card[], fieldId: string): number {
-  return cards.findIndex((c) => c.kind !== "interlude" && c.fields.some((f) => f.id === fieldId));
-}
-
-const SECONDS_BY_KIND: Record<CardKind, number> = { interlude: 6, review: 45, fields: 18 };
-
-/** Rough "time left" estimate from `fromIndex` inclusive, in seconds. */
-export function estimateSecondsRemaining(cards: Card[], fromIndex: number): number {
-  let total = 0;
-  for (let i = Math.max(fromIndex, 0); i < cards.length; i++) {
-    const card = cards[i];
-    total += SECONDS_BY_KIND[card.kind];
-    if (card.kind === "fields") total += card.fields.length * 10;
-  }
-  return total;
-}
-
-/** Human "~N min left" label; "less than a minute" near the end. */
-export function timeLeftLabel(cards: Card[], fromIndex: number): string {
-  const sec = estimateSecondsRemaining(cards, fromIndex);
-  if (sec <= 45) return "Less than a minute left";
-  return `About ${Math.max(1, Math.round(sec / 60))} min left`;
+  return cards.findIndex((c) => c.fields.some((f) => f.id === fieldId));
 }

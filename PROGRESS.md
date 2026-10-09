@@ -2098,3 +2098,42 @@ probe (admin login, GET-only, the Phase 1 route list incl. three borrowed-doctor
 - Raw `<button>`s were converted where the probe or the plan flagged them; the rest are bespoke
   controls (form choices, sort headers, switches) that already meet the targets.
 - The portal was not probed: admin cannot borrow the family shell. It inherits the primitives.
+
+## Onboarding flow — fewer screens, larger type, "Your answers" (2026-10-09)
+
+Owner request after reviewing an outside redesign proposal (`docs/ONBOARDING-EXPERIENCE-REDESIGN.md`,
+not adopted: most of it re-words or adds questions, which the client rule forbids). Two
+presentation-only pieces of it were taken. No question, option, required rule or red flag changed.
+
+### What changed
+
+- **Chapter screens gone.** The four full-screen "That's the introductions done…" interludes, each a
+  Continue press, are now a one-line note (✓ title + lead) at the top of each chapter's first card.
+  15 screens to the review instead of 19. Resume key bumped `:card:v2` → `:card:v3` (card indices
+  moved); an old key falls back to the welcome once, answers kept server-side.
+- **One progress indicator.** `OnboardingProgress` is the chapter rail only; the growth ring,
+  "X of Y done" and the "About N min left" estimate (a heuristic, never measured) are gone. The
+  chapter name + card count above it stay. The ring still closes on the completion screen.
+- **Larger type.** The question card and the review list render at `zoom: 1.125` (16 → 18px text,
+  44 → 50px controls). Elderly mode (already 20px root) opts out. Header, buttons and chrome keep
+  their size so edges line up with the page heading.
+- **"Your answers" sheet.** A button under Back/Continue opens the shared `Sheet` listing what has
+  been answered so far (`ReviewAnswers answeredOnly`), with Edit per card. `Sheet` gained a
+  `finalFocus` pass-through so an Edit lands focus on the new card's heading instead of the trigger.
+- `InterludeCard.tsx` deleted; `estimateSecondsRemaining` / `timeLeftLabel` removed.
+
+### Verification
+
+- Headless walk of `/dev/onboarding-preview` at 1280 and 390px: 15 cards, openers on exactly the
+  four chapter-first cards, review reached, no horizontal overflow, no page errors; sheet opens with
+  answered items only; Edit → sheet closed, focus on the card heading, scroll at top. Rendered
+  question line 24.75px (= 22 × 1.125), confirming the zoom.
+- `tsc --noEmit` clean · `eslint` clean · `npm run build` ✓ · `npm run test:unit` 129/129 (new:
+  every template field on exactly one card; openers only on chapter-first cards).
+
+### Assumptions / deviations
+
+- The answers panel is a sheet on every screen size rather than a desktop side rail: the page is
+  capped at `max-w-6xl`, and a rail beside the 18px question column would have pushed the column off
+  the page heading's alignment.
+- The welcome screen's "around ten minutes" line is unchanged (copy, not progress).

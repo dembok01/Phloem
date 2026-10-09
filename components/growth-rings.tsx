@@ -42,9 +42,9 @@ export function GrowthRings({
   /**
    * Signature usages (the portal hero) pass `once`: the arc is a moment the first
    * time it is seen and latency on the fortieth, so after one draw per browser
-   * session it renders its final state instantly. Progress usages
-   * (`OnboardingProgress`) must leave this off — they animate on every value
-   * change, which is the whole point of the mark there.
+   * session it renders its final state instantly. Progress usages must leave
+   * this off — they animate on every value change, which is the whole point of
+   * the mark there.
    */
   once?: boolean;
 }) {

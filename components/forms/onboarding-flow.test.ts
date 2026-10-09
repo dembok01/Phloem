@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseFormTemplate } from "./schema";
 import { requiredMessage, toggleChoice } from "./logic";
-import { FIELD_HINTS, firstNameOf, voiceOf, withListButtons } from "./onboarding-flow";
+import { buildCards, FIELD_HINTS, firstNameOf, voiceOf, withListButtons } from "./onboarding-flow";
 import type { FormField } from "./types";
 
 const template = parseFormTemplate(
@@ -59,4 +59,17 @@ test("every None shortcut sits on a free-text question in the template", () => {
     assert.ok(byId.has(id), `FIELD_HINTS names unknown field ${id}`);
     if (hint.none) assert.equal(byId.get(id)?.type, "textarea", `${id}: None shortcut needs a textarea`);
   }
+});
+
+test("every question is on exactly one card, and each chapter after the first opens with a note", () => {
+  const cards = buildCards(template);
+  const ids = cards.flatMap((c) => c.fields.map((f) => f.id));
+  assert.deepEqual([...ids].sort(), [...byId.keys()].sort());
+  assert.ok(cards.every((c) => c.fields.length > 0), "no card without questions");
+  const firsts = cards.filter((c, i) => i === 0 || cards[i - 1].sectionIndex !== c.sectionIndex);
+  assert.equal(firsts.length, template.sections.length);
+  assert.deepEqual(
+    cards.filter((c) => c.opener).map((c) => c.id),
+    firsts.slice(1).map((c) => c.id),
+  );
 });

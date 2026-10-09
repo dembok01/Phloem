@@ -3,10 +3,10 @@
 // Onboarding wizard (§11) — a guided, one-small-card-at-a-time flow. The §7
 // sections are chunked into bite-sized cards by the presentation-only flow map
 // (`onboarding-flow.ts`), so the caregiver answers 2–4 related questions per
-// screen instead of facing a wall of fields. Around it: a warm welcome, honest
-// per-chapter progress with a growth-ring signature, a prefill "confirm the
-// basics" card, calm between-chapter interludes, debounced autosave with an
-// always-visible confidence indicator, resume-where-left-off, per-card required
+// screen instead of facing a wall of fields. Around it: a warm welcome, one
+// chapter-progress rail, a prefill "confirm the basics" card, a one-line note
+// where each chapter begins, debounced autosave with an always-visible confidence
+// indicator, a "Your answers" sheet, resume-where-left-off, per-card required
 // validation that names what is missing and puts the caret on it, the §11/§13
 // red-flag banner, a review of every answer before the final submit via
 // `submit_onboarding`, and a quiet completion moment.
@@ -23,8 +23,9 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "motion/react";
-import { Check, CheckCircle2, Loader2, AlertTriangle, HeartHandshake } from "lucide-react";
+import { Check, CheckCircle2, Loader2, AlertTriangle, HeartHandshake, ListChecks } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Sheet } from "@/components/ui/sheet";
 import { GrowthRings } from "@/components/growth-rings";
 import { useCalmMotion } from "@/components/use-calm-motion";
 import { cn } from "@/lib/utils";
@@ -44,10 +45,15 @@ import { SaveIndicator } from "./onboarding/SaveIndicator";
 import { useAutosaveDraft } from "./useAutosaveDraft";
 import { OnboardingProgress } from "./onboarding/OnboardingProgress";
 import { PrefillReviewCard } from "./onboarding/PrefillReviewCard";
-import { InterludeCard } from "./onboarding/InterludeCard";
 import { ReviewAnswers } from "./onboarding/ReviewAnswers";
 import { DocumentUploader } from "@/components/documents/document-uploader";
 import { submitOnboarding } from "@/app/(app)/portal/onboarding/[memberId]/actions";
+
+// Questions and answers read an eighth larger than the rest of the app (16px →
+// 18px). `zoom`, not font-size: every size in the form is in rem, so text,
+// controls and tap targets (44 → 50px) all grow together. Elderly mode already
+// sets the whole page in 20px type, so it opts out rather than stacking.
+const LARGER = "[zoom:1.125] elderly:[zoom:1]";
 
 export function OnboardingWizard({
   template,
@@ -67,9 +73,10 @@ export function OnboardingWizard({
 }) {
   const router = useRouter();
   const cards = React.useMemo(() => buildCards(template), [template]);
-  // v2 key: card-indexed. Drafts saved under the old :section key fall back to the
-  // welcome step once (answers are preserved server-side), rather than mis-resuming.
-  const storageKey = `phloem:onboarding:${responseId}:card:v2`;
+  // Card-indexed, so the key changes whenever the cards do (v3: the four chapter
+  // screens went). An older key falls back to the welcome step once — answers
+  // are preserved server-side — rather than resuming on the wrong card.
+  const storageKey = `phloem:onboarding:${responseId}:card:v3`;
 
   const [values, setValues] = React.useState<FormValues>(initialAnswers);
   const [cardIndex, setCardIndex] = React.useState(0);
@@ -79,6 +86,10 @@ export function OnboardingWizard({
   const [reviewing, setReviewing] = React.useState(false);
   const [returnToReview, setReturnToReview] = React.useState(false);
   const [done, setDone] = React.useState(false);
+  const [answersOpen, setAnswersOpen] = React.useState(false);
+  // An Edit in the answers sheet moves to another card; the sheet must not then
+  // hand focus back to its trigger (and scroll the page down to it) on close.
+  const leavingSheetForEdit = React.useRef(false);
   const [errors, setErrors] = React.useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = React.useState(false);
   const [submitError, setSubmitError] = React.useState<string | null>(null);
@@ -238,8 +249,20 @@ export function OnboardingWizard({
     goTo(cards.length - 1);
   }
 
+  function openAnswers() {
+    leavingSheetForEdit.current = false;
+    setAnswersOpen(true);
+  }
+
+  function editFromAnswers(idx: number) {
+    leavingSheetForEdit.current = true;
+    setAnswersOpen(false);
+    setErrors(new Set());
+    goTo(idx);
+  }
+
   function jumpToSection(sectionIndex: number) {
-    const idx = cards.findIndex((c) => c.kind !== "interlude" && c.sectionIndex === sectionIndex);
+    const idx = cards.findIndex((c) => c.sectionIndex === sectionIndex);
     if (idx < 0) return;
     setErrors(new Set());
     goTo(idx);
@@ -436,13 +459,15 @@ export function OnboardingWizard({
 
         {flagBanner}
 
-        <ReviewAnswers
-          cards={cards}
-          values={values}
-          hints={FIELD_HINTS}
-          present={present}
-          onEdit={editFromReview}
-        />
+        <div className={LARGER}>
+          <ReviewAnswers
+            cards={cards}
+            values={values}
+            hints={FIELD_HINTS}
+            present={present}
+            onEdit={editFromReview}
+          />
+        </div>
 
         {submitError ? (
           <p role="alert" className="rounded-xl border border-danger/30 bg-danger-tint p-3 text-sm text-danger">
@@ -480,11 +505,9 @@ export function OnboardingWizard({
         <div className="flex items-center justify-between gap-3 text-sm">
           <span className="flex min-w-0 items-baseline gap-2">
             <span className="eyebrow truncate">{current.sectionTitle}</span>
-            {current.kind !== "interlude" ? (
-              <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
-                {current.indexWithinSection}/{current.cardsInSection}
-              </span>
-            ) : null}
+            <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+              {current.indexWithinSection}/{current.cardsInSection}
+            </span>
           </span>
           {saveSlot}
         </div>
@@ -506,42 +529,47 @@ export function OnboardingWizard({
         transition={calm ? { duration: 0 } : { type: "spring", duration: 0.4, bounce: 0.15 }}
         className="rounded-xl bg-card p-5 shadow-card ring-1 ring-foreground/10 sm:p-6"
       >
-        {current.kind === "interlude" ? (
-          <InterludeCard title={current.title ?? ""} lead={current.lead ?? ""} />
-        ) : (
-          <>
-            {current.title ? (
-              <h2
-                id="onboarding-card-heading"
-                tabIndex={-1}
-                className="font-display text-xl font-semibold outline-none"
-              >
-                {current.title}
-              </h2>
-            ) : null}
-            {current.lead ? <p className="mt-1 text-muted-foreground">{current.lead}</p> : null}
-            <div className={cn(current.title || current.lead ? "mt-4" : "")}>
-              {current.kind === "review" ? (
-                <PrefillReviewCard
-                  fields={present(current.fields)}
-                  values={values}
-                  onChange={onChange}
-                  errors={errors}
-                  hints={FIELD_HINTS}
-                />
-              ) : (
-                <DynamicForm
-                  fields={present(current.fields)}
-                  values={values}
-                  onChange={onChange}
-                  errors={errors}
-                  hints={FIELD_HINTS}
-                  markOptional
-                />
-              )}
-            </div>
-          </>
-        )}
+        <div className={LARGER}>
+          {current.opener ? (
+            <p className="mb-4 flex gap-2 border-b pb-4 text-sm">
+              <Check className="mt-0.5 size-4 shrink-0 text-success" aria-hidden />
+              <span>
+                <span className="font-medium">{current.opener.title}</span>{" "}
+                <span className="text-muted-foreground">{current.opener.lead}</span>
+              </span>
+            </p>
+          ) : null}
+          {current.title ? (
+            <h2
+              id="onboarding-card-heading"
+              tabIndex={-1}
+              className="font-display text-xl font-semibold outline-none"
+            >
+              {current.title}
+            </h2>
+          ) : null}
+          {current.lead ? <p className="mt-1 text-muted-foreground">{current.lead}</p> : null}
+          <div className={cn(current.title || current.lead ? "mt-4" : "")}>
+            {current.kind === "review" ? (
+              <PrefillReviewCard
+                fields={present(current.fields)}
+                values={values}
+                onChange={onChange}
+                errors={errors}
+                hints={FIELD_HINTS}
+              />
+            ) : (
+              <DynamicForm
+                fields={present(current.fields)}
+                values={values}
+                onChange={onChange}
+                errors={errors}
+                hints={FIELD_HINTS}
+                markOptional
+              />
+            )}
+          </div>
+        </div>
       </motion.div>
 
       {currentErrors > 0 ? (
@@ -566,16 +594,36 @@ export function OnboardingWizard({
         </Button>
       </div>
 
-      {preview ? null : (
-        <div className="text-center">
+      <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3">
+        <Button type="button" variant="outline" size="sm" onClick={openAnswers}>
+          <ListChecks aria-hidden /> Your answers
+        </Button>
+        {preview ? null : (
           <Link
             href="/portal"
             className="text-sm text-muted-foreground underline-offset-4 hover:underline"
           >
             Finish later — your answers are saved
           </Link>
-        </div>
-      )}
+        )}
+      </div>
+
+      <Sheet
+        open={answersOpen}
+        onOpenChange={setAnswersOpen}
+        title="Your answers so far"
+        description="Tap Edit to change anything."
+        finalFocus={() => !leavingSheetForEdit.current}
+      >
+        <ReviewAnswers
+          cards={cards}
+          values={values}
+          hints={FIELD_HINTS}
+          present={present}
+          onEdit={editFromAnswers}
+          answeredOnly
+        />
+      </Sheet>
     </div>
   );
 }

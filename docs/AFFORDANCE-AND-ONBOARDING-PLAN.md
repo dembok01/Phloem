@@ -1,6 +1,6 @@
 # PHLOEM — Clickability, Micro-interactions & Onboarding Questionnaire Plan
 
-**Date:** 2026-10-07 · **Status:** Phase 1 ✅ built (2026-10-07) · Phase 2 ✅ · Phase 3 ✅ built (2026-10-08) · **Phase 4 cancelled** (client: the configured questions are never changed or added to) · Phase 5 ✅ built (2026-10-08) · see `PROGRESS.md`
+**Date:** 2026-10-07 · **Status:** Phase 1 ✅ built (2026-10-07) · Phase 2 ✅ · Phase 3 ✅ built (2026-10-08) · **Phase 4 cancelled** (client: the configured questions are never changed or added to) · Phase 5 ✅ built (2026-10-08) · onboarding follow-up ✅ (2026-10-09: chapter screens → notes, one progress rail, larger type, "Your answers") · see `PROGRESS.md`
 **Builds on:** `DESIGN-SYSTEM.md` (the world stays the same: Loam/Paper/Phloem, Bricolage/Atkinson/Plex,
 growth rings), `docs/VISUAL-ELEVATION-PLAN.md` (V1–V4 shipped), `DESIGN-PROPOSALS.md` P-7 (now
 taken up in Phase 4).

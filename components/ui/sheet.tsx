@@ -31,6 +31,7 @@ export function Sheet({
   className,
   bodyClassName,
   headerActions,
+  finalFocus,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -43,6 +44,8 @@ export function Sheet({
   bodyClassName?: string;
   /** Sits beside the close button, for viewers whose only actions are chrome. */
   headerActions?: React.ReactNode;
+  /** Where focus goes on close (Base UI's `finalFocus`); defaults to the trigger. */
+  finalFocus?: React.ComponentProps<typeof Drawer.Popup>["finalFocus"];
 }) {
   return (
     <Drawer.Root open={open} onOpenChange={onOpenChange}>
@@ -50,6 +53,7 @@ export function Sheet({
         <Drawer.Backdrop className="fixed inset-0 z-50 bg-foreground/25 backdrop-blur-[2px] transition-opacity duration-200 data-[ending-style]:opacity-0 data-[starting-style]:opacity-0" />
         <Drawer.Viewport className="fixed inset-0 z-50 flex items-end justify-center">
           <Drawer.Popup
+            finalFocus={finalFocus}
             className={cn(
               "flex max-h-[88svh] w-full max-w-xl flex-col rounded-2xl border bg-popover text-popover-foreground shadow-pop",
               "transition-transform duration-300 ease-drawer data-[ending-style]:translate-y-full data-[starting-style]:translate-y-full",
