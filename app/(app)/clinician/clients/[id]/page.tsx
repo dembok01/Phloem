@@ -33,6 +33,10 @@ import type { FormValues } from "@/components/forms/types";
 import { parseFormTemplate } from "@/components/forms/schema";
 import { TAB_TRACK, tabClass } from "@/components/tab-styles";
 import { Callout } from "@/components/ui/callout";
+import { UploadReportSheet } from "@/components/coordinator/upload-report-sheet";
+import { DietReviewsCard } from "@/components/reports/diet-reviews-card";
+import { RemoveUploadButton } from "@/components/reports/remove-upload-button";
+import { reviewTargets, slotTargets, type ReviewCycle } from "@/lib/report-uploads";
 
 type CareRole = Database["public"]["Enums"]["care_role"];
 
@@ -226,14 +230,28 @@ export default async function ClinicianClientPage({
         {activeTab === "directives" ? <DirectivesPanel supabase={supabase} memberId={id} /> : null}
         {activeTab === "clearance" ? <ClearancePanel supabase={supabase} memberId={id} /> : null}
         {activeTab === "form" ? (
-          <FormPanel
-            supabase={supabase}
-            role={role}
-            memberId={id}
-            userId={session.user.id}
-            followup={followup === "1"}
-            programRunning={member.status === "active" || member.status === "renewal_due"}
-          />
+          <div className="space-y-4">
+            <FormPanel
+              supabase={supabase}
+              role={role}
+              memberId={id}
+              memberName={member.full_name.split(" ")[0]}
+              userId={session.user.id}
+              followup={followup === "1"}
+              programRunning={member.status === "active" || member.status === "renewal_due"}
+              // 0055: the nutritionist may upload their own reports as files. A
+              // borrowed admin desk stays read-only.
+              canUpload={role === "nutritionist" && !isAdminView}
+            />
+            {role === "nutritionist" && !isAdminView ? (
+              <DietReviewsPanel
+                supabase={supabase}
+                memberId={id}
+                memberName={member.full_name.split(" ")[0]}
+                viewer={{ id: session.user.id, role: session.role }}
+              />
+            ) : null}
+          </div>
         ) : null}
         {activeTab === "trends" ? (
           <MeasureTrends
@@ -627,7 +645,7 @@ async function ReportsPanel({
   const [{ data: reports }, { data: receipts }] = await Promise.all([
     supabase
       .from("reports")
-      .select("id, type, created_at, created_by, version, supersedes")
+      .select("id, type, created_at, created_by, version, supersedes, pdf_path")
       .eq("member_id", memberId)
       .order("created_at", { ascending: false }),
     supabase.rpc("get_report_view_receipts", { p_member: memberId }),
@@ -672,8 +690,11 @@ async function ReportsPanel({
               // Their own work, and a type written from a consult form — a
               // performance or progress report is compiled, not authored, so
               // there are no answers behind it to correct.
+              // An uploaded file has no answers behind it either (0054); its uploader
+              // can take it back instead.
+              const uploaded = isUpload(r.pdf_path);
               const amendable =
-                canAmend && r.created_by === userId && AMENDABLE_TYPES.has(r.type);
+                canAmend && r.created_by === userId && AMENDABLE_TYPES.has(r.type) && !uploaded;
               return (
                 <li key={r.id} className="py-2">
                   <ReportPeek
@@ -702,6 +723,10 @@ async function ReportsPanel({
                       >
                         <Pencil className="size-3.5" aria-hidden /> Correct this report
                       </Link>
+                    ) : null}
+                    {uploaded ? <span className="text-xs text-muted-foreground">Uploaded file</span> : null}
+                    {uploaded && canAmend && r.created_by === userId ? (
+                      <RemoveUploadButton memberId={memberId} reportId={r.id} />
                     ) : null}
                   </div>
                 </li>
@@ -741,14 +766,19 @@ async function FormPanel({
   supabase,
   role,
   memberId,
+  memberName,
   userId,
   followup,
   programRunning,
+  canUpload,
 }: {
   supabase: SB;
   role: CareRole;
   memberId: string;
+  memberName: string;
   userId: string;
+  /** 0055: offer "upload the PDF instead" next to the form */
+  canUpload: boolean;
   /** the doctor asked to file a follow-up review by hand (?followup=1) */
   followup: boolean;
   /** 0046: a running program has its own monthly doctor review consultation */
@@ -781,7 +811,7 @@ async function FormPanel({
       ? (
           await supabase
             .from("reports")
-            .select("id, type, created_at")
+            .select("id, type, created_at, pdf_path")
             .eq("member_id", memberId)
             .eq("created_by", userId)
             .order("created_at", { ascending: false })
@@ -813,7 +843,7 @@ async function FormPanel({
           ) : null}
           {/* Newest-first, so a corrected report is never the one found here —
               its correction is. Always safe to offer. */}
-          {lastOwnReport && AMENDABLE_TYPES.has(lastOwnReport.type) ? (
+          {lastOwnReport && AMENDABLE_TYPES.has(lastOwnReport.type) && !isUpload(lastOwnReport.pdf_path) ? (
             <Link
               href={`/clinician/clients/${memberId}/reports/${lastOwnReport.id}/edit`}
               className="link inline-flex items-center gap-1.5 text-sm"
@@ -910,16 +940,94 @@ async function FormPanel({
     }
   }
 
+  // 0055: the nutritionist can upload the PDF they wrote instead of typing it. A
+  // cycle review is a diet review for that cycle; the first consultation is the plan.
+  let uploadInstead: React.ReactNode = null;
+  if (canUpload) {
+    const targets = isInitial
+      ? slotTargets(
+          [{ ...submittable, type: role, report_closed_reason: null, report_uploaded_by: null,
+             report_uploaded_at: null, completed_at: null }],
+          new Map(),
+          ["nutritionist"],
+        )
+      : reviewTargets(await memberCycles(supabase, memberId), new Map(), todayIST()).filter(
+          (t) => t.id === submittable.cycle_id,
+        );
+    if (targets.length > 0) {
+      uploadInstead = (
+        <Callout tone="info" className="flex flex-wrap items-center justify-between gap-3">
+          <span className="text-sm">
+            Wrote it as a PDF or on paper? Upload the file instead of typing it.
+          </span>
+          <UploadReportSheet
+            memberId={memberId}
+            memberName={memberName}
+            targets={targets}
+            preselect={targets[0].id}
+            triggerLabel={isInitial ? "Upload the plan" : "Upload the diet review"}
+            selfLine=""
+          />
+        </Callout>
+      );
+    }
+  }
+
   return (
-    <ClinicalForm
-      template={schema}
+    <div className="space-y-4">
+      {uploadInstead}
+      <ClinicalForm
+        template={schema}
+        memberId={memberId}
+        consultationId={submittable.id}
+        responseId={responseId}
+        initialAnswers={initialAnswers}
+        hints={hints}
+        locked={locked}
+        lockedReason={lockedReason}
+      />
+    </div>
+  );
+}
+
+/** 0055: the member's cycles, for the diet-review choices. Through 0056's function:
+ * a clinician's cycles policy runs via packages, which clinicians cannot read. */
+async function memberCycles(supabase: SB, memberId: string): Promise<ReviewCycle[]> {
+  const { data } = await supabase.rpc("list_member_cycles", { p_member: memberId });
+  return data ?? [];
+}
+
+function todayIST() {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+}
+
+/** An uploaded report: its file lives in the member's uploads folder (0054). */
+function isUpload(pdfPath: string | null | undefined) {
+  return !!pdfPath && pdfPath.includes("/uploads/");
+}
+
+async function DietReviewsPanel({
+  supabase,
+  memberId,
+  memberName,
+  viewer,
+}: {
+  supabase: SB;
+  memberId: string;
+  memberName: string;
+  viewer: { id: string; role: string };
+}) {
+  const [cycles, { data: reviews }] = await Promise.all([
+    memberCycles(supabase, memberId),
+    supabase.rpc("list_diet_reviews", { p_member: memberId }),
+  ]);
+  return (
+    <DietReviewsCard
       memberId={memberId}
-      consultationId={submittable.id}
-      responseId={responseId}
-      initialAnswers={initialAnswers}
-      hints={hints}
-      locked={locked}
-      lockedReason={lockedReason}
+      memberName={memberName}
+      cycles={cycles}
+      reviews={reviews ?? []}
+      viewer={viewer}
     />
   );
 }

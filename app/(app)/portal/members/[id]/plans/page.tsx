@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ReportView } from "@/components/reports/ReportView";
+import { PdfDialog } from "@/components/reports/pdf-dialog";
 import { REPORT_CSS } from "@/lib/reports/styles";
 import { parseReportContent } from "@/lib/reports/types";
 import { PrintButton } from "@/components/portal/print-button";
@@ -84,6 +85,12 @@ export default async function PortalPlansPage({ params }: { params: Promise<{ id
             </p>
             <div className="plan-sheet rounded-xl bg-card p-6 shadow-card ring-1 ring-foreground/10 sm:p-8">
               <ReportView content={parseReportContent(r.content)} />
+              {/* 0054: a plan the coordinator uploaded is the file itself. */}
+              {parseReportContent(r.content).upload ? (
+                <div className="print-hidden mt-4">
+                  <PdfDialog reportId={r.id} title={r.label} uploaded />
+                </div>
+              ) : null}
             </div>
           </section>
         ))

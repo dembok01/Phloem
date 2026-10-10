@@ -2137,3 +2137,59 @@ presentation-only pieces of it were taken. No question, option, required rule or
   capped at `max-w-6xl`, and a rail beside the 18px question column would have pushed the column off
   the page heading's alignment.
 - The welcome screen's "around ten minutes" line is unchanged (copy, not progress).
+
+## Report uploads + diet reviews every two weeks (2026-10-09 → 10-11, migrations 0054–0056)
+
+Coordinator requests: upload reports clinicians send on WhatsApp; let the dietitian upload
+the diet review PDF instead of typing it; diet reviews happen every two weeks. Plan:
+`docs/COORDINATOR-REPORT-UPLOAD-PLAN.md`. Owner decisions: no doctor reports (D1); monthly
+reviews only, the "weekly" review is the two-weekly diet review (D2); the coordinator CAN
+open and remove what they uploaded (D3, changed by the owner); one file per report (D4);
+families see uploaded plans as the §3 matrix already allows (D5).
+
+### What changed
+
+- **0054** (applied, superseded by 0055 before any app used it): `upload_report`,
+  `remove_uploaded_report`, `reports.consultation_id`, `consultations.report_uploaded_*`.
+- **0055** `report_uploads_v2`: the assigned nutritionist may upload too;
+  `upload_diet_review(member, cycle, review_date, …)` adds one nutrition review per meeting
+  (the first fulfils the cycle's waiting review); removal is per report and returns the
+  consultation to how it was; `list_diet_reviews` (dates, not content);
+  `rep_coord_upload` keyed on `content ? 'upload'`. Ordering by `version` (0054's
+  `created_at` order was undefined inside one transaction — caught by the §16 block).
+- **0056** `list_member_cycles`: found while testing — `cyc_read` grants assigned clinicians
+  their member's cycles through `packages`, which clinicians cannot read, so they saw none.
+  The function returns cycle dates only; packages stay closed.
+- **Files go straight from the browser** to the private `reports` bucket through a signed
+  upload URL (no 4.5 MB request limit), then the RPC attaches them; a refused upload's file
+  is deleted. The PDF route serves an upload as itself and never regenerates it.
+- **Screens:** coordinator member page — "Upload a report" (any report a file can stand in
+  for, every cycle), per-consultation "Upload the report" / "Upload the diet review",
+  uploaded line with View / Replace / Remove, a Diet reviews card. Nutritionist — "upload the
+  file instead of typing" beside the form, the Diet reviews card, Remove on their own uploads
+  and no "Correct this report" on files. Report page, peek and the family Plans page open the
+  file itself.
+
+### Verification
+
+- 0054, 0055 and 0056 each dry-run in a rolled-back transaction with throwaway users before
+  being applied. §16: a self-contained 0054/0055 block (30 assertions) added to
+  `supabase/tests/rls.test.sql`; run standalone against hosted — 30/30 PASS, rolled back.
+- End to end on the dev server with throwaway `@example.test` logins and a throwaway
+  member (all deleted afterwards — 0 rows, 0 files left): coordinator uploads the plan (PDF
+  opens, 200 `application/pdf`) and a diet review; the nutritionist sees both, opens the
+  coordinator's, adds a second review in the same cycle; the coordinator sees both dates but
+  opens only theirs, removes it; the nutritionist's review and the plan remain.
+- `tsc` clean · `eslint` clean on changed files · `npm run test:unit` 132/132 (new:
+  `lib/report-uploads.test.ts`).
+
+### Assumptions / deviations
+
+- A nutritionist's cycle review consultation is answered by the first diet review uploaded
+  in that cycle; the meeting record (scheduled/done) is left to the coordinator as before.
+- Diet reviews uploaded before the doctor's monthly consult opens the cycle's review
+  consultation (0053) don't answer it retroactively; the next upload or "Close report
+  manually" does.
+- Trainers and psychologists don't upload their own files (not asked for); the coordinator
+  can.
+- `next dev` still shows the known header hydration warning; not from this work.

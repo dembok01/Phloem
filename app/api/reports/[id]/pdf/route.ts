@@ -47,7 +47,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const content = parseReportContent(report.content);
   const admin = createAdminClient();
   const objectPath = report.pdf_path ?? `${report.member_id}/${report.id}.pdf`;
-  const filename = `${slugify(content.title)}.pdf`;
+  const filename = `${slugify(content.title)}.${content.upload ? EXT[content.upload.mime] ?? "pdf" : "pdf"}`;
   // Supabase types this as `{ download?: string | boolean }`; omitting the key
   // entirely is what yields an inline Content-Disposition.
   const disposition = inline ? undefined : { download: filename };
@@ -59,6 +59,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       .from("reports")
       .createSignedUrl(report.pdf_path, 600, disposition);
     if (cachedSigned) return NextResponse.redirect(cachedSigned.signedUrl, 302);
+    // 0054: an uploaded report IS its file. Regenerating would write an empty
+    // rendering of the "About this report" stub over the path, so stop here.
+    if (content.upload) return new NextResponse("The uploaded file is missing", { status: 404 });
     // Signing the cached object failed (e.g. deleted) — fall through and regenerate.
   }
 
@@ -88,6 +91,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   }
   return NextResponse.redirect(signed.signedUrl, 302);
 }
+
+const EXT: Record<string, string> = { "application/pdf": "pdf", "image/jpeg": "jpg", "image/png": "png" };
 
 function slugify(s: string): string {
   return (

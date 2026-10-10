@@ -88,6 +88,18 @@ to their first meeting or report. "Part of this month" (`_role_in_cycle`, used f
 day-27 feedback and the performance report) = has this month's review; month 1 keeps
 the old meaning (initial report in, `_role_started`).
 
+**Report uploads (owner decisions 2026-10-09/10, migrations 0054–0056).** Admin and
+coordinator may upload a nutritionist's, trainer's or psychologist's report as a file
+(PDF/JPG/PNG) when it was sent outside the dashboard; the assigned nutritionist may upload
+their own. Never a doctor report (clearance, program start and cases come from the doctor's
+form). An upload is a real `reports` row of the type the form would have written, so the
+`rep_*` policies decide who reads it. Diet reviews are one upload per review meeting — two a
+month — attached to the cycle. **One exception to "status only":** a coordinator reads the
+reports they uploaded themselves (`rep_coord_upload`), and only the uploader or admin can
+remove an upload. `list_diet_reviews` shows coordinators when each review happened, not its
+content; `list_member_cycles` (0056) gives assigned clinicians the cycle dates their
+`cyc_read` policy never actually reached.
+
 ## Current phase
 
 **All 8 phases complete** (see `PROGRESS.md` for the per-phase record). Phases (§15): 1 Scaffold & DB → 2 Invites & Admin → 3 DynamicForm & Onboarding → 4 Reports & PDF → 5 Coordinator & Consultations → 6 Clinician Shell & Clinical Forms → 7 Cycle Engine → 8 Portal & Polish — all ✅.

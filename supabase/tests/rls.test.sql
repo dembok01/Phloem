@@ -1091,6 +1091,160 @@ update profiles set status = 'active' where email = 'coordinator@phloem.local';
 insert into results select pg_temp.assert_true('close report: not callable by anon',
   not has_function_privilege('anon', 'public.close_report(uuid,text,text)', 'execute'));
 
+
+-- ============ 0054/0055: uploading a report as a file ============
+-- Admin and coordinator upload nutritionist / trainer / psychologist reports; the
+-- assigned nutritionist uploads their own; never a doctor report. A first-
+-- consultation upload fulfils that consultation (uploading again replaces it); a
+-- diet review is added per review meeting, so a cycle can hold two. Who reads an
+-- upload is the existing rep_* policy; a coordinator reads only their own uploads;
+-- only the uploader (or admin) can take one back. Self-contained throwaway users.
+reset role;
+select set_config('request.jwt.claims', '', true);
+insert into auth.users (id, instance_id, aud, role, email)
+select ('0f0f0000-0000-4000-8000-0000000055' || k)::uuid, '00000000-0000-0000-0000-000000000000',
+       'authenticated', 'authenticated', 'upl-' || k || '@example.test'
+  from unnest(array['c1','a1','d1','b1','b2','e1','61']) k;
+insert into profiles (id, role, full_name, email)
+select ('0f0f0000-0000-4000-8000-0000000055' || k)::uuid, r::user_role, 'UPL ' || k, 'upl-' || k || '@example.test'
+  from (values ('c1','coordinator'),('a1','admin'),('d1','doctor'),('b1','nutritionist'),
+               ('b2','nutritionist'),('e1','trainer'),('61','caregiver')) v(k, r);
+create temp table upl as select
+  (now() at time zone 'Asia/Kolkata')::date as today,
+  gen_random_uuid() as m, gen_random_uuid() as pkg,
+  gen_random_uuid() as cy1, gen_random_uuid() as cy2, gen_random_uuid() as cy3,
+  gen_random_uuid() as c_ni, gen_random_uuid() as c_nr2, gen_random_uuid() as c_ti,
+  gen_random_uuid() as c_doc, gen_random_uuid() as c_unheld;
+grant select on upl to authenticated;
+insert into members(id, full_name, caregiver_id, status)
+  select m, 'UPL — test fixture', '0f0f0000-0000-4000-8000-000000005561', 'active'::member_status from upl;
+insert into packages(id, member_id, duration_months, status, start_date, end_date)
+  select pkg, m, 3, 'active'::package_status, today - 40, today + 50 from upl;
+insert into cycles(id, package_id, number, start_date, end_date, status)
+  select cy1, pkg, 1, today - 40, today - 11, 'closed'::cycle_status from upl union all
+  select cy2, pkg, 2, today - 10, today + 19, 'active'::cycle_status from upl union all
+  select cy3, pkg, 3, today + 20, today + 49, 'upcoming'::cycle_status from upl;
+insert into assignments(member_id, care_user_id, care_role)
+  select m, ('0f0f0000-0000-4000-8000-0000000055' || k)::uuid, r::care_role
+    from upl, (values ('d1','doctor'),('b1','nutritionist'),('e1','trainer')) v(k, r);
+insert into consultations(id, member_id, cycle_id, type, meeting_status, completed_at)
+  select c_ni,     m, null::uuid, 'nutritionist'::care_role, 'done'::meeting_status, now() from upl union all
+  select c_nr2,    m, cy2,        'nutritionist'::care_role, 'done'::meeting_status, now() from upl union all
+  select c_ti,     m, null::uuid, 'trainer'::care_role,      'done'::meeting_status, now() from upl union all
+  select c_doc,    m, null::uuid, 'doctor'::care_role,       'done'::meeting_status, now() from upl union all
+  select c_unheld, m, null::uuid, 'nutritionist'::care_role, 'scheduled'::meeting_status, null from upl;
+create function pg_temp.upl_p(n int) returns text language sql as $$
+  select (select m from upl)::text || '/uploads/0f0f0000-0000-4000-8000-' || lpad(n::text, 12, '0') || '.pdf' $$;
+insert into storage.objects(bucket_id, name) select 'reports', pg_temp.upl_p(n) from generate_series(1, 6) n;
+create function pg_temp.upl_try(q text) returns text language plpgsql as $$
+begin execute q; return 'ok'; exception when others then return SQLERRM; end $$;
+create function pg_temp.upl_as(k text) returns void language sql as $$
+  select set_config('request.jwt.claims', json_build_object('sub',
+    ('0f0f0000-0000-4000-8000-0000000055' || k)::uuid, 'role', 'authenticated')::text, true) $$;
+create function pg_temp.upl_up(cons uuid, n int, mime text default 'application/pdf') returns text language sql as $$
+  select pg_temp.upl_try(format('select upload_report(%L, %L, %L, %L, 1000)', cons, pg_temp.upl_p(n), 'plan.pdf', mime)) $$;
+create function pg_temp.upl_rev(cy uuid, d date, n int) returns text language sql as $$
+  select pg_temp.upl_try(format('select upload_diet_review(%L, %L, %L, %L, %L, %L, 1000)',
+    (select m from upl), cy, d, pg_temp.upl_p(n), 'review.pdf', 'application/pdf')) $$;
+create function pg_temp.upl_rm(n int) returns text language sql as $$
+  select pg_temp.upl_try(format('select remove_uploaded_report(%L)',
+    (select id from reports where pdf_path = pg_temp.upl_p(n)))) $$;
+create function pg_temp.upl_types() returns text language sql as $$
+  select coalesce(string_agg(distinct type::text, ',' order by type::text), '')
+    from reports where member_id = (select m from upl) $$;
+
+set local role authenticated;
+select pg_temp.upl_as('b2');
+insert into results select pg_temp.assert_true('upload: a nutritionist not assigned to the member cannot',
+  pg_temp.upl_up((select c_ni from upl), 1) = 'not_allowed');
+select pg_temp.upl_as('e1');
+insert into results select pg_temp.assert_true('upload: a trainer cannot',
+  pg_temp.upl_up((select c_ti from upl), 1) = 'not_allowed');
+select pg_temp.upl_as('c1');
+insert into results select pg_temp.assert_true('upload: never a doctor report',
+  pg_temp.upl_up((select c_doc from upl), 1) = 'doctor_upload_refused');
+insert into results select pg_temp.assert_true('upload: only for a meeting that was held',
+  pg_temp.upl_up((select c_unheld from upl), 1) = 'meeting_not_done');
+insert into results select pg_temp.assert_true('upload: only PDF, JPG or PNG',
+  pg_temp.upl_up((select c_ni from upl), 1, 'application/msword') = 'bad_file_type');
+insert into results select pg_temp.assert_true('upload: the file has to be there',
+  pg_temp.upl_up((select c_ni from upl), 9) = 'file_missing');
+insert into results select pg_temp.assert_true('upload: a training plan waits for the doctor''s clearance',
+  pg_temp.upl_up((select c_ti from upl), 1) = 'awaiting_doctor_clearance');
+insert into results select pg_temp.assert_true('upload: a nutritionist''s cycle review is a diet review, not a slot',
+  pg_temp.upl_up((select c_nr2 from upl), 1) = 'report_not_uploadable');
+insert into results select pg_temp.assert_true('upload: no diet review for a cycle that has not begun',
+  pg_temp.upl_rev((select cy3 from upl), (select today from upl), 1) = 'not_found');
+insert into results select pg_temp.assert_true('upload: no diet review dated tomorrow',
+  pg_temp.upl_rev((select cy2 from upl), (select today + 1 from upl), 1) = 'bad_review_date');
+insert into results select pg_temp.assert_true('upload: no diet review far outside its cycle',
+  pg_temp.upl_rev((select cy2 from upl), (select today - 30 from upl), 1) = 'bad_review_date');
+select pg_temp.upl_as('b1');
+insert into results select pg_temp.assert_true('upload: the assigned nutritionist uploads their plan',
+  pg_temp.upl_up((select c_ni from upl), 1) = 'ok');
+insert into results select pg_temp.assert_true('upload: one file is one report',
+  pg_temp.upl_up((select c_ni from upl), 1) = 'file_in_use');
+select pg_temp.upl_as('c1');
+insert into results select pg_temp.assert_true('upload: the coordinator adds the first diet review of the cycle',
+  pg_temp.upl_rev((select cy2 from upl), (select today - 7 from upl), 2) = 'ok');
+select pg_temp.upl_as('b1');
+insert into results select pg_temp.assert_true('upload: the nutritionist adds the second, two weeks on',
+  pg_temp.upl_rev((select cy2 from upl), (select today from upl), 3) = 'ok');
+reset role;
+insert into results select pg_temp.assert_true('upload: the first diet review answered the waiting review',
+  (select report_status = 'submitted' from consultations where id = (select c_nr2 from upl)));
+select pg_temp.upl_as('c1');
+set local role authenticated;
+insert into results select pg_temp.assert_eq('upload: the coordinator sees both review dates',
+  (select count(*) from list_diet_reviews((select m from upl))), 2);
+insert into results select pg_temp.assert_true('upload: but opens only the review they uploaded',
+  pg_temp.upl_types() = 'nutrition_review'
+  and (select count(*) from reports where member_id = (select m from upl)) = 1);
+select pg_temp.upl_as('61');
+insert into results select pg_temp.assert_eq('upload: the family is not given the review list',
+  (select count(*) from list_diet_reviews((select m from upl))), 0);
+insert into results select pg_temp.assert_true('upload: the family reads the plan and the reviews',
+  pg_temp.upl_types() = 'nutrition_plan,nutrition_review');
+
+-- Taking it back
+select pg_temp.upl_as('b1');
+insert into results select pg_temp.assert_true('upload: the nutritionist cannot remove the coordinator''s review',
+  pg_temp.upl_rm(2) = 'not_allowed');
+select pg_temp.upl_as('c1');
+insert into results select pg_temp.assert_true('upload: the coordinator removes their own',
+  pg_temp.upl_rm(2) = 'ok');
+reset role;
+insert into results select pg_temp.assert_true('upload: the second review still answers the cycle',
+  (select report_status = 'submitted' from consultations where id = (select c_nr2 from upl)));
+select pg_temp.upl_as('b1');
+set local role authenticated;
+insert into results select pg_temp.assert_true('upload: the nutritionist removes theirs',
+  pg_temp.upl_rm(3) = 'ok');
+reset role;
+insert into results select pg_temp.assert_true('upload: with no review left, the cycle review is waiting again',
+  (select report_status = 'pending' and report_uploaded_by is null from consultations where id = (select c_nr2 from upl)));
+select pg_temp.upl_as('c1');
+set local role authenticated;
+insert into results select pg_temp.assert_true('upload: the coordinator replaces the nutritionist''s plan',
+  pg_temp.upl_up((select c_ni from upl), 4) = 'ok');
+select pg_temp.upl_as('b1');
+insert into results select pg_temp.assert_true('upload: an older version cannot be removed on its own',
+  pg_temp.upl_rm(1) = 'not_latest_version');
+select pg_temp.upl_as('a1');
+insert into results select pg_temp.assert_true('upload: admin removes the plan, every version',
+  pg_temp.upl_rm(4) = 'ok');
+reset role;
+select set_config('request.jwt.claims', '', true);
+insert into results select pg_temp.assert_true('upload: the plan is waiting again, nothing left behind',
+  (select report_status = 'pending' from consultations where id = (select c_ni from upl))
+  and not exists (select 1 from reports where consultation_id = (select c_ni from upl)));
+insert into results select pg_temp.assert_true('upload: none of it callable by anon; helpers internal',
+  not has_function_privilege('anon', 'public.upload_report(uuid,text,text,text,bigint,text)', 'execute')
+  and not has_function_privilege('anon', 'public.upload_diet_review(uuid,uuid,date,text,text,text,bigint,text)', 'execute')
+  and not has_function_privilege('anon', 'public.remove_uploaded_report(uuid)', 'execute')
+  and not has_function_privilege('authenticated', 'public._may_upload_for(uuid,care_role)', 'execute')
+  and not has_function_privilege('authenticated', 'public._check_upload_file(uuid,text,text,bigint)', 'execute'));
+
 select line from results;
 
 rollback;

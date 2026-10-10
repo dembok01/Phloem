@@ -57,11 +57,17 @@ export type ReportSection =
   | { heading: string; kind: "timeline"; data: TimelineData }
   | { heading: string; kind: "comparison"; data: ComparisonData };
 
+/** 0054 — set when the report is a file the coordinator uploaded rather than a
+ *  form the clinician filed. The file itself is the report (served by the PDF route
+ *  from `pdf_path`); `sections` only describe it. */
+export type UploadedFile = { file_name: string; mime: string; size: number; note?: string };
+
 export type ReportContent = {
   title: string;
   generated_at: string;
   cycle: number | null;
   sections: ReportSection[];
+  upload?: UploadedFile;
 };
 
 /** Narrow untyped `reports.content` (Json) into a renderable ReportContent. */
@@ -72,5 +78,6 @@ export function parseReportContent(value: unknown): ReportContent {
     generated_at: typeof v.generated_at === "string" ? v.generated_at : new Date().toISOString(),
     cycle: typeof v.cycle === "number" ? v.cycle : null,
     sections: Array.isArray(v.sections) ? (v.sections as ReportSection[]) : [],
+    ...(v.upload && typeof v.upload.mime === "string" ? { upload: v.upload } : {}),
   };
 }

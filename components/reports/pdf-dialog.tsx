@@ -14,7 +14,16 @@ import { Download, ExternalLink } from "lucide-react";
 import { Sheet, sheetAction } from "@/components/ui/sheet";
 import { PDF_CHROMELESS } from "@/lib/document-preview";
 
-export function PdfDialog({ reportId, title }: { reportId: string; title: string }) {
+export function PdfDialog({
+  reportId,
+  title,
+  uploaded = false,
+}: {
+  reportId: string;
+  title: string;
+  /** 0054: the report is a file the clinician sent (PDF or photo), not a printout. */
+  uploaded?: boolean;
+}) {
   const [open, setOpen] = React.useState(false);
 
   return (
@@ -24,7 +33,7 @@ export function PdfDialog({ reportId, title }: { reportId: string; title: string
         onClick={() => setOpen(true)}
         className="pressable inline-flex h-10 items-center justify-center gap-1.5 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
       >
-        <ExternalLink className="size-4" aria-hidden /> View PDF
+        <ExternalLink className="size-4" aria-hidden /> {uploaded ? "Open the report" : "View PDF"}
       </button>
 
       {open ? (
@@ -32,13 +41,15 @@ export function PdfDialog({ reportId, title }: { reportId: string; title: string
           open
           onOpenChange={setOpen}
           title={title}
-          description="The printed version of this report."
+          description={
+            uploaded ? "The file the clinician sent, as it was received." : "The printed version of this report."
+          }
           className="h-[92svh] max-h-[92svh] max-w-5xl overflow-hidden"
           bodyClassName="p-0"
           headerActions={
             <a
               href={`/api/reports/${reportId}/pdf`}
-              aria-label="Download this report as a PDF"
+              aria-label={uploaded ? "Download this file" : "Download this report as a PDF"}
               className={sheetAction}
             >
               <Download className="size-4" aria-hidden />

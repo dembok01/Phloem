@@ -222,7 +222,10 @@ export type Database = {
           report_closed_by: string | null
           report_closed_note: string | null
           report_closed_reason: string | null
+          report_file_name: string | null
           report_status: Database["public"]["Enums"]["submit_status"]
+          report_uploaded_at: string | null
+          report_uploaded_by: string | null
           scheduled_at: string | null
           type: Database["public"]["Enums"]["care_role"]
         }
@@ -241,7 +244,10 @@ export type Database = {
           report_closed_by?: string | null
           report_closed_note?: string | null
           report_closed_reason?: string | null
+          report_file_name?: string | null
           report_status?: Database["public"]["Enums"]["submit_status"]
+          report_uploaded_at?: string | null
+          report_uploaded_by?: string | null
           scheduled_at?: string | null
           type: Database["public"]["Enums"]["care_role"]
         }
@@ -260,7 +266,10 @@ export type Database = {
           report_closed_by?: string | null
           report_closed_note?: string | null
           report_closed_reason?: string | null
+          report_file_name?: string | null
           report_status?: Database["public"]["Enums"]["submit_status"]
+          report_uploaded_at?: string | null
+          report_uploaded_by?: string | null
           scheduled_at?: string | null
           type?: Database["public"]["Enums"]["care_role"]
         }
@@ -1159,6 +1168,7 @@ export type Database = {
       }
       reports: {
         Row: {
+          consultation_id: string | null
           content: Json
           created_at: string
           created_by: string | null
@@ -1173,6 +1183,7 @@ export type Database = {
           version: number
         }
         Insert: {
+          consultation_id?: string | null
           content: Json
           created_at?: string
           created_by?: string | null
@@ -1187,6 +1198,7 @@ export type Database = {
           version?: number
         }
         Update: {
+          consultation_id?: string | null
           content?: Json
           created_at?: string
           created_by?: string | null
@@ -1201,6 +1213,13 @@ export type Database = {
           version?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "reports_consultation_id_fkey"
+            columns: ["consultation_id"]
+            isOneToOne: false
+            referencedRelation: "consultations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "reports_created_by_fkey"
             columns: ["created_by"]
@@ -1520,6 +1539,28 @@ export type Database = {
         Args: { p_kind: string; p_member: string; p_meta?: Json }
         Returns: undefined
       }
+      list_diet_reviews: {
+        Args: { p_member: string }
+        Returns: {
+          cycle_id: string
+          file_name: string
+          report_id: string
+          review_date: string
+          source: string
+          uploaded_by: string
+          uploader_name: string
+        }[]
+      }
+      list_member_cycles: {
+        Args: { p_member: string }
+        Returns: {
+          end_date: string
+          id: string
+          number: number
+          start_date: string
+          status: Database["public"]["Enums"]["cycle_status"]
+        }[]
+      }
       log_report_view: { Args: { p_report: string }; Returns: undefined }
       mark_meeting_done: { Args: { p_cons: string }; Returns: undefined }
       mark_video_watched: { Args: { p_member: string }; Returns: undefined }
@@ -1528,6 +1569,7 @@ export type Database = {
         Args: { p_duration_months: number; p_member: string }
         Returns: string
       }
+      remove_uploaded_report: { Args: { p_report: string }; Returns: string[] }
       resume_program: { Args: { p_package: string }; Returns: undefined }
       revoke_invite: { Args: { p_invite: string }; Returns: Json }
       run_daily_jobs: { Args: { p_today?: string }; Returns: Json }
@@ -1572,6 +1614,30 @@ export type Database = {
       submit_onboarding: {
         Args: { p_member: string; p_report_content?: Json; p_response: string }
         Returns: undefined
+      }
+      upload_diet_review: {
+        Args: {
+          p_cycle: string
+          p_file_name: string
+          p_member: string
+          p_mime: string
+          p_note?: string
+          p_path: string
+          p_review_date: string
+          p_size: number
+        }
+        Returns: string
+      }
+      upload_report: {
+        Args: {
+          p_cons: string
+          p_file_name: string
+          p_mime: string
+          p_note?: string
+          p_path: string
+          p_size: number
+        }
+        Returns: string
       }
     }
     Enums: {

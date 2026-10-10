@@ -78,12 +78,12 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
                   the attachment disposition that made the PDF unreadable in the
                   browser. Viewing now happens in a popup over this page rather
                   than in the browser's PDF application in a new tab. */}
-              <PdfDialog reportId={id} title={content.title} />
+              <PdfDialog reportId={id} title={content.title} uploaded={!!content.upload} />
               <a
                 href={`/api/reports/${id}/pdf`}
                 className="pressable inline-flex h-10 items-center justify-center gap-1.5 rounded-lg border bg-card px-4 text-sm font-medium hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
               >
-                <Download className="size-4" aria-hidden /> Download PDF
+                <Download className="size-4" aria-hidden /> {content.upload ? "Download the file" : "Download PDF"}
               </a>
               <PrintButton label="Print this report" />
             </div>

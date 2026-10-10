@@ -26,6 +26,11 @@ import {
   type CareRole,
   type MemberStatus,
 } from "@/lib/member-status";
+import { UploadReportSheet, type UploadTarget } from "@/components/coordinator/upload-report-sheet";
+import { DietReviewsCard } from "@/components/reports/diet-reviews-card";
+import { RemoveUploadButton } from "@/components/reports/remove-upload-button";
+import { getSessionProfile } from "@/lib/auth";
+import { reviewTargets, slotTargets } from "@/lib/report-uploads";
 import { assignCareTeam, closeReport, markMeetingDone, scheduleConsultation } from "./actions";
 
 const ROLE_LABEL: Record<CareRole, string> = {
@@ -106,12 +111,15 @@ export default async function CoordinatorMemberPage({
     { data: caregiver },
     { data: renewalRow },
     { data: checkinRow },
+    { data: uploadedReports },
+    { data: dietReviews },
+    me,
   ] = await Promise.all([
     supabase.from("member_contacts").select("phone, whatsapp").eq("member_id", id).maybeSingle(),
     supabase
       .from("consultations")
       .select(
-        "id, type, cycle_id, meeting_status, report_status, scheduled_at, mode, meeting_link, report_closed_reason, report_closed_note",
+        "id, type, cycle_id, meeting_status, report_status, scheduled_at, completed_at, mode, meeting_link, report_closed_reason, report_closed_note, report_uploaded_by, report_uploaded_at, report_file_name",
       )
       .eq("member_id", id),
     supabase.from("assignments").select("care_role, care_user_id").eq("member_id", id).eq("active", true),
@@ -148,6 +156,16 @@ export default async function CoordinatorMemberPage({
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
+    // 0055: uploads this viewer may open — a coordinator's own, or all for admin (RLS).
+    supabase
+      .from("reports")
+      .select("id, consultation_id, created_by")
+      .eq("member_id", id)
+      .not("consultation_id", "is", null)
+      .order("created_at", { ascending: false }),
+    // When each diet review happened (not what it says — §3 "status only").
+    supabase.rpc("list_diet_reviews", { p_member: id }),
+    getSessionProfile(),
   ]);
 
   const checkinToken = checkinRow?.token ?? null;
@@ -202,6 +220,33 @@ export default async function CoordinatorMemberPage({
   );
 
   const redFlags = parseRedFlags(member.red_flags);
+
+  // 0054: the newest upload per consultation that this viewer can open.
+  const uploadByConsult = new Map<string, { id: string; created_by: string | null }>();
+  for (const r of uploadedReports ?? []) {
+    if (r.consultation_id && !uploadByConsult.has(r.consultation_id)) uploadByConsult.set(r.consultation_id, r);
+  }
+  const firstName = member.full_name.split(" ")[0];
+  // Every report a file can stand in for, across every cycle (the RPCs re-check it),
+  // then one diet-review choice per cycle that has begun.
+  const uploadSlots = slotTargets(allConsults, cycleNumberById);
+  const reviewsPerCycle = new Map<string, number>();
+  for (const r of dietReviews ?? []) reviewsPerCycle.set(r.cycle_id, (reviewsPerCycle.get(r.cycle_id) ?? 0) + 1);
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+  const uploadTargets: UploadTarget[] = [...uploadSlots, ...reviewTargets(cycleList, reviewsPerCycle, today)];
+  const slotIds = new Set(uploadSlots.map((s) => s.id));
+  // Uploaders are coordinators or admins, who aren't in the care-team list above.
+  const otherUploaders = [
+    ...new Set(
+      allConsults
+        .map((c) => c.report_uploaded_by)
+        .filter((u): u is string => !!u && u !== me?.user.id),
+    ),
+  ];
+  const { data: uploaderRows } = otherUploaders.length
+    ? await supabase.from("profiles").select("id, full_name").in("id", otherUploaders)
+    : { data: [] as { id: string; full_name: string }[] };
+  const uploaderName = new Map((uploaderRows ?? []).map((p) => [p.id, p.full_name]));
 
   return (
     <section className="mx-auto max-w-4xl space-y-6">
@@ -324,8 +369,11 @@ export default async function CoordinatorMemberPage({
 
       {/* Consultations (§10 dual chips + schedule + mark done) — initial + active cycle */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
           <CardTitle>Consultations</CardTitle>
+          {uploadTargets.length > 0 ? (
+            <UploadReportSheet memberId={member.id} memberName={firstName} targets={uploadTargets} />
+          ) : null}
         </CardHeader>
         <CardContent className="space-y-3">
           {shownConsults.length === 0 ? (
@@ -442,6 +490,41 @@ export default async function CoordinatorMemberPage({
                   </p>
                 ) : null}
 
+                {/* 0055 — attach the file a clinician sent outside the dashboard. A
+                    nutritionist's cycle review is a diet review for that cycle. */}
+                {(slotIds.has(c.id) && c.report_status !== "submitted") ||
+                (c.type === "nutritionist" && c.cycle_id && c.report_status === "pending" &&
+                  c.meeting_status !== "cancelled") ? (
+                  <div className="mt-3">
+                    <UploadReportSheet
+                      memberId={member.id}
+                      memberName={firstName}
+                      targets={uploadTargets}
+                      preselect={slotIds.has(c.id) ? c.id : (c.cycle_id ?? undefined)}
+                      triggerLabel={slotIds.has(c.id) ? "Upload the report" : "Upload the diet review"}
+                      triggerVariant="secondary"
+                    />
+                  </div>
+                ) : null}
+                {c.report_uploaded_by ? (
+                  <UploadedLine
+                    consult={c}
+                    memberId={member.id}
+                    memberName={firstName}
+                    targets={uploadTargets}
+                    replaceable={slotIds.has(c.id)}
+                    upload={uploadByConsult.get(c.id) ?? null}
+                    canRemove={
+                      me?.role === "admin" || uploadByConsult.get(c.id)?.created_by === me?.user.id
+                    }
+                    uploaderName={
+                      c.report_uploaded_by === me?.user.id
+                        ? "you"
+                        : (uploaderName.get(c.report_uploaded_by) ?? "the coordinator")
+                    }
+                  />
+                ) : null}
+
                 {c.meeting_link ? (
                   <p className="mt-2 truncate text-xs text-muted-foreground">Link: {c.meeting_link}</p>
                 ) : null}
@@ -460,6 +543,16 @@ export default async function CoordinatorMemberPage({
           ) : null}
         </CardContent>
       </Card>
+
+      {me ? (
+        <DietReviewsCard
+          memberId={member.id}
+          memberName={firstName}
+          cycles={cycleList}
+          reviews={dietReviews ?? []}
+          viewer={{ id: me.user.id, role: me.role }}
+        />
+      ) : null}
 
       {/* Program lifecycle (§6/§9) — the Phase 7 trigger + pause/resume/duration */}
       <ProgramCard
@@ -505,7 +598,67 @@ type ConsultRow = {
   meeting_link: string | null;
   report_closed_reason: string | null;
   report_closed_note: string | null;
+  completed_at: string | null;
+  report_uploaded_by: string | null;
+  report_uploaded_at: string | null;
+  report_file_name: string | null;
 };
+
+/** 0055: what was uploaded for this consultation, with View / Replace / Remove. View
+ * appears only when this viewer can open the file (their own upload, or admin). */
+function UploadedLine({
+  consult,
+  memberId,
+  memberName,
+  targets,
+  replaceable,
+  upload,
+  canRemove,
+  uploaderName,
+}: {
+  consult: ConsultRow;
+  memberId: string;
+  memberName: string;
+  targets: UploadTarget[];
+  replaceable: boolean;
+  upload: { id: string } | null;
+  canRemove: boolean;
+  uploaderName: string;
+}) {
+  return (
+    <div className="mt-3 space-y-2 rounded-lg bg-muted/50 p-3 text-sm">
+      <p>
+        Report uploaded by {uploaderName}
+        {consult.report_uploaded_at ? ` on ${formatDateIST(consult.report_uploaded_at)}` : ""}
+        {consult.report_file_name ? (
+          <span className="text-muted-foreground"> · {consult.report_file_name}</span>
+        ) : null}
+      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        {upload ? (
+          <a
+            href={`/api/reports/${upload.id}/pdf?view=1`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={buttonVariants({ variant: "outline", size: "sm" })}
+          >
+            View the file
+          </a>
+        ) : null}
+        {replaceable ? (
+          <UploadReportSheet
+            memberId={memberId}
+            memberName={memberName}
+            targets={targets}
+            preselect={consult.id}
+            triggerLabel="Replace the file"
+          />
+        ) : null}
+        {canRemove && upload ? <RemoveUploadButton memberId={memberId} reportId={upload.id} /> : null}
+      </div>
+    </div>
+  );
+}
 
 function ContactBlock({
   label,

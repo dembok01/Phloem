@@ -25,6 +25,7 @@ import { parseReportContent, type ReportContent } from "@/lib/reports/types";
 import { createClient } from "@/lib/supabase/client";
 import { formatDateTimeIST } from "@/lib/datetime";
 import { humanize } from "@/lib/reports/build/helpers";
+import { PDF_CHROMELESS } from "@/lib/document-preview";
 
 type Loaded = { content: ReportContent; type: string; created_at: string; version: number };
 
@@ -126,6 +127,13 @@ export function ReportPeek({
               <div className="flex h-full items-center justify-center">
                 <Loader2 className="size-7 animate-spin text-muted-foreground" aria-hidden />
               </div>
+            ) : report.content.upload ? (
+              // 0054: an uploaded report is the file the clinician sent — show that.
+              <iframe
+                src={`/api/reports/${reportId}/pdf?view=1${PDF_CHROMELESS}`}
+                title={report.content.title}
+                className="size-full rounded-xl border-0 bg-card"
+              />
             ) : (
               <article className="mx-auto max-w-2xl rounded-xl bg-card p-5 shadow-card ring-1 ring-foreground/10 sm:p-8">
                 <ReportView content={report.content} />

@@ -56,6 +56,17 @@ export const RPC_ERROR_CODES = [
   // 0049 a caregiver can hold more than one member
   "email_not_caregiver",
   "caregiver_suspended",
+  // 0054 the coordinator uploads a report sent outside the dashboard
+  "doctor_upload_refused",
+  "report_not_uploadable",
+  "bad_file_type",
+  "file_too_large",
+  "bad_file_path",
+  "file_missing",
+  "file_in_use",
+  "no_upload",
+  // 0055 diet reviews every two weeks
+  "bad_review_date",
 ] as const;
 
 export type RpcErrorCode = (typeof RPC_ERROR_CODES)[number];
@@ -118,6 +129,18 @@ export const RPC_ERROR_COPY: Record<RpcErrorCode, string> = {
     "That email already belongs to a PHLOEM staff account, so it can't be used for a family. Use the caregiver's own address.",
   caregiver_suspended:
     "That caregiver's account is suspended. Reactivate it before adding another member to it.",
+  doctor_upload_refused:
+    "Doctor reports can't be uploaded — the doctor files them in the dashboard, because they carry the exercise clearance.",
+  report_not_uploadable:
+    "That report can't take an upload — it may already have been filed in the dashboard, or closed as not needed.",
+  bad_file_type: "Upload a PDF, JPG or PNG file.",
+  file_too_large: "That file is over 15 MB. Send a smaller copy.",
+  bad_file_path: "The upload went to the wrong place. Please try again.",
+  file_missing: "The file didn't finish uploading. Please try again.",
+  file_in_use: "That file is already attached to a report. Please choose the file again.",
+  no_upload: "There is no uploaded report to remove — it may already have been removed.",
+  bad_review_date:
+    "Choose the date the review meeting happened — not in the future, and within that cycle.",
 };
 
 export function rpcErrorMessage(
