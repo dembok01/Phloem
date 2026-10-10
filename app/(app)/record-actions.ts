@@ -36,6 +36,7 @@ export async function updateMemberAction(
   revalidatePath("/portal");
   revalidatePath("/admin/members");
   revalidatePath(`/admin/members/${parsed.data.memberId}`);
+  revalidatePath(`/coordinator/members/${parsed.data.memberId}`);
   return actionOk(undefined);
 }
 
@@ -56,6 +57,7 @@ export async function updateMemberContactsAction(
 
   revalidatePath("/portal");
   revalidatePath(`/admin/members/${parsed.data.memberId}`);
+  revalidatePath(`/coordinator/members/${parsed.data.memberId}`);
   return actionOk(undefined);
 }
 

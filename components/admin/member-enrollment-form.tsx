@@ -42,7 +42,12 @@ function Field({
   );
 }
 
-export function MemberEnrollmentForm() {
+/** Where Cancel and the success screen point. Admin's defaults; the coordinator's
+ * enrol page passes its own, since it cannot open the admin shell. */
+export type EnrollmentLinks = { list: string; invites: string | null };
+const ADMIN_LINKS: EnrollmentLinks = { list: "/admin/members", invites: "/admin/invites" };
+
+export function MemberEnrollmentForm({ links = ADMIN_LINKS }: { links?: EnrollmentLinks }) {
   const [attempt, setAttempt] = useState(0);
   // Re-keying the attempt gives a clean useActionState. `defaults` is what
   // survives that reset, so backing out of the link confirmation returns the
@@ -52,6 +57,7 @@ export function MemberEnrollmentForm() {
   return (
     <MemberEnrollmentAttempt
       key={attempt}
+      links={links}
       defaults={defaults}
       onEnrollAnother={() => {
         setDefaults(undefined);
@@ -66,11 +72,13 @@ export function MemberEnrollmentForm() {
 }
 
 function MemberEnrollmentAttempt({
+  links,
   defaults,
   onEnrollAnother,
   onEditAgain,
 }: {
   defaults?: Record<string, string>;
+  links: EnrollmentLinks;
   onEnrollAnother: () => void;
   onEditAgain: (fields: Record<string, string>) => void;
 }) {
@@ -92,7 +100,7 @@ function MemberEnrollmentAttempt({
   }
 
   if (outcome) {
-    return <MemberInviteSuccess invite={outcome} onEnrollAnother={onEnrollAnother} />;
+    return <MemberInviteSuccess invite={outcome} onEnrollAnother={onEnrollAnother} links={links} />;
   }
 
   return (
@@ -217,7 +225,7 @@ function MemberEnrollmentAttempt({
       </Card>
 
       <div className="flex flex-wrap justify-end gap-2">
-        <Link href="/admin/members" className={cn(buttonVariants({ variant: "outline" }))}>
+        <Link href={links.list} className={cn(buttonVariants({ variant: "outline" }))}>
           Cancel
         </Link>
         <SubmitButton pendingText="Creating invite…">Enroll &amp; create invite link</SubmitButton>

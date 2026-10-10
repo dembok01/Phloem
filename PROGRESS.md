@@ -2441,3 +2441,48 @@ expires them instead.
   accepted ceiling forgot-password documents.
 - **Not rendered in a browser.** Rendering `/portal` as a real family writes an activity row, which the
   real-client rule forbids. Load `/admin/members/[id]` and `/portal` once locally before merging.
+
+## Coordinator requests, part 2 — editing details, enrolling returning clients (2026-10-10/11)
+
+Coordinator asked (a) for "an option to edit information already entered" and (b) why two
+renewing clients, Sunila and Saleena, weren't on the dashboard. Owner decisions:
+coordinators edit too (matrix change, below); returning clients are enrolled as new.
+
+### What changed
+
+- **Merged `feature/record-correction`** (built 2026-09-10…17, never merged): admin edits a
+  member's details and contacts, families correct their own soft fields, `/account` for every
+  role, admin edits professionals and sign-in addresses, caregiver transfer, onboarding
+  amendment. Its migrations were already on hosted (0041 still held). Merge resolutions are in
+  the merge commit message; the types file was reconciled against hosted.
+- **0057 `coordinator_edits_members`:** `update_member` / `update_member_contacts` accept the
+  coordinator with admin's field set. Restated from the live 0042/0035 bodies (verified equal
+  apart from stripped comments); only the role test changed. §3 matrix: coordinator 👁 → ✅
+  edit on member demographics and contact identifiers. `lib/member-fields.ts` mirrors it and
+  `lib/member-fields.test.ts` now reads the latest definition of each whitelist across all
+  migrations, with two new coordinator assertions.
+- **Coordinator member page:** "Edit details" in the header, "Edit contacts" on the Contacts
+  card, which now also lists email, address, PIN and emergency contact when set.
+- **Coordinator enrol page** `/coordinator/members/new` ("Enrol a member" on the Pipeline):
+  the admin enrolment form with links into the coordinator shell. The RPC always allowed it.
+- **Sunila and Saleena:** not in the database at all — no member, family login or invite under
+  any similar name. They were never enrolled, so they are enrolled once, now from the
+  coordinator's Pipeline. Their cycles start when the doctor files the first report; an admin
+  can backdate the start to the renewal date.
+
+### Verification
+
+- 0057 dry-run in a rolled-back transaction: coordinator edits name/age/city and contacts;
+  unknown field and no-change refused; a nutritionist refused on both; the family still can't
+  rename; audit rows written. Then applied.
+- End to end with a throwaway coordinator and member (deleted afterwards): Edit details and
+  Edit contacts saved, the page shows the change, audit `member.updated` +
+  `member.contacts_updated`; the account menu and `/account` load.
+- `tsc` clean · `eslint` clean · `npm run test:unit` 140/140 · `npm run build` ✓.
+
+### Assumptions / deviations
+
+- Coordinators edit exactly what admin edits on a member; professional profiles, sign-in
+  addresses, transfers and onboarding amendments stay admin-only (not asked for).
+- The account menu (from the branch) replaces the header's name + Sign out; Sign out is inside
+  it. Its button is 40px tall to keep Phase 5's target sizes.

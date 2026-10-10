@@ -1,3 +1,6 @@
+import Link from "next/link";
+import { UserPlus } from "lucide-react";
+import { buttonVariants } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header";
 import { PipelineBoard, type PipelineCard } from "@/components/coordinator/pipeline-board";
 import { createClient } from "@/lib/supabase/server";
@@ -91,6 +94,11 @@ export default async function CoordinatorPipelinePage() {
       <PageHeader
         title="Pipeline"
         description="Every member by stage — drag a card forward, or open one to schedule, assign, or start."
+        actions={
+          <Link href="/coordinator/members/new" className={buttonVariants({ size: "sm" })}>
+            <UserPlus aria-hidden /> Enrol a member
+          </Link>
+        }
       />
 
       <PipelineBoard columns={PIPELINE_COLUMNS} cards={cards} />

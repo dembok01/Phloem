@@ -21,6 +21,7 @@ export async function createMember(
   if (result.ok && result.data.outcome !== "confirm_link") {
     revalidatePath("/admin/members");
     revalidatePath("/admin/invites");
+    revalidatePath("/coordinator/pipeline");
   }
 
   return result;

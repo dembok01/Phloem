@@ -46,8 +46,8 @@ Legend: ✅ full · 👁 view · 🔸 partial · ❌ none. "Assigned" = active a
 
 | Data / Action | Admin | Coordinator | Doctor | Nutritionist | Trainer | Psychologist | Caregiver |
 |---|---|---|---|---|---|---|---|
-| Member contact identifiers (phone, WhatsApp, email, address, PIN, emergency contact) | ✅ | 👁 | ❌ | ❌ | ❌ | ❌ | ✅ own |
-| Member demographics (name, age, gender, language, occupation, city) | ✅ | 👁 | 👁 assigned | 👁 assigned | 👁 assigned | 🔸 minimal via RPC | ✅ own |
+| Member contact identifiers (phone, WhatsApp, email, address, PIN, emergency contact) | ✅ | ✅ edit (0057) | ❌ | ❌ | ❌ | ❌ | ✅ own |
+| Member demographics (name, age, gender, language, occupation, city) | ✅ | ✅ edit (0057) | 👁 assigned | 👁 assigned | 👁 assigned | 🔸 minimal via RPC | ✅ own |
 | Onboarding health answers | ✅ | ❌ | 👁 assigned (full) | 🔸 diet-scoped RPC | 🔸 activity-scoped RPC | 🔸 minimal RPC | ✅ own |
 | Onboarding Summary report | ✅ | ❌ | 👁 | 👁 | 👁 | ❌ | ✅ |
 | Doctor reports (initial/review) | ✅ | ❌ status only | ✅ own clients | 👁 | 👁 | ❌ | 🔸 if `share_with_caregiver` |
@@ -99,6 +99,14 @@ reports they uploaded themselves (`rep_coord_upload`), and only the uploader or 
 remove an upload. `list_diet_reviews` shows coordinators when each review happened, not its
 content; `list_member_cycles` (0056) gives assigned clinicians the cycle dates their
 `cyc_read` policy never actually reached.
+
+**Record correction + coordinator edits (merged 2026-10-10; migrations 0035–0044 from
+`feature/record-correction`, 0057).** Admin and coordinator correct a member's details and
+contact information (`update_member`, `update_member_contacts`); the family corrects its own
+soft fields; every role has `/account`. Professional profiles, sign-in addresses, caregiver
+transfer and onboarding amendment stay admin-only. 0041 (`accept_invite` status guard) is
+still committed-not-applied. Coordinators also enrol members from `/coordinator/members/new`
+— `create_member_with_invite` always accepted them; only the screen was admin-only.
 
 ## Current phase
 

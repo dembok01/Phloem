@@ -23,42 +23,44 @@ export type FieldGroup = {
 };
 
 const ASK_COORDINATOR = "Your coordinator can change this.";
+// 0057: the coordinator corrects a member's details and contacts as admin does.
+const STAFF: readonly UserRole[] = ["admin", "coordinator"];
 
 export const MEMBER_DEMOGRAPHICS: FieldGroup = {
   name: "Details",
   fields: [
     { key: "full_name", label: "Full name", type: "text",
-      editableBy: ["admin"], lockedReason: ASK_COORDINATOR },
+      editableBy: STAFF, lockedReason: ASK_COORDINATOR },
     { key: "age", label: "Age", type: "number",
-      editableBy: ["admin"], lockedReason: ASK_COORDINATOR },
+      editableBy: STAFF, lockedReason: ASK_COORDINATOR },
     { key: "gender", label: "Gender", type: "select",
       options: ["Female", "Male", "Other"],
-      editableBy: ["admin"], lockedReason: ASK_COORDINATOR },
+      editableBy: STAFF, lockedReason: ASK_COORDINATOR },
     { key: "language", label: "Preferred language", type: "text",
-      editableBy: ["admin", "caregiver"] },
+      editableBy: [...STAFF, "caregiver"] },
     { key: "occupation", label: "Occupation", type: "text",
-      editableBy: ["admin", "caregiver"] },
+      editableBy: [...STAFF, "caregiver"] },
     { key: "city", label: "City", type: "text",
-      editableBy: ["admin", "caregiver"] },
+      editableBy: [...STAFF, "caregiver"] },
     { key: "country", label: "Country", type: "text",
-      editableBy: ["admin", "caregiver"] },
+      editableBy: [...STAFF, "caregiver"] },
     { key: "relationship_to_caregiver", label: "Relationship to you", type: "text",
-      editableBy: ["admin"], lockedReason: ASK_COORDINATOR },
+      editableBy: STAFF, lockedReason: ASK_COORDINATOR },
   ],
 };
 
 export const MEMBER_CONTACTS: FieldGroup = {
   name: "Contact details",
   fields: [
-    { key: "phone", label: "Phone", type: "tel", editableBy: ["admin", "caregiver"] },
-    { key: "whatsapp", label: "WhatsApp", type: "tel", editableBy: ["admin", "caregiver"] },
-    { key: "email", label: "Email", type: "email", editableBy: ["admin", "caregiver"] },
-    { key: "address", label: "Address", type: "textarea", editableBy: ["admin", "caregiver"] },
-    { key: "pin_code", label: "PIN code", type: "text", editableBy: ["admin", "caregiver"] },
+    { key: "phone", label: "Phone", type: "tel", editableBy: [...STAFF, "caregiver"] },
+    { key: "whatsapp", label: "WhatsApp", type: "tel", editableBy: [...STAFF, "caregiver"] },
+    { key: "email", label: "Email", type: "email", editableBy: [...STAFF, "caregiver"] },
+    { key: "address", label: "Address", type: "textarea", editableBy: [...STAFF, "caregiver"] },
+    { key: "pin_code", label: "PIN code", type: "text", editableBy: [...STAFF, "caregiver"] },
     { key: "emergency_contact_name", label: "Emergency contact name", type: "text",
-      editableBy: ["admin", "caregiver"] },
+      editableBy: [...STAFF, "caregiver"] },
     { key: "emergency_contact_phone", label: "Emergency contact phone", type: "tel",
-      editableBy: ["admin", "caregiver"] },
+      editableBy: [...STAFF, "caregiver"] },
   ],
 };
 

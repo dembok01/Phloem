@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   MEMBER_DEMOGRAPHICS,
@@ -13,18 +13,23 @@ import {
   type FieldGroup,
 } from "./member-fields";
 
-const SQL = readFileSync(
-  join(process.cwd(), "supabase", "migrations", "0035_record_correction.sql"),
-  "utf8",
-);
+// Every migration, in order: a function restated later (0057 let the coordinator
+// edit) replaces the earlier whitelist, so the LAST match for a marker is the live one.
+const MIGRATIONS = join(process.cwd(), "supabase", "migrations");
+const SQL = readdirSync(MIGRATIONS)
+  .filter((f) => f.endsWith(".sql"))
+  .sort()
+  .map((f) => readFileSync(join(MIGRATIONS, f), "utf8"))
+  .join("\n");
 
 /** Pull `v_allowed := array['a','b']` that follows a `-- manifest:<marker>` line. */
 function sqlWhitelist(marker: string): string[] {
   const re = new RegExp(
     `-- manifest:${marker}\\b[\\s\\S]*?v_allowed := array\\[([^\\]]*)\\]`,
+    "g",
   );
-  const m = SQL.match(re);
-  assert.ok(m, `no whitelist found in 0035 for marker ${marker}`);
+  const m = [...SQL.matchAll(re)].at(-1);
+  assert.ok(m, `no whitelist found in the migrations for marker ${marker}`);
   return [...m[1].matchAll(/'([a-z_]+)'/g)].map((x) => x[1]).sort();
 }
 
@@ -37,6 +42,8 @@ test("the manifest matches the SQL whitelist for every group", () => {
   assert.deepEqual(manifestKeys(MEMBER_DEMOGRAPHICS, "caregiver"), sqlWhitelist("member:caregiver"));
   assert.deepEqual(manifestKeys(MEMBER_CONTACTS, "admin"), sqlWhitelist("contacts:admin"));
   assert.deepEqual(manifestKeys(MEMBER_CONTACTS, "caregiver"), sqlWhitelist("contacts:caregiver"));
+  assert.deepEqual(manifestKeys(MEMBER_DEMOGRAPHICS, "coordinator"), sqlWhitelist("member:coordinator"));
+  assert.deepEqual(manifestKeys(MEMBER_CONTACTS, "coordinator"), sqlWhitelist("contacts:coordinator"));
   assert.deepEqual(manifestKeys(OWN_PROFILE, "caregiver"), sqlWhitelist("profile:self"));
   assert.deepEqual(manifestKeys(ADMIN_PROFILE, "admin"), sqlWhitelist("profile:admin"));
 });

@@ -30,6 +30,9 @@ import { UploadReportSheet, type UploadTarget } from "@/components/coordinator/u
 import { DietReviewsCard } from "@/components/reports/diet-reviews-card";
 import { RemoveUploadButton } from "@/components/reports/remove-upload-button";
 import { getSessionProfile } from "@/lib/auth";
+import { EditRecordSheet } from "@/components/edit-record-sheet";
+import { MEMBER_CONTACTS, MEMBER_DEMOGRAPHICS } from "@/lib/member-fields";
+import { updateMemberAction, updateMemberContactsAction } from "@/app/(app)/record-actions";
 import { reviewTargets, slotTargets } from "@/lib/report-uploads";
 import { assignCareTeam, closeReport, markMeetingDone, scheduleConsultation } from "./actions";
 
@@ -97,7 +100,9 @@ export default async function CoordinatorMemberPage({
 
   const { data: member } = await supabase
     .from("members")
-    .select("id, full_name, status, red_flags, caregiver_id, age, city")
+    .select(
+      "id, full_name, status, red_flags, caregiver_id, age, city, gender, language, occupation, country, relationship_to_caregiver",
+    )
     .eq("id", id)
     .maybeSingle();
   if (!member) notFound();
@@ -115,7 +120,11 @@ export default async function CoordinatorMemberPage({
     { data: dietReviews },
     me,
   ] = await Promise.all([
-    supabase.from("member_contacts").select("phone, whatsapp").eq("member_id", id).maybeSingle(),
+    supabase
+      .from("member_contacts")
+      .select("phone, whatsapp, email, address, pin_code, emergency_contact_name, emergency_contact_phone")
+      .eq("member_id", id)
+      .maybeSingle(),
     supabase
       .from("consultations")
       .select(
@@ -267,9 +276,22 @@ export default async function CoordinatorMemberPage({
         }
         description={[member.age ? `${member.age} yrs` : null, member.city].filter(Boolean).join(" · ")}
         actions={
-          <Badge variant={memberStatusVariant(member.status as MemberStatus)}>
-            {MEMBER_STATUS_LABEL[member.status as MemberStatus]}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant={memberStatusVariant(member.status as MemberStatus)}>
+              {MEMBER_STATUS_LABEL[member.status as MemberStatus]}
+            </Badge>
+            {/* 0057: the coordinator corrects what was entered at enrolment. */}
+            <EditRecordSheet
+              group={MEMBER_DEMOGRAPHICS}
+              role="coordinator"
+              values={member}
+              title="Edit member details"
+              description="Corrections apply everywhere, including the onboarding answers the doctor reads."
+              triggerLabel="Edit details"
+              successText="Member details updated"
+              onSave={updateMemberAction.bind(null, member.id)}
+            />
+          </div>
         }
       />
 
@@ -295,8 +317,18 @@ export default async function CoordinatorMemberPage({
 
       {/* Contacts (§3: coordinator sees member + caregiver contact identifiers) */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between gap-3">
           <CardTitle>Contacts</CardTitle>
+          <EditRecordSheet
+            group={MEMBER_CONTACTS}
+            role="coordinator"
+            values={contacts ?? {}}
+            title="Edit contact details"
+            description="The member's own contact details. Only the family, coordinators and admin can see these."
+            triggerLabel="Edit contacts"
+            successText="Contact details updated"
+            onSave={updateMemberContactsAction.bind(null, member.id)}
+          />
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <ContactBlock label="Member" name={member.full_name} phone={contacts?.phone} whatsapp={contacts?.whatsapp} />
@@ -306,6 +338,24 @@ export default async function CoordinatorMemberPage({
             phone={caregiver?.phone}
             whatsapp={caregiver?.whatsapp}
           />
+          {/* The rest of the member's contact record, so a correction shows here. */}
+          {(["email", "address", "pin_code", "emergency_contact_name", "emergency_contact_phone"] as const).some(
+            (k) => contacts?.[k],
+          ) ? (
+            <dl className="grid gap-x-4 gap-y-1 text-sm sm:col-span-2 sm:grid-cols-[auto_1fr]">
+              {MEMBER_CONTACTS.fields
+                .filter((f) => !["phone", "whatsapp"].includes(f.key))
+                .map((f) => {
+                  const v = (contacts as Record<string, string | null> | null)?.[f.key];
+                  return v ? (
+                    <div key={f.key} className="contents">
+                      <dt className="text-muted-foreground">{f.label}</dt>
+                      <dd className="break-words">{v}</dd>
+                    </div>
+                  ) : null;
+                })}
+            </dl>
+          ) : null}
         </CardContent>
       </Card>
 

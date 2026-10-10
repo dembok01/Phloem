@@ -31,9 +31,12 @@ function Summary({ memberName, caregiverEmail }: { memberName: string; caregiver
 export function MemberInviteSuccess({
   invite,
   onEnrollAnother,
+  links = { list: "/admin/members", invites: "/admin/invites" },
 }: {
   invite: CreatedMemberInvite | LinkedMember;
   onEnrollAnother: () => void;
+  /** Admin's pages by default; the coordinator has no Invites page. */
+  links?: { list: string; invites: string | null };
 }) {
   const [canShare, setCanShare] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
@@ -82,7 +85,7 @@ export function MemberInviteSuccess({
         <CardContent className="space-y-5">
           <Summary memberName={invite.memberName} caregiverEmail={invite.caregiverEmail} />
           <div className="flex flex-wrap justify-end gap-2 border-t pt-5">
-            <Link href="/admin/members" className={cn(buttonVariants({ variant: "outline" }))}>
+            <Link href={links.list} className={cn(buttonVariants({ variant: "outline" }))}>
               View members
             </Link>
             <Button type="button" onClick={onEnrollAnother}>
@@ -115,7 +118,8 @@ export function MemberInviteSuccess({
         <div className="space-y-2">
           <p className="text-sm font-medium">Invite link</p>
           <p className="text-sm text-muted-foreground">
-            Copy and send this secure link to the caregiver. It can also be copied later from Invites.
+            Copy and send this secure link to the caregiver.
+            {links.invites ? " It can also be copied later from Invites." : ""}
           </p>
           <CopyField value={invite.inviteUrl} label={`Invite link for ${invite.memberName}`} />
         </div>
@@ -133,9 +137,15 @@ export function MemberInviteSuccess({
         ) : null}
 
         <div className="flex flex-wrap justify-end gap-2 border-t pt-5">
-          <Link href="/admin/invites" className={cn(buttonVariants({ variant: "outline" }))}>
-            View invites
-          </Link>
+          {links.invites ? (
+            <Link href={links.invites} className={cn(buttonVariants({ variant: "outline" }))}>
+              View invites
+            </Link>
+          ) : (
+            <Link href={links.list} className={cn(buttonVariants({ variant: "outline" }))}>
+              View members
+            </Link>
+          )}
           <Button type="button" onClick={onEnrollAnother}>
             Enroll another member
           </Button>
