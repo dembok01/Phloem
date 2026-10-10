@@ -26,6 +26,11 @@ test("parses a code out of a real PostgREST-style message", () => {
   assert.equal(rpcErrorCode(null), null);
 });
 
+test("every code parses back to itself, including codes that contain shorter codes", () => {
+  for (const code of RPC_ERROR_CODES) assert.equal(rpcErrorCode({ message: `P0001: ${code}` }), code);
+  assert.equal(rpcErrorCode({ message: "field_not_allowed" }), "field_not_allowed");
+});
+
 test("overrides win, fallback covers unknowns", () => {
   assert.equal(
     rpcErrorMessage({ message: "not_allowed" }, "fallback", { not_allowed: "custom" }),

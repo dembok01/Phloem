@@ -26,7 +26,7 @@ export default async function CareTeamPage({
 
   const { data: team } = await supabase
     .from("profiles")
-    .select("id, full_name, email, phone, specialization, role, status")
+    .select("id, full_name, email, phone, whatsapp, specialization, role, status")
     .in("role", [...CARE_ROLES])
     .order("role")
     .order("full_name");
@@ -36,6 +36,7 @@ export default async function CareTeamPage({
     full_name: p.full_name,
     email: p.email,
     phone: p.phone,
+    whatsapp: p.whatsapp,
     specialization: p.specialization,
     role: p.role as CareTeamRow["role"],
     suspended: p.status === "suspended",

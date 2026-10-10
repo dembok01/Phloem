@@ -67,15 +67,29 @@ export const RPC_ERROR_CODES = [
   "no_upload",
   // 0055 diet reviews every two weeks
   "bad_review_date",
+  // 0035 record correction
+  "field_not_allowed",
+  "name_required",
+  "bad_age",
+  // 0037 email change
+  "email_mismatch",
+  // 0038 caregiver transfer
+  "same_caregiver",
+  // 0043 replace caregiver invite
+  "member_past_invited",
 ] as const;
 
 export type RpcErrorCode = (typeof RPC_ERROR_CODES)[number];
+
+// Longest first: some codes contain a shorter one (field_not_allowed contains
+// not_allowed), and a substring match in registry order would report the shorter.
+const CODES_LONGEST_FIRST: readonly RpcErrorCode[] = [...RPC_ERROR_CODES].sort((a, b) => b.length - a.length);
 
 export function rpcErrorCode(
   error: { message: string } | null | undefined
 ): RpcErrorCode | null {
   if (!error) return null;
-  for (const code of RPC_ERROR_CODES) if (error.message.includes(code)) return code;
+  for (const code of CODES_LONGEST_FIRST) if (error.message.includes(code)) return code;
   return null;
 }
 
@@ -122,7 +136,6 @@ export const RPC_ERROR_COPY: Record<RpcErrorCode, string> = {
   bad_start: "A program can start tomorrow at the latest.",
   bad_reason: "Choose why the report is being closed.",
   report_not_pending: "That report isn't waiting on anyone — it may already be in or closed.",
-  no_changes: "Nothing was changed, so there is nothing to correct.",
   not_latest_version:
     "This report has already been corrected — open the current version and correct that one.",
   email_not_caregiver:
@@ -141,6 +154,14 @@ export const RPC_ERROR_COPY: Record<RpcErrorCode, string> = {
   no_upload: "There is no uploaded report to remove — it may already have been removed.",
   bad_review_date:
     "Choose the date the review meeting happened — not in the future, and within that cycle.",
+  field_not_allowed: "You can't change that field. Ask your coordinator if it needs correcting.",
+  name_required: "A name is required.",
+  bad_age: "Age must be between 1 and 120.",
+  no_changes: "Nothing changed, so there was nothing to save.",
+  email_mismatch: "The sign-in address didn't change. Please try again.",
+  same_caregiver: "That is already the family member managing this care.",
+  member_past_invited:
+    "This member is already past sign-up. Inviting a new family member is paused until the invite fix (migration 0041) is approved — move them to an existing family login instead.",
 };
 
 export function rpcErrorMessage(

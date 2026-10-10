@@ -10,6 +10,7 @@ import {
   type MemberDeletionResult,
   type MemberDeletionState,
 } from "@/lib/member-deletion";
+import { actionFail, actionFromError, actionOk, type ActionResult } from "@/lib/action-result";
 
 // P-1 / CODE-REVIEW H-3 — flip a doctor/performance report's caregiver visibility
 // through the audited §6 set_report_sharing RPC (clinicians have no UPDATE on
@@ -88,4 +89,63 @@ async function removeMemberObjects(memberId: string): Promise<void> {
       console.error(`[member.deleted] ${bucket} sweep failed for ${memberId}`, error);
     }
   }
+}
+
+// ── Moving a member to a different family login (design §9) ──────────────────
+const transferSchema = z.object({
+  memberId: z.string().uuid(),
+  newUserId: z.string().uuid(),
+});
+
+export async function transferCaregiverAction(
+  memberId: string,
+  newUserId: string,
+): Promise<ActionResult> {
+  const parsed = transferSchema.safeParse({ memberId, newUserId });
+  if (!parsed.success) return actionFail("Invalid request.");
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("transfer_caregiver", {
+    p_member: parsed.data.memberId,
+    p_new_user: parsed.data.newUserId,
+  });
+  if (error) {
+    return actionFromError(error, "Could not move this member. Please try again.", {
+      role_mismatch_or_inactive: "That login isn't an active family account.",
+    });
+  }
+
+  revalidatePath(`/admin/members/${parsed.data.memberId}`);
+  revalidatePath("/portal");
+  return actionOk(undefined);
+}
+
+const inviteSchema = z.object({
+  memberId: z.string().uuid(),
+  email: z.string().trim().toLowerCase().email().max(255),
+});
+
+/**
+ * For an incoming caregiver with no account yet. replace_caregiver_invite (0043)
+ * expires any invite still outstanding and inserts the new one in one transaction,
+ * so only one link is ever live. It also refuses a member past 'invited' while the
+ * live accept_invite would reset them (0041 is held for approval).
+ */
+export async function inviteReplacementCaregiverAction(
+  memberId: string,
+  email: string,
+): Promise<ActionResult> {
+  const parsed = inviteSchema.safeParse({ memberId, email });
+  if (!parsed.success) return actionFail("Enter a valid email address.");
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("replace_caregiver_invite", {
+    p_member: parsed.data.memberId,
+    p_email: parsed.data.email,
+  });
+  if (error) return actionFromError(error, "Could not create that invite. Please try again.");
+
+  revalidatePath(`/admin/members/${parsed.data.memberId}`);
+  revalidatePath("/admin/invites");
+  return actionOk(undefined);
 }

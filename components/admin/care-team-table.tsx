@@ -9,6 +9,10 @@ import { FilterBar, syncUrl, type Chip } from "./filter-bar";
 import { RowAction } from "./row-action";
 import { AdminTable, PhoneList, SortTh, Td, Th, Tr, useSort } from "./table";
 import { setAccountStatusAction } from "@/app/(app)/admin/care-team/actions";
+import { EditRecordSheet } from "@/components/edit-record-sheet";
+import { ADMIN_PROFILE } from "@/lib/member-fields";
+import { adminUpdateProfileAction } from "@/app/(app)/record-actions";
+import { ChangeSignInEmail } from "@/components/admin/change-sign-in-email";
 import { matchesQuery, sortRows } from "@/lib/admin-filters";
 import { ROLE_LABEL } from "@/lib/roles";
 import { cn } from "@/lib/utils";
@@ -18,6 +22,7 @@ export type CareTeamRow = {
   full_name: string;
   email: string | null;
   phone: string | null;
+  whatsapp: string | null;
   specialization: string | null;
   role: "doctor" | "nutritionist" | "trainer" | "psychologist";
   suspended: boolean;
@@ -185,7 +190,22 @@ export function CareTeamTable({
                   )}
                 </Td>
                 <Td className="text-right">
-                  <StatusAction p={p} />
+                  <div className="flex items-center justify-end gap-2">
+                    {/* A professional's own details were unfixable without a
+                        migration; specialization is here because coordinators read
+                        it when choosing who to assign. */}
+                    <EditRecordSheet
+                      group={ADMIN_PROFILE}
+                      role="admin"
+                      values={p}
+                      title={`Edit ${p.full_name}`}
+                      description="Specialisation is shown to coordinators when they choose who to assign."
+                      successText="Profile updated"
+                      onSave={async (patch) => adminUpdateProfileAction(p.id, patch)}
+                    />
+                    <ChangeSignInEmail userId={p.id} name={p.full_name} current={p.email} />
+                    <StatusAction p={p} />
+                  </div>
                 </Td>
               </Tr>
             ))}

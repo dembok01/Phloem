@@ -2193,3 +2193,251 @@ families see uploaded plans as the §3 matrix already allows (D5).
 - Trainers and psychologists don't upload their own files (not asked for); the coordinator
   can.
 - `next dev` still shows the known header hydration warning; not from this work.
+
+### Record correction — §16 additions (0035)
+
+Ten new assertions cover the four edit RPCs from `0035_record_correction.sql`. Run:
+
+```
+supabase db query --linked -f supabase/tests/rls.test.sql
+```
+
+`npm run test:rls` is not usable here — it needs `SUPABASE_DB_URL`, which `.env.local` does not
+carry. The CLI is logged in and linked, so `--linked` is the runner.
+
+```
+PASS  edit: doctor REFUSED update_member
+PASS  edit: coordinator REFUSED update_member_contacts
+PASS  edit: caregiver CAN change city on their own member
+PASS  edit: caregiver REFUSED full_name (field_not_allowed)
+PASS  edit: caregiver REFUSED a member that is not theirs
+PASS  edit: rename onto an existing member REFUSED (duplicate_member)
+PASS  edit: suspended admin REFUSED update_member
+PASS  edit: suspended admin REFUSED update_member_contacts
+PASS  edit: suspended admin REFUSED update_my_profile
+PASS  edit: suspended admin REFUSED admin_update_profile
+```
+
+The last four are the `0017_rpc_fail_closed` regression net: `auth_role()` returns NULL for a
+suspended profile, and `NULL not in (...)` evaluates to NULL, so a guard written that way is
+skipped and the function proceeds. Four new write RPCs were four new chances to reintroduce that.
+
+Verified the suite leaves the database as it found it: 0 suspended admins, 0 `RLS Twin%` members,
+0 `%-RLSTEST` cities after the run.
+
+**Pre-existing blocker, not introduced here.** The blocks ABOVE this one cannot run against the
+current hosted database, for two reasons that have nothing to do with 0035:
+
+1. They hardcode the §14 seed UUIDs (`11111111-…`, `22222222-…`). Those members no longer exist —
+   the dev project now holds real pilot data instead of the seed fixtures.
+2. `profiles` now has two doctors, two nutritionists and two trainers, so the fixture
+   `insert into assignments … select … from profiles where role in (…)` produces two rows per
+   `(member_id, care_role)` and self-conflicts on the `one_active_per_role` unique index.
+
+The 0035 block is therefore written id-agnostically: it resolves a member, its caregiver, a
+second caregiver's member and one clinician per role at runtime, and creates both sides of the
+duplicate-name fixture itself. Making the older blocks id-agnostic the same way is the fix, and
+is its own piece of work — re-seeding is not an option while the project holds real data.
+
+## Record correction — core editing (feature/record-correction)
+
+**Status:** complete on the branch. Not merged to `main`.
+**Spec:** `docs/superpowers/specs/2026-09-10-record-correction-design.md`
+**Plan:** `docs/superpowers/plans/2026-09-10-record-correction-core.md`
+
+### What was built
+
+Members, contacts and profiles were write-once at enrolment — fixing a typo in a name meant
+deleting the member and re-enrolling them.
+
+- **`0035_record_correction.sql`** (applied to the hosted project) — four role-gated jsonb-patch
+  RPCs: `update_member`, `update_member_contacts`, `update_my_profile`, `admin_update_profile`.
+  The caller's role picks the field whitelist inside the function. Each opens with an explicit
+  `auth_role() is null` check (the `0017` fail-closed rule). `update_member` mirrors demographics
+  into the latest onboarding answers so a doctor never sees two ages; `update_member_contacts`
+  audits field **names only**, never values.
+- **`lib/member-fields.ts`** — the cosmetic mirror of those whitelists, with a test that parses the
+  migration and fails if the two drift.
+- **`<EditRecordSheet>`** + `app/(app)/record-actions.ts` — one editing surface, used in four places:
+  - `/admin/members/[id]` — Edit details, plus a new **Contact details** card. The page previously
+    read no contact identifiers at all.
+  - `/portal` — "Their details" and "How we reach you".
+  - `/account` — new route for every role: own name, phone, WhatsApp, password. Reached from a
+    menu on the header name.
+  - `/admin/care-team` — Edit profile per row.
+
+### Who may edit what (the field split)
+
+| Field | Admin | Caregiver (own member) | Coordinator | Clinicians |
+|---|---|---|---|---|
+| Name, age, gender, relationship | ✅ | 🔒 shown locked | ❌ | ❌ |
+| Language, occupation, city, country | ✅ | ✅ | ❌ | ❌ |
+| Contact identifiers | ✅ | ✅ | ❌ | ❌ |
+| Own name / phone / WhatsApp | ✅ | ✅ | ✅ | ✅ |
+| A professional's specialisation | ✅ | ❌ | ❌ | ❌ |
+
+No §3 cell changed: admin was already ✅ and caregiver ✅ own. Coordinator stays 👁.
+
+### Verification
+
+- **Unit:** `npm run test:unit` — 119/119, exit 0.
+- **Types:** `npx tsc --noEmit` exit 0; also `--noUnusedLocals --noUnusedParameters` exit 0 repo-wide.
+- **§16 security suite:** 10/10 new assertions (see the section above), including a suspended
+  admin refused all four RPCs.
+- **Runtime, live database, rolled back:** real edit applies; a no-op raises `no_changes`;
+  `answers.age` mirrors as a JSON number; `field_not_allowed` and `bad_age` fire.
+- **Lint:** eslint hangs on this machine before initialising (even `--debug` on one file emits
+  nothing), so it could not run. Substituted by the strict tsc run above plus a manual review of the
+  hooks in the three new client components.
+
+### Safety for live clients
+
+- `0035` is additive only: zero DDL on existing tables, columns, policies or functions; four new
+  functions; no code on `main` calls them. The live dashboard cannot observe it.
+- Every verification ran inside a transaction that rolled back, or on fixtures it created and
+  removed. No real client's record was edited.
+
+### Assumptions
+
+- Coordinators get no write path, because §3 gives them 👁. Widening that is a matrix change.
+- The rename duplicate guard applies only when the member already has a `caregiver_id`: matching
+  on a NULL caregiver would collide every unclaimed member.
+- Demographics are mirrored into the **latest** submitted onboarding response; earlier responses
+  stay as issued.
+
+### Deferred minors (for the final review)
+
+- A non-numeric age (`{"age":"abc"}`) raises a raw Postgres cast error instead of `bad_age`. Fails
+  closed; the caller just gets generic error copy.
+- The onboarding mirror re-derives the age cast rather than reusing the validated `v_age`.
+- `buildPatch` has no direct test for "key absent from next" or "role with no editable fields".
+
+## Record correction — identity operations (feature/record-correction)
+
+**Status:** complete on the branch. Not merged to `main`. **One migration held for approval (0041).**
+**Plan:** `docs/superpowers/plans/2026-09-10-record-correction-identity-ops.md`
+
+### What was built
+
+| Capability | Migration | Applied to hosted? |
+|---|---|---|
+| Change your own sign-in address | `0037_email_change` | ✅ additive |
+| Admin changes a sign-in address for someone | `0037_email_change` | ✅ additive |
+| Move a member to another family login | `0038_caregiver_transfer` | ✅ additive |
+| Correct submitted onboarding answers | `0039_amend_onboarding` | ✅ additive |
+| Refuse amending a family's consent | `0040_amend_onboarding_consent_guard` | ✅ (replaces a function added the same day, unused on `main`) |
+| Stop accepting an invite from resetting a member's status | `0041_accept_invite_status_guard` | ❌ **HELD — replaces the live `accept_invite`** |
+
+UI: an email card on `/account`; a sign-in address action on the care-team table **and** on the family
+login of a member's page; a "Change" family-login sheet; and `/admin/members/[id]/onboarding`. Onboarding
+summaries that were superseded stay visible, dimmed.
+
+### Migration numbering
+
+Another session shipped `0036_manual_doctor_review` to `main` today and applied it to the same hosted
+project. This branch's migrations were renumbered to follow it (`0037`–`0041`). Its function
+(`add_manual_doctor_review`) is untouched by anything here — verified on the live database. The hosted
+history records this branch's first four under the names they were applied with (`0036_email_change`,
+`0037_caregiver_transfer`, `0038_amend_onboarding`, `0039_amend_onboarding_consent_guard`); history is keyed
+by timestamp, so the renumber is cosmetic there.
+
+### Where the plan was wrong, and what was done instead
+
+- **Email change.** The plan used `supabase.auth.updateUser({ email })`, which sends Supabase's built-in
+  mail. This app never does that: forgot-password mints tokens with `generateLink` and sends them through
+  `lib/notify`. The project also runs *secure email change* (both addresses must confirm). Probing on
+  throwaway accounts (created and deleted; no trigger on `auth.users`) showed the new address's `token_hash`
+  **never** verifies — it confirms through its 6-digit code. So the current inbox gets a link and the new
+  inbox gets a code.
+- **Profile mirror.** Link verification returns no session, so `/auth/confirm` can't reliably sync
+  `profiles.email`. Instead `/account` self-heals the mirror whenever it disagrees with the sign-in address.
+  At the time of writing, no real user's mirror was out of sync, so this writes nothing for anyone today.
+- **Onboarding amendment — three safety gaps.** The plan's `amend_onboarding` would have (1) let contact
+  identifiers back into the onboarding answers the **doctor** reads, which §3 forbids; (2) let demographics
+  drift apart from `members`; and (3) replaced the doctor's full summary with an empty stub. The shipped
+  version refuses contact keys, demographic keys and `consent`, and takes its report content from the same
+  `buildOnboardingSummary` used at submission.
+- **Admin email change placement.** The spec's purpose is "a family that has lost access to its inbox", but
+  the plan only mounted it on the care-team table, which lists professionals. It is on both surfaces.
+
+### 0041 — decision needed
+
+`accept_invite` writes `status = 'signed_up'` unconditionally. So today, if an admin deactivates an invited
+member and the family then clicks their link, the member quietly flips back to `signed_up`. 0041 makes the
+status write conditional on the member still being `invited`; nothing else in the function changes
+(verified mechanically against the live definition).
+
+Impact at writing: exactly two invites were still acceptable, both for members in `invited` — the one case
+where old and new behave identically. **Applying 0041 would change the outcome for no current client.**
+Until it is applied, "invite someone new" is refused for any member already past `invited`, because
+accepting it would reset them.
+
+### Verification
+
+- **Types:** `npx tsc --noEmit --noUnusedLocals --noUnusedParameters` — exit 0.
+- **Unit:** 120/120, including a drift test that the amendment form hides exactly the keys the RPC refuses.
+- **§16 security suite:** 19/19 across both phases, run against the hosted project in a rolled-back
+  transaction. Includes refusals for a suspended admin, and that even an admin cannot put a contact
+  identifier back into onboarding answers or amend consent.
+- **Runtime (rolled back):** email sync restores a staled mirror; `transfer_caregiver` moves the member,
+  notifies both people, and the outgoing caregiver loses visibility; `amend_onboarding` writes a new
+  response and a version-2 summary that keeps the rich content.
+- **No real data touched:** after all verification, the hosted project held **zero** audit rows,
+  notifications or superseding reports from any action this branch introduced, and no leftover fixtures.
+- **Types regenerated from live:** no table, view, function or enum removed.
+- **Lint:** eslint hangs on this machine before initialising (sibling checkouts too). Not run.
+
+## Record correction — final review and fixes
+
+A whole-branch review on the most capable model confirmed the database layer is sound (fail-closed guard
+on every new function, whitelists match §3, no service-role leak, `/auth/confirm` still closed, 0041
+correct) — and found one Critical and five Important defects. All are fixed on the branch.
+
+| Finding | Fix |
+|---|---|
+| **Critical:** `/portal` and `/admin/members/[id]` passed inline `async` closures from Server Components into a client component — unserializable, so **both pages would crash for every family and admin** once merged. tsc and unit tests cannot catch it. | `updateMemberAction.bind(null, member.id)` at all four sites |
+| `profiles.email` is where **notification mail** goes (`lib/notify.ts`), not a display copy as the spec assumed | Self-heal in the app shell on any page view; immediate sync in `/auth/confirm` when signed in. Spec §13 corrected |
+| A transfer left older invites live — a later click would re-point the member; an `invited` member was stranded | `0042`: `transfer_caregiver` expires the member's other pending invites and moves `invited` → `signed_up`. `0043`: `replace_caregiver_invite` |
+| Gender dropdown erased free-text values — live data holds `femaile` and `male` | A select always offers its stored value |
+| A pending email change was a dead end | "Use a different address" |
+| Admin email change had no from/to audit, and no record if the RPC failed after the credential moved | `0042` audits from/to; failure is logged with actor and target |
+
+Also fixed: `field_not_allowed` errors were reported as `not_allowed` (substring matching); "Saving…"
+never appeared in the sheets; the §16 blocks suspended and reactivated **every** admin (now only the test
+admin); fixtures asserted non-null; a non-numeric age raised a raw cast error; onboarding mirror copied
+untrimmed values; the account menu was a half-built ARIA menu.
+
+**Re-review of the fixes** (most capable model): all findings addressed, no new Critical or Important
+breakage. One residual was fixed because it reaches people — `0044`: closing a superseded invite by
+expiring it would have triggered the daily job's "The invite for X has expired unused" **email to every
+admin**, inviting someone to re-invite an address that was dropped on purpose. Superseded invites are now
+deleted (a plain delete never touches the member), with the removed addresses kept in the audit row.
+Runtime 7/7, rolled back; both real pending invites intact. Also: the layout alone owns the email sync
+(`/account` running it too could write duplicate audit rows), sync errors are logged, and the admin
+failure log carries the new address.
+
+**Production build:** `next build --no-lint` — exit 0, every route compiled.
+
+**`revoke_invite` is a trap.** When the member is still an `invited` shell with no other invite
+outstanding, it **deletes the member**. It was deliberately not reused to close old invites; `0043`
+expires them instead.
+
+### Verification after fixes
+
+- Strict `tsc --noEmit --noUnusedLocals --noUnusedParameters` — exit 0.
+- Unit — **122/122**.
+- §16 record-correction blocks — **24/24**, against the hosted project, rolled back.
+- `0042` runtime 5/5 and `0043` runtime 4/4, rolled back; both real pending invites confirmed intact.
+
+### Deferred (not blocking)
+
+- `amend_onboarding` uses a deny-list; an allow-list from the template's field ids would be tighter.
+- Pre-existing, not this branch: the `fr_cg for all` policy lets a caregiver write onboarding rows
+  directly, bypassing the refusal list. Worth a ticket.
+- Amendment notifications reach the whole care team, including the psychologist (spec says doctor +
+  coordinator). Content is harmless.
+- After a link completes the *second* half of an email change, the toast still says "enter the code".
+- `generateLink` skips GoTrue's per-user rate limit, so email-change mail is unthrottled — the same
+  accepted ceiling forgot-password documents.
+- **Not rendered in a browser.** Rendering `/portal` as a real family writes an activity row, which the
+  real-client rule forbids. Load `/admin/members/[id]` and `/portal` once locally before merging.

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +13,11 @@ import { ThreadPanel } from "@/components/threads/thread-panel";
 import { RenewalPanel } from "@/components/renewal-panel";
 import { RedFlagBanner } from "@/components/red-flag-banner";
 import { ReportShareToggle } from "@/components/admin/report-share-toggle";
+import { EditRecordSheet } from "@/components/edit-record-sheet";
+import { MEMBER_DEMOGRAPHICS, MEMBER_CONTACTS } from "@/lib/member-fields";
+import { updateMemberAction, updateMemberContactsAction } from "@/app/(app)/record-actions";
+import { ChangeSignInEmail } from "@/components/admin/change-sign-in-email";
+import { TransferCaregiver } from "@/components/admin/transfer-caregiver";
 import { MemberDangerZone } from "@/components/admin/member-danger-zone";
 import { DocumentList, type DocumentRow } from "@/components/documents/document-list";
 import { FlashToast } from "@/components/ui/toast";
@@ -74,7 +80,7 @@ export default async function AdminMemberPage({
 
   const { data: member } = await supabase
     .from("members")
-    .select("id, full_name, status, red_flags, age, city, gender, photo_path")
+    .select("id, full_name, status, red_flags, age, city, gender, photo_path, language, occupation, country, relationship_to_caregiver, caregiver_id")
     .eq("id", id)
     .maybeSingle();
   if (!member) notFound();
@@ -85,6 +91,9 @@ export default async function AdminMemberPage({
     { data: pkg },
     { data: reports },
     { data: renewalRow },
+    { data: contacts },
+    { data: caregiver },
+    { data: caregiverOptions },
   ] = await Promise.all([
     supabase.from("consultations").select("type, cycle_id, report_status").eq("member_id", id).is("cycle_id", null),
     supabase
@@ -101,7 +110,7 @@ export default async function AdminMemberPage({
       .maybeSingle(),
     supabase
       .from("reports")
-      .select("id, type, created_at, share_with_caregiver, supersedes")
+      .select("id, type, created_at, share_with_caregiver, version, supersedes")
       .eq("member_id", id)
       .order("created_at", { ascending: false }),
     supabase
@@ -111,6 +120,23 @@ export default async function AdminMemberPage({
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
+    // §3 gives admin full access to contact identifiers, but this page never
+    // read them — when a family telephoned the office there was no screen
+    // showing their number.
+    supabase
+      .from("member_contacts")
+      .select("phone, whatsapp, email, address, pin_code, emergency_contact_name, emergency_contact_phone")
+      .eq("member_id", id)
+      .maybeSingle(),
+    member.caregiver_id
+      ? supabase.from("profiles").select("full_name, phone, email").eq("id", member.caregiver_id).maybeSingle()
+      : Promise.resolve({ data: null }),
+    supabase
+      .from("profiles")
+      .select("id, full_name, email")
+      .eq("role", "caregiver")
+      .eq("status", "active")
+      .order("full_name"),
   ]);
 
   // 0045 — a corrected report leaves its previous version in the table. The list
@@ -159,9 +185,21 @@ export default async function AdminMemberPage({
           .filter(Boolean)
           .join(" · ")}
         actions={
-          <Badge variant={memberStatusVariant(member.status as MemberStatus)}>
-            {MEMBER_STATUS_LABEL[member.status as MemberStatus]}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant={memberStatusVariant(member.status as MemberStatus)}>
+              {MEMBER_STATUS_LABEL[member.status as MemberStatus]}
+            </Badge>
+            <EditRecordSheet
+              group={MEMBER_DEMOGRAPHICS}
+              role="admin"
+              values={member}
+              title="Edit member details"
+              description="Corrections apply everywhere, including the onboarding answers the doctor reads."
+              triggerLabel="Edit details"
+              successText="Member details updated"
+              onSave={updateMemberAction.bind(null, member.id)}
+            />
+          </div>
         }
       />
 
@@ -186,6 +224,50 @@ export default async function AdminMemberPage({
         isAdmin
       />
 
+      {/* Contact details. Admin is ✅ full on contact identifiers in §3, but this
+          page rendered none of them until now. */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between gap-3">
+          <CardTitle>Contact details</CardTitle>
+          <EditRecordSheet
+            group={MEMBER_CONTACTS}
+            role="admin"
+            values={contacts ?? {}}
+            title="Edit contact details"
+            description="Only the family, the coordinator and you can see these."
+            successText="Contact details updated"
+            onSave={updateMemberContactsAction.bind(null, member.id)}
+          />
+        </CardHeader>
+        <CardContent className="grid gap-2 sm:grid-cols-2">
+          {MEMBER_CONTACTS.fields.map((f) => (
+            <div key={f.key} className="flex items-center justify-between gap-3 rounded-lg border p-2.5 text-sm">
+              <span className="text-muted-foreground">{f.label}</span>
+              <span className="truncate font-medium">
+                {(contacts as Record<string, string | null> | null)?.[f.key] ?? "—"}
+              </span>
+            </div>
+          ))}
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-2.5 text-sm sm:col-span-2">
+            <span className="text-muted-foreground">Family login</span>
+            <span className="flex min-w-0 items-center gap-2">
+              <span className="truncate font-medium">
+                {caregiver ? `${caregiver.full_name} · ${caregiver.email}` : "Not linked yet"}
+              </span>
+              {caregiver && member.caregiver_id ? (
+                <ChangeSignInEmail userId={member.caregiver_id} name={caregiver.full_name} current={caregiver.email} />
+              ) : null}
+              <TransferCaregiver
+                memberId={member.id}
+                memberName={member.full_name}
+                currentName={caregiver?.full_name ?? null}
+                options={(caregiverOptions ?? []).filter((o) => o.id !== member.caregiver_id)}
+              />
+            </span>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Care team (read-only summary) */}
       <Card>
         <CardHeader>
@@ -205,8 +287,14 @@ export default async function AdminMemberPage({
           a "Shared with family" switch (P-1 / H-3); other types are always
           caregiver-visible so they show no control. */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between gap-3">
           <CardTitle>Reports</CardTitle>
+          <Link
+            href={`/admin/members/${member.id}/onboarding`}
+            className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+          >
+            Correct onboarding answers
+          </Link>
         </CardHeader>
         <CardContent>
           {liveReports.length === 0 ? (
@@ -220,6 +308,10 @@ export default async function AdminMemberPage({
                     className="group flex min-h-10 min-w-0 items-center gap-2 text-left hover:underline"
                   >
                     <span className="truncate text-sm font-medium">{humanize(r.type)}</span>
+                    {/* The version it replaced is one click away on the report page. */}
+                    {r.supersedes ? (
+                      <Badge variant="muted">v{r.version} · replaces v{r.version - 1}</Badge>
+                    ) : null}
                     <span className="text-xs text-muted-foreground">{formatDateTimeIST(r.created_at)}</span>
                   </ReportPeek>
                   {SHAREABLE_TYPES.has(r.type) ? (

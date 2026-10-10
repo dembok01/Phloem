@@ -11,6 +11,8 @@ export type SessionProfile = {
   /** True when this login should render in elderly mode (P-4). Elderly (`member`)
    * logins default on; any login can be switched via `display_prefs.elderly`. */
   elderly: boolean;
+  /** profiles.email — the address notification mail is sent to (lib/notify.ts). */
+  profileEmail: string | null;
 };
 
 // Request-scoped identity + profile. Wrapped in React `cache()` so the layout AND
@@ -26,7 +28,7 @@ export const getSessionProfile = cache(async (): Promise<SessionProfile | null> 
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, role, status, display_prefs")
+    .select("full_name, role, status, display_prefs, email")
     .eq("id", user.id)
     .single();
   if (!profile) return null;
@@ -43,5 +45,6 @@ export const getSessionProfile = cache(async (): Promise<SessionProfile | null> 
     role,
     status: profile.status,
     elderly,
+    profileEmail: profile.email ?? null,
   };
 });
