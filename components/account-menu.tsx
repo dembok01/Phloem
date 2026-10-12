@@ -7,7 +7,7 @@
 // popover pattern.
 import * as React from "react";
 import Link from "next/link";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, UserRound } from "lucide-react";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { logout } from "@/app/(auth)/login/actions";
 import { ROLE_CHIP, ROLE_LABEL, type UserRole } from "@/lib/roles";
@@ -40,12 +40,16 @@ export function AccountMenu({ name, role }: { name: string; role: UserRole }) {
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-controls={open ? "account-menu" : undefined}
+        aria-label={`Account — ${name}, ${ROLE_LABEL[role]}`}
         className="pressable flex min-h-10 min-w-0 items-center gap-2 rounded-md px-2 py-1 hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
       >
         <span className="hidden max-w-[10rem] truncate font-medium sm:inline">{name}</span>
+        {/* Phones get an icon: at 390px the role chip pushed the header off the
+            screen once the desk switcher and the bell sat beside it. */}
+        <UserRound className="size-5 text-muted-foreground sm:hidden" aria-hidden />
         <span
           className={cn(
-            "rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap",
+            "hidden rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap sm:inline",
             ROLE_CHIP[role],
           )}
         >

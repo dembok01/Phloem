@@ -2525,3 +2525,32 @@ should be able to upload." Reverses D1 of the upload plan.
 - Removing an uploaded doctor's initial report does not un-start a program it started; an admin
   can pause or adjust it.
 - Doctors don't upload their own files (not asked for); the coordinator does.
+
+## Pipeline: one screen wide, Active several across (2026-10-13)
+
+Coordinator: with many Active members the Pipeline needs a long scroll. Live board: 20
+Active, 1 Invited, five stages empty. The board was 7 × 256px ≈ 1,860px against a ~1,100px
+page (sideways scroll just to reach Active), Active stacked 20 cards one per row, and every
+Active card said "Program running". Owner chose "wide Active + slim stages".
+
+### What changed
+
+- **Empty stages are slim strips** (40px, vertical label, count 0) and stay drop targets.
+- **Stages with members share the width by how many they hold** (flex-grow = count, capped at
+  4) and lay cards out in a grid (`minmax(12rem, 1fr)`). The empty/full decision uses the
+  unfiltered counts, so the board doesn't reshape while searching.
+- **Active cards show progress**: "Cycle 2 of 3 · [bar] · Day 14/30" and "Ends 4 Jan" (amber
+  "Ends in N days" within 14 days; "Program paused" when paused). `lib/pipeline-progress.ts`
+  computes it from the package's cycles (unit-tested). Active is ordered high red flag →
+  flags → ending soonest → name; other stages keep enrolment order.
+- **Search box** filters the board by name ("n of N members").
+- Names wrap to two lines instead of truncating; the drag handle shows on hover only.
+- **Header on phones:** the account menu (from record correction) showed the role chip and
+  pushed the header 2px off a 390px screen on every page; phones now get an icon.
+
+### Verification
+
+- Real data, admin login, read-only: at 1440 and 1280px no sideways scroll, Active 648px wide,
+  3 cards per row → 20 members in 7 rows; page 1,221px tall. At 390px no overflow (was 2px);
+  stages stack, one card per row as before. Search "a" → "20 of 21 members".
+- `tsc` clean · `eslint` clean · unit tests 142/142 · `npm run build` ✓.

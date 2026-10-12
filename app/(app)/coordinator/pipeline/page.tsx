@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { hasHighFlag, parseRedFlags } from "@/lib/red-flags";
 import { PIPELINE_COLUMNS, type MemberStatus } from "@/lib/member-status";
 import { nextActions } from "@/lib/next-actions";
+import { activeProgress, type ActiveProgress } from "@/lib/pipeline-progress";
 
 // §10 pipeline board: members grouped into member_status columns; cards show
 // name, red-flag dot, and the next action. Cards drag between columns (P-2) —
@@ -35,6 +36,22 @@ export default async function CoordinatorPipelinePage() {
       if (c.report_status === "submitted") {
         submittedByMember.set(c.member_id, (submittedByMember.get(c.member_id) ?? 0) + 1);
       }
+    }
+  }
+
+  // Where each Active member is in their program, for the card (cycle, day, end).
+  const activeIds = list.filter((m) => m.status === "active").map((m) => m.id);
+  const progressByMember = new Map<string, ActiveProgress>();
+  if (activeIds.length > 0) {
+    const { data: pkgs } = await supabase
+      .from("packages")
+      .select("id, member_id, status, end_date, cycles(number, start_date, end_date, status)")
+      .in("member_id", activeIds)
+      .in("status", ["active", "paused"]);
+    const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+    for (const p of pkgs ?? []) {
+      const progress = activeProgress(p, p.cycles ?? [], today);
+      if (progress) progressByMember.set(p.member_id, progress);
     }
   }
 
@@ -68,8 +85,10 @@ export default async function CoordinatorPipelinePage() {
         return `${submittedByMember.get(memberId) ?? 0}/4 reports in`;
       case "ready_to_start":
         return fromEngine ? `${fromEngine} — or drag to Active` : "Ready — drag to Active to start";
-      case "active":
-        return "Program running";
+      case "active": {
+        const p = progressByMember.get(memberId);
+        return p?.paused ? "Program paused" : "Program running";
+      }
       case "renewal_due":
         return fromEngine ?? "Renewal conversation";
       case "inactive":
@@ -77,7 +96,7 @@ export default async function CoordinatorPipelinePage() {
     }
   }
 
-  const cards: PipelineCard[] = list.map((m) => {
+  const allCards: PipelineCard[] = list.map((m) => {
     const flags = parseRedFlags(m.red_flags);
     return {
       id: m.id,
@@ -86,8 +105,23 @@ export default async function CoordinatorPipelinePage() {
       high: hasHighFlag(flags),
       hasFlags: flags.length > 0,
       nextAction: nextAction(m.status as MemberStatus, m.id),
+      progress: progressByMember.get(m.id) ?? null,
     };
   });
+  // Active is the long column: whoever needs a look comes first — red flags, then
+  // the program ending soonest. Every other column keeps enrolment order.
+  const rank = (c: PipelineCard) => (c.high ? 0 : c.hasFlags ? 1 : 2);
+  const cards = [
+    ...allCards.filter((c) => c.status !== "active"),
+    ...allCards
+      .filter((c) => c.status === "active")
+      .sort(
+        (a, b) =>
+          rank(a) - rank(b) ||
+          (a.progress?.daysLeft ?? Infinity) - (b.progress?.daysLeft ?? Infinity) ||
+          a.full_name.localeCompare(b.full_name),
+      ),
+  ];
 
   return (
     <section className="space-y-6">
