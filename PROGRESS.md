@@ -2486,3 +2486,42 @@ coordinators edit too (matrix change, below); returning clients are enrolled as 
   addresses, transfers and onboarding amendments stay admin-only (not asked for).
 - The account menu (from the branch) replaces the header's name + Sign out; Sign out is inside
   it. Its button is 40px tall to keep Phase 5's target sizes.
+
+## Coordinator uploads every report, the doctor's included (2026-10-13, migration 0058)
+
+Owner: "not only the nutritionist report — trainer, doctor, all the reports the coordinator
+should be able to upload." Reverses D1 of the upload plan.
+
+### What changed
+
+- **0058:** `_may_upload_for` lets admin/coordinator upload any role's report;
+  `upload_report` gains `p_clearance` (old 6-arg signature dropped — no released app called it).
+  A doctor's upload carries the exercise clearance the uploader reads from the report
+  (`cleared` / `cleared_with_restrictions` / `on_hold`, or unstated), stored as
+  `content.clearance` with an "Exercise Clearance" section, so the trainer gate and the
+  trainer's clearance panel work as with the form. An uploaded doctor's initial report starts
+  the program by the 0046 date rule (as `close_report` does for an intake received outside).
+  `bad_clearance` refuses a clearance on a non-doctor report or an unknown value.
+- **Upload sheet:** doctor slots appear in "Which report is this?"; choosing one asks for the
+  clearance (required to pick, "doesn't say" / "no change" allowed) and says that the upload
+  starts the program. Audience line: doctor, nutritionist and trainer — the family only if an
+  admin shares it (unchanged §3 rule).
+
+### Verification
+
+- Dry-run (rolled back): nutritionist refused on a doctor report; trainer plan refused before
+  any clearance; made-up clearance and clearance on a trainer report refused; coordinator
+  uploads the intake "cleared with restrictions" → program active from the day after the
+  consultation, member active, doctor notified, trainer plan then allowed, trainer reads the
+  clearance, family sees nothing unshared. Applied.
+- §16 upload block updated (the old "never a doctor report" assertion replaced; three 0058
+  assertions added): 33/33 PASS standalone against hosted, rolled back.
+- `tsc` clean · `eslint` clean · unit tests 140/140.
+
+### Assumptions / deviations
+
+- Health matters (cases) are not seeded from an uploaded doctor report — there is no problem
+  list to read; the doctor adds them on the Health matters tab.
+- Removing an uploaded doctor's initial report does not un-start a program it started; an admin
+  can pause or adjust it.
+- Doctors don't upload their own files (not asked for); the coordinator does.

@@ -47,7 +47,7 @@ export async function startReportUpload(
       .eq("id", t.id)
       .maybeSingle();
     if (!cons || cons.member_id !== member_id) return actionFail(RPC_ERROR_COPY.not_found, "not_found");
-    if (cons.type === "doctor") return actionFail(RPC_ERROR_COPY.doctor_upload_refused, "doctor_upload_refused");
+    // 0058: staff upload any report; a nutritionist only their own.
     if (!staff && cons.type !== "nutritionist") return actionFail(RPC_ERROR_COPY.not_allowed, "not_allowed");
   } else {
     // 0056: the cycles a viewer may see for this member (clinicians can't read packages).
@@ -71,6 +71,8 @@ const finishSchema = z.object({
   note: z.string().trim().max(200).optional(),
   /** yyyy-mm-dd, the diet review meeting — reviews only */
   review_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  /** a doctor's report: the exercise clearance it gives (0058) */
+  clearance: z.enum(["cleared", "cleared_with_restrictions", "on_hold"]).optional(),
 });
 
 export async function finishReportUpload(
@@ -91,6 +93,7 @@ export async function finishReportUpload(
           p_mime: d.mime,
           p_size: d.size,
           p_note: d.note || undefined,
+          p_clearance: d.clearance,
         })
       : await supabase.rpc("upload_diet_review", {
           p_member: d.member_id,

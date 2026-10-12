@@ -33,7 +33,17 @@ export type UploadTarget = {
   /** reviews: the cycle's dates, yyyy-mm-dd, to bound the meeting date */
   start?: string;
   end?: string;
+  /** A doctor's report: the uploader states the exercise clearance it gives (0058). */
+  clearance?: "initial" | "review";
 };
+
+// The doctor's form's own values. "" = not stated (initial) / unchanged (review).
+const CLEARANCE_OPTIONS = [
+  ["cleared", "Cleared for exercise"],
+  ["cleared_with_restrictions", "Cleared with restrictions"],
+  ["on_hold", "On hold — no exercise yet"],
+] as const;
+type Clearance = (typeof CLEARANCE_OPTIONS)[number][0];
 
 const MIME_BY_EXT: Record<string, "application/pdf" | "image/jpeg" | "image/png"> = {
   pdf: "application/pdf",
@@ -85,6 +95,8 @@ export function UploadReportSheet({
   const [preview, setPreview] = React.useState<string | null>(null);
   const [note, setNote] = React.useState("");
   const [reviewDate, setReviewDate] = React.useState(todayIST());
+  // null = not chosen yet; "" = not stated / unchanged.
+  const [clearance, setClearance] = React.useState<Clearance | "" | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [busy, setBusy] = React.useState(false);
   const id = React.useId();
@@ -121,6 +133,7 @@ export function UploadReportSheet({
     setError(null);
     setBusy(false);
     setReviewDate(todayIST());
+    setClearance(null);
   }
 
   async function upload() {
@@ -147,6 +160,7 @@ export function UploadReportSheet({
         size: file.size,
         note: note.trim() || undefined,
         review_date: target.kind === "review" ? reviewDate : undefined,
+        clearance: target.clearance && clearance ? clearance : undefined,
       });
       if (!done.ok) throw new Error(done.error);
 
@@ -192,7 +206,11 @@ export function UploadReportSheet({
             <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={busy}>
               Cancel
             </Button>
-            <Button type="button" onClick={upload} disabled={!target || !file || busy}>
+            <Button
+              type="button"
+              onClick={upload}
+              disabled={!target || !file || busy || (!!target.clearance && clearance === null)}
+            >
               {busy ? <Loader2 className="animate-spin" aria-hidden /> : null}
               {busy ? "Uploading…" : target?.replaces ? "Replace the file" : "Upload report"}
             </Button>
@@ -218,6 +236,34 @@ export function UploadReportSheet({
             </select>
             {target ? <p className="text-sm text-muted-foreground">{target.detail}</p> : null}
           </div>
+
+          {target?.clearance ? (
+            <div className="space-y-2">
+              <Label htmlFor={`${id}-clearance`}>Exercise clearance in this report</Label>
+              <select
+                id={`${id}-clearance`}
+                value={clearance ?? "choose"}
+                onChange={(e) => setClearance(e.target.value as Clearance | "")}
+                disabled={busy}
+                className="h-11 w-full rounded-lg border border-input bg-background px-3 text-base outline-none hover:border-foreground/60 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              >
+                {clearance === null ? <option value="choose">Choose what the report says…</option> : null}
+                {CLEARANCE_OPTIONS.map(([v, l]) => (
+                  <option key={v} value={v}>
+                    {l}
+                  </option>
+                ))}
+                <option value="">
+                  {target.clearance === "initial" ? "The report doesn't say" : "No change from before"}
+                </option>
+              </select>
+              <p className="text-sm text-muted-foreground">
+                {target.clearance === "initial"
+                  ? "The trainer's plan stays locked until a doctor's report clears exercise. Uploading this report also starts the program, as the doctor's own report would."
+                  : "The trainer works from the latest clearance a doctor's report gives."}
+              </p>
+            </div>
+          ) : null}
 
           {target?.kind === "review" ? (
             <div className="space-y-2">

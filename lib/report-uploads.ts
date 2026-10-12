@@ -19,35 +19,38 @@ export type SlotConsult = {
 
 export type ReviewCycle = { id: string; number: number; start_date: string; end_date: string; status: string };
 
-const ROLE: Record<Exclude<Role, "doctor">, string> = {
+const ROLE: Record<Role, string> = {
+  doctor: "Doctor",
   nutritionist: "Nutritionist",
   trainer: "Trainer",
   psychologist: "Psychologist",
 };
-const REPORT_NAME: Record<Exclude<Role, "doctor">, [string, string]> = {
+const REPORT_NAME: Record<Role, [string, string]> = {
+  doctor: ["doctor's initial report", "doctor's review"],
   nutritionist: ["nutrition plan", "nutrition review"],
   trainer: ["training plan", "training review"],
   psychologist: ["wellbeing report", "wellbeing report"],
 };
 // Who can open an uploaded report of each kind — the rep_* read policies, in words.
-export const UPLOAD_AUDIENCE: Record<Exclude<Role, "doctor">, string> = {
+export const UPLOAD_AUDIENCE: Record<Role, string> = {
+  // A doctor's report reaches the family only when an admin shares it (§3).
+  doctor: "doctor, nutritionist and trainer (and the family, if an admin shares it)",
   nutritionist: "family, doctor, nutritionist and trainer",
   trainer: "family, doctor and trainer",
   psychologist: "psychologist (and the admin team)",
 };
 
-/** A consultation whose report a file can stand in for: not the doctor's, the
+/** A consultation whose report a file can stand in for (0058: the doctor's too): the
  * meeting held, not a nutritionist's cycle review (those are diet reviews), and the
  * report waiting, closed as received outside, or an earlier upload to replace. */
 export function slotTargets(
   consults: SlotConsult[],
   cycleNumber: Map<string, number>,
-  roles: readonly Role[] = ["nutritionist", "trainer", "psychologist"],
+  roles: readonly Role[] = ["doctor", "nutritionist", "trainer", "psychologist"],
 ): UploadTarget[] {
   return consults
     .filter(
-      (c): c is SlotConsult & { type: Exclude<Role, "doctor"> } =>
-        c.type !== "doctor" &&
+      (c) =>
         roles.includes(c.type) &&
         c.meeting_status === "done" &&
         !(c.type === "nutritionist" && c.cycle_id !== null) &&
@@ -77,6 +80,8 @@ export function slotTargets(
         detail: `${met} · ${state}`,
         audience: UPLOAD_AUDIENCE[c.type],
         replaces: c.report_status === "submitted",
+        // The uploader states the exercise clearance a doctor's report gives (0058).
+        ...(c.type === "doctor" ? { clearance: c.cycle_id ? ("review" as const) : ("initial" as const) } : {}),
       };
     });
 }

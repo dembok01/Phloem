@@ -88,12 +88,14 @@ to their first meeting or report. "Part of this month" (`_role_in_cycle`, used f
 day-27 feedback and the performance report) = has this month's review; month 1 keeps
 the old meaning (initial report in, `_role_started`).
 
-**Report uploads (owner decisions 2026-10-09/10, migrations 0054–0056).** Admin and
-coordinator may upload a nutritionist's, trainer's or psychologist's report as a file
-(PDF/JPG/PNG) when it was sent outside the dashboard; the assigned nutritionist may upload
-their own. Never a doctor report (clearance, program start and cases come from the doctor's
-form). An upload is a real `reports` row of the type the form would have written, so the
-`rep_*` policies decide who reads it. Diet reviews are one upload per review meeting — two a
+**Report uploads (owner decisions 2026-10-09/10/13, migrations 0054–0056, 0058).** Admin
+and coordinator may upload ANY clinician's report as a file (PDF/JPG/PNG) when it was sent
+outside the dashboard — doctor's included (0058); the assigned nutritionist may upload their
+own. For a doctor's report the uploader states the exercise clearance it gives (stored as
+`content.clearance`, so the trainer gate works); an uploaded doctor's initial report starts
+the program like the form does; health matters are not seeded from a file. An upload is
+a real `reports` row of the type the form would have written, so the `rep_*` policies
+decide who reads it. Diet reviews are one upload per review meeting — two a
 month — attached to the cycle. **One exception to "status only":** a coordinator reads the
 reports they uploaded themselves (`rep_coord_upload`), and only the uploader or admin can
 remove an upload. `list_diet_reviews` shows coordinators when each review happened, not its

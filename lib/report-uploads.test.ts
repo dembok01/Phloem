@@ -15,7 +15,7 @@ const consult = (over: Partial<SlotConsult>): SlotConsult => ({
   ...over,
 });
 
-test("slots: only reports a file can stand in for", () => {
+test("slots: every report a file can stand in for, the doctor's included", () => {
   const cycles = new Map([["c2", 2]]);
   const ids = slotTargets(
     [
@@ -31,7 +31,7 @@ test("slots: only reports a file can stand in for", () => {
     ],
     cycles,
   ).map((t) => `${t.id}${t.replaces ? " (replaces)" : ""}`);
-  assert.deepEqual(ids, ["nutri-plan", "outside", "uploaded (replaces)", "trainer-review"]);
+  assert.deepEqual(ids, ["doctor", "nutri-plan", "outside", "uploaded (replaces)", "trainer-review"]);
 });
 
 test("slots: a nutritionist is offered only their own reports", () => {

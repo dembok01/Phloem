@@ -67,6 +67,8 @@ export const RPC_ERROR_CODES = [
   "no_upload",
   // 0055 diet reviews every two weeks
   "bad_review_date",
+  // 0058 the coordinator uploads doctor reports too
+  "bad_clearance",
   // 0035 record correction
   "field_not_allowed",
   "name_required",
@@ -152,6 +154,7 @@ export const RPC_ERROR_COPY: Record<RpcErrorCode, string> = {
   file_missing: "The file didn't finish uploading. Please try again.",
   file_in_use: "That file is already attached to a report. Please choose the file again.",
   no_upload: "There is no uploaded report to remove — it may already have been removed.",
+  bad_clearance: "Choose the exercise clearance the doctor's report gives.",
   bad_review_date:
     "Choose the date the review meeting happened — not in the future, and within that cycle.",
   field_not_allowed: "You can't change that field. Ask your coordinator if it needs correcting.",

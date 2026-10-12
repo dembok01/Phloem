@@ -1463,9 +1463,10 @@ insert into results select pg_temp.assert_true('upload: a nutritionist not assig
 select pg_temp.upl_as('e1');
 insert into results select pg_temp.assert_true('upload: a trainer cannot',
   pg_temp.upl_up((select c_ti from upl), 1) = 'not_allowed');
+select pg_temp.upl_as('b1');
+insert into results select pg_temp.assert_true('upload: a nutritionist cannot upload the doctor''s report',
+  pg_temp.upl_up((select c_doc from upl), 1) = 'not_allowed');
 select pg_temp.upl_as('c1');
-insert into results select pg_temp.assert_true('upload: never a doctor report',
-  pg_temp.upl_up((select c_doc from upl), 1) = 'doctor_upload_refused');
 insert into results select pg_temp.assert_true('upload: only for a meeting that was held',
   pg_temp.upl_up((select c_unheld from upl), 1) = 'meeting_not_done');
 insert into results select pg_temp.assert_true('upload: only PDF, JPG or PNG',
@@ -1541,8 +1542,21 @@ select set_config('request.jwt.claims', '', true);
 insert into results select pg_temp.assert_true('upload: the plan is waiting again, nothing left behind',
   (select report_status = 'pending' from consultations where id = (select c_ni from upl))
   and not exists (select 1 from reports where consultation_id = (select c_ni from upl)));
+-- 0058: the doctor's report too, with the clearance it gives
+select pg_temp.upl_as('c1');
+set local role authenticated;
+insert into results select pg_temp.assert_true('upload: a clearance only goes with a doctor''s report',
+  pg_temp.upl_try(format('select upload_report(%L, %L, %L, %L, 1000, null, %L)',
+    (select c_ti from upl), pg_temp.upl_p(5), 'x.pdf', 'application/pdf', 'cleared')) = 'bad_clearance');
+insert into results select pg_temp.assert_true('upload: the coordinator files the doctor''s intake, cleared',
+  pg_temp.upl_try(format('select upload_report(%L, %L, %L, %L, 1000, null, %L)',
+    (select c_doc from upl), pg_temp.upl_p(5), 'intake.pdf', 'application/pdf', 'cleared')) = 'ok');
+insert into results select pg_temp.assert_true('upload: and the training plan unlocks',
+  pg_temp.upl_up((select c_ti from upl), 6) = 'ok');
+reset role;
+select set_config('request.jwt.claims', '', true);
 insert into results select pg_temp.assert_true('upload: none of it callable by anon; helpers internal',
-  not has_function_privilege('anon', 'public.upload_report(uuid,text,text,text,bigint,text)', 'execute')
+  not has_function_privilege('anon', 'public.upload_report(uuid,text,text,text,bigint,text,text)', 'execute')
   and not has_function_privilege('anon', 'public.upload_diet_review(uuid,uuid,date,text,text,text,bigint,text)', 'execute')
   and not has_function_privilege('anon', 'public.remove_uploaded_report(uuid)', 'execute')
   and not has_function_privilege('authenticated', 'public._may_upload_for(uuid,care_role)', 'execute')

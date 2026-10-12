@@ -1728,6 +1728,7 @@ export type Database = {
       }
       upload_report: {
         Args: {
+          p_clearance?: string
           p_cons: string
           p_file_name: string
           p_mime: string

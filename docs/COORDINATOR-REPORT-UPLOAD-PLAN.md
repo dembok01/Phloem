@@ -223,6 +223,7 @@ transaction or uses a throwaway test member that is deleted afterwards.
 | # | Question | Recommendation |
 |---|---|---|
 | D1 | Include **doctor** reports? | **No, not in this version.** The doctor's report carries the exercise clearance, starts the program and builds the case list from the doctor's answers, and a scan can't do any of that. Doctors already file in the dashboard (22 of 24). |
+|  | → **Changed 2026-10-13 (owner): yes, every report type.** Migration 0058; the uploader states the doctor's exercise clearance. |
 | D2 | **"Weekly review report"**: what is it? | The dashboard has only monthly reviews. If trainers send weekly updates, tell me what they contain; they would be a separate feature. The default is that they aren't in this version. |
 | D3 | May the coordinator **open the file after uploading**? | **No.** The permission table gives coordinators status only, and wellbeing reports are psychologist and admin only. They see the file name, date and who uploaded it. |
 | D4 | **One file per report**, or several photos? | **One file** (PDF or one image) to start. If plans often arrive as several photos, support for multiple files can be added later. |
