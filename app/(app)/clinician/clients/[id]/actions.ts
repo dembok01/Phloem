@@ -163,6 +163,49 @@ export async function submitManualDoctorReview(input: {
   return actionOk({ reportId: reportId as string });
 }
 
+const discardDraftSchema = z.object({
+  member_id: z.string().uuid(),
+  response_id: z.string().uuid(),
+});
+
+/**
+ * Throw away an unfinished follow-up report the doctor no longer wants. A draft is
+ * the doctor's own row (fr_own_clinical), deleted the way the page creates it; the
+ * filters keep it to their unsubmitted, consultation-less doctor_review drafts, so
+ * submitted answers, a due consultation's form and feedback drafts are out of reach.
+ */
+export async function discardFollowUpDraft(input: {
+  member_id: string;
+  response_id: string;
+}): Promise<ActionResult> {
+  const parsed = discardDraftSchema.safeParse(input);
+  if (!parsed.success) return actionFail("Invalid request.");
+  const { member_id, response_id } = parsed.data;
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return actionFail("Your session has ended. Sign in again.");
+  const { data: templates } = await supabase.from("form_templates").select("id").eq("key", "doctor_review");
+
+  const { data: gone, error } = await supabase
+    .from("form_responses")
+    .delete()
+    .eq("id", response_id)
+    .eq("member_id", member_id)
+    .eq("respondent_id", user.id)
+    .in("template_id", (templates ?? []).map((t) => t.id))
+    .is("consultation_id", null)
+    .is("submitted_at", null)
+    .select("id");
+  if (error) return actionFail("Could not discard the draft. Please try again.");
+  if (!gone || gone.length === 0) return actionFail("That draft is no longer there — it may have been submitted.");
+
+  revalidatePath(`/clinician/clients/${member_id}`);
+  return actionOk(undefined);
+}
+
 const amendSchema = z.object({
   member_id: z.string().uuid(),
   report_id: z.string().uuid(),

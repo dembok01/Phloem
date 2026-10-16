@@ -2554,3 +2554,41 @@ Active card said "Program running". Owner chose "wide Active + slim stages".
   3 cards per row → 20 members in 7 rows; page 1,221px tall. At 390px no overflow (was 2px);
   stages stack, one card per row as before. Search "a" → "20 of 21 members".
 - `tsc` clean · `eslint` clean · unit tests 142/142 · `npm run build` ✓.
+
+## Unfinished follow-up reports stay findable (2026-10-16)
+
+Owner: "Dr. Riya had written the report for client Saly, but she was saying she can't find
+it now." Her initial report was intact. What she couldn't find was a follow-up she started on
+19 Sep through "Add a follow-up report" (0036) and never submitted — 289 characters in Notes,
+a consultation-less `doctor_review` **v2** draft. Two things hid it: (a) the way in only shows
+while the program hasn't started, and Saly's started on 22 Sep (the 0046 backfill); (b)
+`ManualReviewPanel` looked only for drafts of the *active* form version (v3), so even the old
+link would have opened a fresh, empty form. Nothing was lost. The only other such draft in the
+database (same doctor, another member) is empty.
+
+### What changed (app only — no migration)
+
+- **The doctor is offered their unfinished follow-up** on the member's Overview and Consult
+  form tabs — "You have an unfinished follow-up report, started {date}" — with **Continue it**
+  and **Discard** (two clicks). It shows whatever has happened since: program started, a
+  review falling due. Only drafts with something written in them are offered
+  (`lib/follow-up-draft.ts`, unit-tested).
+- **Continuing works across form versions.** The panel finds the doctor's consultation-less
+  drafts on any `doctor_review` version, opens the newest with writing, and moves it onto the
+  active template (field ids are shared, so every answer carries over) — the RPC submits only
+  a draft of the active template. Other *empty* drafts are deleted first so the RPC, which
+  submits the newest draft, can't file an empty one in place of the real one.
+- **Discard** (`discardFollowUpDraft`) deletes only the caller's own unsubmitted,
+  consultation-less `doctor_review` draft (fr_own_clinical + explicit filters).
+- Starting a *new* follow-up keeps its old rule (only while the program hasn't started); the
+  "Add a follow-up report" button hides while an unfinished one exists.
+
+### Verification
+
+- As Dr. Riya, in transactions that were rolled back (DO block ending in `raise`): the draft
+  query finds her v2 draft; moving it to v3 passes RLS; `add_manual_doctor_review` submits
+  *that* draft (report linked to it, notes intact, 289 chars); the discard delete removes it
+  and touches nothing else. Afterwards her real draft was unchanged (v2, unsubmitted).
+- Not exercised in a browser: the seeded demo doctor is suspended with no members, and
+  making fixtures on the live database wasn't worth it for this.
+- `tsc` clean · `eslint` clean · unit tests · `npm run build`.

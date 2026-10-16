@@ -13,11 +13,13 @@ import { createClient } from "@/lib/supabase/server";
 import { getSessionProfile } from "@/lib/auth";
 import { getLens, viewRoleFor } from "@/lib/lens";
 import type { Database, Json } from "@/lib/supabase/database.types";
-import { formatDateTimeIST } from "@/lib/datetime";
+import { formatDateIST, formatDateTimeIST } from "@/lib/datetime";
+import { hasAnswers, pickFollowUpDraft, type FollowUpDraft } from "@/lib/follow-up-draft";
 import { hasHighFlag, parseRedFlags } from "@/lib/red-flags";
 import { humanize } from "@/lib/reports/build/helpers";
 import { CLEARED, resolveClearance } from "@/lib/clearance";
 import { ClinicalForm } from "@/components/forms/ClinicalForm";
+import { FollowUpDraftNotice } from "@/components/forms/follow-up-draft-notice";
 import { FeedbackForm } from "@/components/forms/FeedbackForm";
 import { DocumentList, type DocumentRow } from "@/components/documents/document-list";
 import { currentConsult } from "@/lib/current-consult";
@@ -223,6 +225,7 @@ export default async function ClinicianClientPage({
             member={member}
             supabase={supabase}
             memberId={id}
+            userId={session.user.id}
             readOnly={isAdminView}
           />
         ) : null}
@@ -325,6 +328,7 @@ async function OverviewPanel({
   member,
   supabase,
   memberId,
+  userId,
   readOnly,
 }: {
   role: CareRole;
@@ -332,6 +336,7 @@ async function OverviewPanel({
   member: { status: string };
   supabase: SB;
   memberId: string;
+  userId: string;
   /** True when an admin is borrowing this desk — no write CTAs. */
   readOnly: boolean;
 }) {
@@ -345,6 +350,7 @@ async function OverviewPanel({
     .eq("member_id", memberId)
     .eq("type", role);
   const formDue = (ownConsults ?? []).some((c) => c.meeting_status === "done" && c.report_status === "pending");
+  const draft = role === "doctor" && !readOnly ? writtenDraft(await followUpDrafts(supabase, memberId, userId)) : null;
   const nextOwn = (ownConsults ?? [])
     .filter((c) => c.meeting_status === "scheduled" && c.scheduled_at)
     .sort((a, b) => (a.scheduled_at! < b.scheduled_at! ? -1 : 1))[0];
@@ -403,6 +409,9 @@ async function OverviewPanel({
         </Callout>
       ) : formDue ? (
         <Callout icon={FileCheck2}>Their consultation form is due.</Callout>
+      ) : null}
+      {draft ? (
+        <FollowUpDraftNotice memberId={memberId} responseId={draft.id} started={formatDateIST(draft.created_at)} />
       ) : null}
       <Card>
         <CardHeader>
@@ -785,11 +794,14 @@ async function FormPanel({
   programRunning: boolean;
 }) {
   // The submittable consultation for this role: meeting done + report pending.
-  const { data: consults } = await supabase
-    .from("consultations")
-    .select("id, cycle_id, meeting_status, report_status, scheduled_at, created_at")
-    .eq("member_id", memberId)
-    .eq("type", role);
+  const [{ data: consults }, drafts] = await Promise.all([
+    supabase
+      .from("consultations")
+      .select("id, cycle_id, meeting_status, report_status, scheduled_at, created_at")
+      .eq("member_id", memberId)
+      .eq("type", role),
+    role === "doctor" ? followUpDrafts(supabase, memberId, userId) : Promise.resolve([]),
+  ]);
   const submittable = (consults ?? []).find(
     (c) => c.meeting_status === "done" && c.report_status === "pending",
   );
@@ -799,9 +811,15 @@ async function FormPanel({
   // RPC re-checks that and the assignment regardless.
   const canFollowUp =
     role === "doctor" && !submittable && !programRunning && (await doctorReports(memberId)).length > 0;
-  if (canFollowUp && followup) {
-    return <ManualReviewPanel supabase={supabase} memberId={memberId} userId={userId} />;
+  // A follow-up the doctor already started stays theirs to finish (or discard)
+  // whatever has happened since — the program starting, a review falling due.
+  const draft = writtenDraft(drafts);
+  if (followup && (canFollowUp || draft)) {
+    return <ManualReviewPanel supabase={supabase} memberId={memberId} drafts={drafts} userId={userId} />;
   }
+  const draftNotice = draft ? (
+    <FollowUpDraftNotice memberId={memberId} responseId={draft.id} started={formatDateIST(draft.created_at)} />
+  ) : null;
 
   if (!submittable) {
     const latest = currentConsult(consults ?? []);
@@ -829,44 +847,47 @@ async function FormPanel({
             ? `The form opens after the coordinator marks the meeting done (scheduled ${formatDateTimeIST(latest.scheduled_at)}).`
             : "The form opens once your meeting is scheduled and marked done.";
     return (
-      <Card>
-        <CardContent className="flex flex-col items-center gap-3 py-8 text-center">
-          {submitted ? <CheckCircle2 className="size-6 text-success" aria-hidden /> : null}
-          <p className="text-sm text-muted-foreground">{message}</p>
-          {lastOwnReport ? (
-            <ReportPeek
-              reportId={lastOwnReport.id}
-              className="inline-flex min-h-10 items-center rounded-full border bg-card px-4 text-sm font-medium hover:border-primary/40 hover:bg-secondary/40"
-            >
-              View {humanize(lastOwnReport.type).toLowerCase()} →
-            </ReportPeek>
-          ) : null}
-          {/* Newest-first, so a corrected report is never the one found here —
-              its correction is. Always safe to offer. */}
-          {lastOwnReport && AMENDABLE_TYPES.has(lastOwnReport.type) && !isUpload(lastOwnReport.pdf_path) ? (
-            <Link
-              href={`/clinician/clients/${memberId}/reports/${lastOwnReport.id}/edit`}
-              className="link inline-flex items-center gap-1.5 text-sm"
-            >
-              <Pencil className="size-3.5" aria-hidden /> Something wrong? Correct it
-            </Link>
-          ) : null}
-          {canFollowUp ? (
-            <div className="mt-3 flex flex-col items-center gap-2 border-t pt-5">
-              <p className="max-w-sm text-sm text-muted-foreground">
-                Held a follow-up consultation that has no review scheduled here? Record it as a report.
-              </p>
-              <Link
-                href={`/clinician/clients/${memberId}?tab=form&followup=1`}
-                className="inline-flex min-h-10 items-center gap-2 rounded-full bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+      <div className="space-y-4">
+        {draftNotice}
+        <Card>
+          <CardContent className="flex flex-col items-center gap-3 py-8 text-center">
+            {submitted ? <CheckCircle2 className="size-6 text-success" aria-hidden /> : null}
+            <p className="text-sm text-muted-foreground">{message}</p>
+            {lastOwnReport ? (
+              <ReportPeek
+                reportId={lastOwnReport.id}
+                className="inline-flex min-h-10 items-center rounded-full border bg-card px-4 text-sm font-medium hover:border-primary/40 hover:bg-secondary/40"
               >
-                <FilePlus2 className="size-4" aria-hidden />
-                Add a follow-up report
+                View {humanize(lastOwnReport.type).toLowerCase()} →
+              </ReportPeek>
+            ) : null}
+            {/* Newest-first, so a corrected report is never the one found here —
+                its correction is. Always safe to offer. */}
+            {lastOwnReport && AMENDABLE_TYPES.has(lastOwnReport.type) && !isUpload(lastOwnReport.pdf_path) ? (
+              <Link
+                href={`/clinician/clients/${memberId}/reports/${lastOwnReport.id}/edit`}
+                className="link inline-flex items-center gap-1.5 text-sm"
+              >
+                <Pencil className="size-3.5" aria-hidden /> Something wrong? Correct it
               </Link>
-            </div>
-          ) : null}
-        </CardContent>
-      </Card>
+            ) : null}
+            {canFollowUp && !draft ? (
+              <div className="mt-3 flex flex-col items-center gap-2 border-t pt-5">
+                <p className="max-w-sm text-sm text-muted-foreground">
+                  Held a follow-up consultation that has no review scheduled here? Record it as a report.
+                </p>
+                <Link
+                  href={`/clinician/clients/${memberId}?tab=form&followup=1`}
+                  className="inline-flex min-h-10 items-center gap-2 rounded-full bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                >
+                  <FilePlus2 className="size-4" aria-hidden />
+                  Add a follow-up report
+                </Link>
+              </div>
+            ) : null}
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
@@ -975,6 +996,7 @@ async function FormPanel({
 
   return (
     <div className="space-y-4">
+      {draftNotice}
       {uploadInstead}
       <ClinicalForm
         template={schema}
@@ -988,6 +1010,28 @@ async function FormPanel({
       />
     </div>
   );
+}
+
+/** The doctor's unfinished follow-up reports for this member, newest first — on any
+ * version of the doctor_review form, since a draft can outlive its version. */
+async function followUpDrafts(supabase: SB, memberId: string, userId: string): Promise<FollowUpDraft[]> {
+  const { data: templates } = await supabase.from("form_templates").select("id").eq("key", "doctor_review");
+  if (!templates?.length) return [];
+  const { data } = await supabase
+    .from("form_responses")
+    .select("id, template_id, answers, created_at")
+    .eq("member_id", memberId)
+    .eq("respondent_id", userId)
+    .in("template_id", templates.map((t) => t.id))
+    .is("consultation_id", null)
+    .is("submitted_at", null)
+    .order("created_at", { ascending: false });
+  return data ?? [];
+}
+
+/** The one worth offering back: the newest with something written in it. */
+function writtenDraft(drafts: FollowUpDraft[]) {
+  return drafts.find((d) => hasAnswers(d.answers)) ?? null;
 }
 
 /** 0055: the member's cycles, for the diet-review choices. Through 0056's function:
@@ -1036,7 +1080,18 @@ async function DietReviewsPanel({
 // member's programme never started, so no cycle opened one). Same form and editor
 // as a cycle review; the draft simply has no consultation_id, and
 // add_manual_doctor_review submits it.
-async function ManualReviewPanel({ supabase, memberId, userId }: { supabase: SB; memberId: string; userId: string }) {
+async function ManualReviewPanel({
+  supabase,
+  memberId,
+  userId,
+  drafts,
+}: {
+  supabase: SB;
+  memberId: string;
+  userId: string;
+  /** the doctor's follow-up drafts for this member, newest first (followUpDrafts) */
+  drafts: FollowUpDraft[];
+}) {
   const { data: template } = await supabase
     .from("form_templates")
     .select("id, schema")
@@ -1053,17 +1108,18 @@ async function ManualReviewPanel({ supabase, memberId, userId }: { supabase: SB;
   const schema = withOptional(parseFormTemplate(template.schema), "performance_response");
   const hints = await lastSubmissionHints(supabase, schema, memberId, userId);
 
-  const { data: existing } = await supabase
-    .from("form_responses")
-    .select("id, answers")
-    .eq("member_id", memberId)
-    .eq("respondent_id", userId)
-    .eq("template_id", template.id)
-    .is("consultation_id", null)
-    .is("submitted_at", null)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const { open: existing, discard } = pickFollowUpDraft(drafts);
+  if (discard.length > 0) await supabase.from("form_responses").delete().in("id", discard);
+  // A draft begun on an earlier version of the form moves onto the current one —
+  // the RPC submits only a draft of the active template. Answers are keyed by field
+  // id, which the versions share, so what the doctor wrote carries over.
+  if (existing && existing.template_id !== template.id) {
+    const { error } = await supabase.from("form_responses").update({ template_id: template.id }).eq("id", existing.id);
+    if (error) {
+      return <Card><CardContent className="py-8 text-sm text-muted-foreground">Could not open your unfinished report.</CardContent></Card>;
+    }
+  }
+  const continuing = existing !== null && hasAnswers(existing.answers);
 
   let responseId = existing?.id ?? null;
   if (!responseId) {
@@ -1084,8 +1140,10 @@ async function ManualReviewPanel({ supabase, memberId, userId }: { supabase: SB;
         <CardHeader>
           <CardTitle>Follow-up report</CardTitle>
           <CardDescription>
-            For a follow-up consultation you held that has no review scheduled here. It becomes a doctor&apos;s
-            review report, like one from a monthly review.{" "}
+            {continuing
+              ? `You started this on ${formatDateIST(existing?.created_at)} and haven't submitted it yet. `
+              : "For a follow-up consultation you held that has no review scheduled here. "}
+            It becomes a doctor&apos;s review report, like one from a monthly review.{" "}
             <Link href={`/clinician/clients/${memberId}?tab=form`} className="link">
               Cancel
             </Link>
