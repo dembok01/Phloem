@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { CheckCircle2, ChevronLeft, Eye, FileCheck2, FilePlus2, Lock, Pencil, ShieldAlert } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CardSkeleton } from "@/components/ui/skeleton";
+import { EmergencyCard } from "@/components/safety/emergency-card";
 import { Who5Card } from "@/components/charts/who5-card";
 import { Monogram, toneForRole } from "@/components/monogram";
 import { PageHeader } from "@/components/page-header";
@@ -194,6 +195,14 @@ export default async function ClinicianClientPage({
         </CardContent>
       </Card>
 
+      {/* Emergency & Safety (0059): the trainer and doctor see who to call on every
+          tab, so nobody searches for a number mid-session. */}
+      {role === "trainer" || role === "doctor" ? (
+        <Suspense fallback={<CardSkeleton />}>
+          <EmergencyCard memberId={id} role={role} readOnly={isAdminView} />
+        </Suspense>
+      ) : null}
+
       {/* Phones: the tabs wrap onto rows. As one sideways rail, Consult form and
           Reports — a doctor's two main destinations — started off-screen. */}
       <nav
@@ -360,7 +369,7 @@ async function OverviewPanel({
   // the other roles' work is already expressed by the form-due banner below.
   let issues: Issue[] = [];
   if (role === "doctor") {
-    const [{ data: clearanceReports }, { data: declining }, { data: unread }] =
+    const [{ data: clearanceReports }, { data: declining }, { data: unread }, { count: openIncidents }] =
       await Promise.all([
         supabase
           .from("reports")
@@ -370,6 +379,12 @@ async function OverviewPanel({
           .order("created_at", { ascending: false }),
         supabase.rpc("my_declining_measures"),
         supabase.rpc("my_unread_threads"),
+        supabase
+          .from("safety_events")
+          .select("id", { count: "exact", head: true })
+          .eq("member_id", memberId)
+          .eq("kind", "incident")
+          .is("cleared_at", null),
       ]);
 
     const overdue = (ownConsults ?? [])
@@ -380,6 +395,7 @@ async function OverviewPanel({
       flags,
       clearance: resolveClearance((clearanceReports ?? []) as { content: unknown }[]),
       adverseEvent: false,
+      sessionsOnHold: (openIncidents ?? 0) > 0,
       reportOverdueHours: overdue.length > 0 ? Math.max(...overdue) : null,
       decliningMeasures: ((declining ?? []) as { member_id: string; label: string }[])
         .filter((d) => d.member_id === memberId)

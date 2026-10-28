@@ -103,3 +103,12 @@ const ORDER = { danger: 0, warning: 1, info: 2 } as const;
 function bySeverity(a: "danger" | "warning" | "info", b: "danger" | "warning" | "info"): number {
   return ORDER[a] - ORDER[b];
 }
+
+test("an incident on hold lights the adverse-event chip, saying sessions wait for the doctor", () => {
+  const held = computeIssues({ ...NONE, sessionsOnHold: true });
+  assert.equal(held[0].kind, "adverse_event");
+  assert.match(held[0].detail ?? "", /on hold until you clear them/);
+  const both = computeIssues({ ...NONE, adverseEvent: true, sessionsOnHold: true });
+  assert.equal(both.filter((i) => i.kind === "adverse_event").length, 1);
+  assert.match(both[0].detail ?? "", /on hold/);
+});

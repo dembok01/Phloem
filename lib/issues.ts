@@ -35,6 +35,8 @@ export type IssueInput = {
   /** the current clearance decision, or null if the doctor has not made one */
   clearance: string | null;
   adverseEvent: boolean;
+  /** an incident during a session the doctor has not cleared yet (0059) */
+  sessionsOnHold?: boolean;
   /** hours since a done consultation's report went pending, or null */
   reportOverdueHours: number | null;
   /** labels of measures whose latest reading moved the wrong way */
@@ -62,7 +64,14 @@ export function computeIssues(input: IssueInput): Issue[] {
     });
   }
 
-  if (input.adverseEvent) {
+  if (input.sessionsOnHold) {
+    issues.push({
+      kind: "adverse_event",
+      severity: "danger",
+      label: "Adverse event reported",
+      detail: "The trainer reported an incident during a session. Sessions are on hold until you clear them.",
+    });
+  } else if (input.adverseEvent) {
     issues.push({
       kind: "adverse_event",
       severity: "danger",

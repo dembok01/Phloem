@@ -84,6 +84,7 @@ export default async function ClinicianClientsPage() {
     { data: declining },
     { data: unread },
     { data: feedback },
+    { data: openIncidents },
   ] = await Promise.all([
     supabase.from("members").select("id, full_name, age, status, red_flags").order("full_name"),
     // cons_clinician already scopes these to the viewer's own type + assigned members.
@@ -112,6 +113,10 @@ export default async function ClinicianClientsPage() {
           .eq("form_templates.key", "feedback_training")
           .not("submitted_at", "is", null)
       : Promise.resolve({ data: [] }),
+    // 0059: an incident the doctor has not cleared holds sessions.
+    isDoctor
+      ? supabase.from("safety_events").select("member_id").eq("kind", "incident").is("cleared_at", null)
+      : Promise.resolve({ data: [] as { member_id: string }[] }),
   ]);
 
   // Narrow to the desk being borrowed. For a real clinician both lists arrived
@@ -143,6 +148,7 @@ export default async function ClinicianClientsPage() {
     unreadByMember.set(t.member_id, (unreadByMember.get(t.member_id) ?? 0) + Number(t.unread));
   }
 
+  const heldMembers = new Set((openIncidents ?? []).map((e) => e.member_id));
   const adverseByMember = new Set<string>();
   for (const f of (feedback ?? []) as { member_id: string; answers: Record<string, unknown> }[]) {
     if (String(f.answers?.adverse_events) === "true") adverseByMember.add(f.member_id);
@@ -200,6 +206,7 @@ export default async function ClinicianClientsPage() {
           flags,
           clearance,
           adverseEvent: adverseByMember.has(m.id),
+          sessionsOnHold: heldMembers.has(m.id),
           reportOverdueHours: overdueHours.get(m.id) ?? null,
           decliningMeasures: decliningByMember.get(m.id) ?? [],
           // The doctor cannot read `packages`; the active cycle's end date is the
