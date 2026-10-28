@@ -22,7 +22,7 @@ function repeatRows(value: unknown): Record<string, unknown>[] {
     : [];
 }
 
-function conditionsSummary(value: unknown): string {
+export function conditionsSummary(value: unknown): string {
   const rows = repeatRows(value);
   const parts = rows
     .map((r) => {
@@ -30,6 +30,19 @@ function conditionsSummary(value: unknown): string {
       const dur = textOr(r.duration, "");
       if (!name) return "";
       return dur ? `${name} (${dur})` : name;
+    })
+    .filter(Boolean);
+  return parts.length ? parts.join("; ") : "—";
+}
+
+/** "Metformin 500 mg, twice daily; Amlodipine" — the emergency card's one line. */
+export function medicationsSummary(value: unknown): string {
+  const parts = repeatRows(value)
+    .map((r) => {
+      const name = textOr(r.name, "");
+      if (!name) return "";
+      const how = [textOr(r.dose, ""), textOr(r.frequency, "")].filter(Boolean);
+      return how.length ? `${name} ${how.join(", ")}` : name;
     })
     .filter(Boolean);
   return parts.length ? parts.join("; ") : "—";
