@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Every client gets an Emergency & Safety record (onboarding for new families, the coordinator's phone calls for current ones). The assigned trainer and doctor see it pinned on the client page. Trainers get a printable safety card, plus "No session today" and "Report an incident" buttons; an incident puts sessions on hold until the doctor clears them.
+**Goal:** Every client gets an Emergency & Safety record: onboarding for new families; for current ones the coordinator either asks the family to fill it on their dashboard or fills it in on a call. The assigned trainer and doctor see it pinned on the client page. Trainers get a printable safety card, plus "No session today" and "Report an incident" buttons; an incident puts sessions on hold until the doctor clears them.
 
 **Architecture:** Two new tables (`member_safety`, `safety_events`), read through RLS and written only through security-definer RPCs (migration 0059). The trainer's and doctor's view comes from one RPC, `emergency_card`, so `member_contacts` keeps its policies. Onboarding v2 (migration 0060) adds the section. `submit_onboarding` moves those answers into `member_safety`, the same way it already moves contact details into `member_contacts`. The UI is server components plus small client sheets, built with the existing `Sheet`, `Button` and `Callout` components and `ActionResult`.
 
@@ -33,6 +33,8 @@
 3. **Phone numbers as families type them** ("+91 98470 12345", "0484-2345678"). The `tel:` link must dial. Pinned in Task 3 (`telHref`).
 4. **People who must not see it:** nutritionist, psychologist, an unassigned trainer, anon. Pinned in Task 1 (§16).
 5. **Two incidents before the doctor looks.** The hold stays until the doctor clears it, and one "Clear to restart" clears both. Pinned in Task 1 (§16).
+6. **A client with no family login** (2 today). "Ask the family" is refused with a reason and the call is the way. Pinned in Task 1 (§16: `no_family_login`).
+7. **Ambulance numbers are short** (108, 999). The existing `telHref` in `lib/wa.ts` drops anything under 8 digits and always adds `+`, so 108 gets no link and "9847012345" dials +98. Pinned in Task 3.
 
 ---
 
@@ -48,7 +50,9 @@
   - `member_safety(member_id uuid pk → members on delete cascade, local_contact_name text not null, local_contact_relation text not null, local_contact_phone text not null, local_contact_eta text not null check in ('under_10','10_30','over_30'), hospital_name text not null, hospital_phone text not null, ambulance_phone text not null default '108', private_ambulance_phone text null, someone_home boolean not null, bp_or_glucometer boolean not null, consent_source text not null check in ('family_form','coordinator_call'), consent_recorded_by uuid → profiles, consent_at timestamptz not null, updated_by uuid → profiles, updated_at timestamptz not null default now())`
   - `safety_events(id uuid pk, member_id uuid not null → members on delete cascade, kind text not null check in ('skipped','incident'), reasons text[] not null default '{}', detail text, occurred_at timestamptz not null default now(), reported_by uuid not null → profiles, cleared_at timestamptz, cleared_by uuid → profiles, clear_note text)`, plus index `(member_id, occurred_at desc)` and a partial index on open incidents `(member_id) where kind = 'incident' and cleared_at is null`.
   - `_save_safety(p_member uuid, p_fields jsonb, p_source text) returns void`: internal. It upserts and validates. Errors: `safety_incomplete` (any required key blank), `bad_eta`, `emergency_consent_required` (`p_fields->>'emergency_consent'` is not `'true'`). On update it keeps the existing `consent_*` and does not re-ask consent. A blank `private_ambulance_phone` is stored as null. `ambulance_phone` defaults to `'108'` when blank.
-  - `save_member_safety(p_member uuid, p_fields jsonb) returns void`: admin or coordinator only; source `coordinator_call`; audits `member_safety.saved`. `emergency_consent` is only required when no row exists yet.
+  - `save_member_safety(p_member uuid, p_fields jsonb) returns void`. Callers: admin or coordinator (source `coordinator_call`), and `is_caregiver_of(p_member)` (source `family_form`). Audits `member_safety.saved`. `emergency_consent` is only required when no row exists yet. A family save notifies coordinators (`_notify_roles`, type `safety_family_saved`, "{name}'s family added their emergency details" / "…updated…", link `/coordinator/members/<id>#safety`, dedupe `safety_family:<member>:<IST date>`).
+  - `members.safety_requested_at timestamptz null`, `members.safety_requested_by uuid null → profiles` (new columns).
+  - `request_safety_details(p_member uuid) returns void`: admin or coordinator. Errors `already_filled` (a row exists), `no_family_login` (`caregiver_id` is null). Sets the two columns (asking again refreshes them) and `_notify`s the caregiver: type `safety_request`, title "Add emergency details for {first name}", body "So the trainer knows who to call if something happens in a session. It takes about 2 minutes.", link `/portal?member=<id>#safety`, dedupe `safety_request:<member>:<IST date>`. Audits.
   - `emergency_card(p_member uuid) returns jsonb`. Readers: admin, coordinator, assigned trainer or doctor. Anyone else gets `not_allowed`. Shape: `{ safety: {…row minus consent_recorded_by/updated_by} | null, address, pin_code, family_contact: {name, phone}, health: {conditions jsonb, medications jsonb, latest_doctor_report: {id, created_at} | null} | null, hold: {since timestamptz, detail text, reported_by_name text, open_count int} | null }`.
     - `health` is null for the coordinator.
     - `conditions` and `medications` come from the newest submitted `onboarding` response.
@@ -67,16 +71,23 @@
     - Neither table has insert, update or delete policies.
 
 - [ ] **Step 1: Write the §16 block** `-- ============ 0059: emergency & safety ============`. Mirror the 0054 block's fixture style:
-  - user ids `'0f0f0000-0000-4000-8000-0000000059' || k` for k in `c1` coordinator, `a1` admin, `d1` doctor, `e1` trainer, `e2` trainer (unassigned), `b1` nutritionist, `p1` psychologist, `61` caregiver
-  - one member, with assignments `d1`, `e1`, `b1`, `p1`, and `member_contacts` holding an address
+  - user ids `'0f0f0000-0000-4000-8000-0000000059' || k` for k in `c1` coordinator, `a1` admin, `d1` doctor, `e1` trainer, `e2` trainer (unassigned), `b1` nutritionist, `p1` psychologist, `61` caregiver of m1, `62` caregiver of nobody here
+  - member m1 (caregiver `61`), with assignments `d1`, `e1`, `b1`, `p1`, and `member_contacts` holding an address: the family path and the trainer/doctor checks
+  - member m2 (no caregiver, no assignments): the coordinator-call path
   - helpers `pg_temp.saf_as(k)` and `pg_temp.saf_try(q)`
   
   Assertions, each `insert into results select pg_temp.assert_true('<name>', <expr>)`:
   - `safety: the trainer's card before any record — safety null, address shown`: `emergency_card(m)->'safety' = 'null'` and `->>'address'` is not null, as `e1`
-  - `safety: saving without consent is refused`: `save_member_safety` with `emergency_consent` false → `'emergency_consent_required'`, as `c1`
+  - `safety: the coordinator asks the family`: `request_safety_details(m1)` as `c1` → ok; `members.safety_requested_at` is set; a `safety_request` notification exists for `61`
+  - `safety: no one to ask`: `request_safety_details(m2)` → `'no_family_login'`
+  - `safety: another family cannot`: `save_member_safety(m1, …)` as `62` → `'not_allowed'`
+  - `safety: the family must tick consent`: as `61`, `emergency_consent` false → `'emergency_consent_required'`
+  - `safety: the family fills it in`: as `61` with consent → ok; `consent_source = 'family_form'`; a `safety_family_saved` notification exists for `c1`
+  - `safety: asking once it's filled`: `request_safety_details(m1)` → `'already_filled'`
+  - `safety: saving without consent is refused`: `save_member_safety(m2)` with `emergency_consent` false → `'emergency_consent_required'`, as `c1`
   - `safety: a blank hospital phone is refused` → `'safety_incomplete'`
-  - `safety: the coordinator saves it from the call`: `'ok'`, and the row has `consent_source = 'coordinator_call'` and `ambulance_phone = '999'` (save with 999)
-  - `safety: a second save keeps the consent and needs no tick`: save again without `emergency_consent` → `'ok'`
+  - `safety: the coordinator saves it from the call`: m2 → `'ok'`, and the row has `consent_source = 'coordinator_call'` and `ambulance_phone = '999'` (save with 999)
+  - `safety: a second save keeps the consent and needs no tick`: save m2 again without `emergency_consent` → `'ok'`
   - `safety: the coordinator's card leaves out health`: `emergency_card(m)->'health' = 'null'`, as `c1`
   - `safety: the trainer's card carries medicines`: `emergency_card(m)->'health'` is not `'null'`, as `e1`
   - `safety: an unassigned trainer, nutritionist, psychologist cannot`: `emergency_card` → `'not_allowed'` for `e2`, `b1`, `p1`, and `select count(*) from member_safety` = 0 for each
@@ -88,15 +99,17 @@
   - `safety: the doctor clears both at once`: `clear_safety_hold(m,'Seen, fine to resume')` returns 2; `hold` is `'null'`; a `safety_cleared` notification exists for `e1`
   - `safety: clearing again` → `'not_on_hold'`
   - `safety: the psychologist sees no events`: `select count(*) from safety_events` = 0 as `p1`
-  - `safety: anon cannot call; the helper is internal`: `has_function_privilege` checks for the four public RPCs (anon false) and `_save_safety` (authenticated false)
+  - `safety: anon cannot call; the helper is internal`: `has_function_privilege` checks for the five public RPCs (anon false) and `_save_safety` (authenticated false)
+
+  Order: the "before any record" check on m1 runs first, then the family path on m1, then the coordinator path on m2, then the trainer/doctor/event checks on m1.
 
 - [ ] **Step 2: Write `0059_emergency_safety.sql`** to the Interfaces above. Header comment: why, what, who reads.
 
 - [ ] **Step 3: Apply** with MCP `apply_migration` (name `0059_emergency_safety`, query = the file's contents).
 
-- [ ] **Step 4: Run the §16 suite.** Send the whole of `supabase/tests/rls.test.sql` through MCP `execute_sql`; it ends in `rollback`. Expected: every line `PASS`, no `FAIL`, including the 17 new ones.
+- [ ] **Step 4: Run the §16 suite.** Send the whole of `supabase/tests/rls.test.sql` through MCP `execute_sql`; it ends in `rollback`. Expected: every line `PASS`, no `FAIL`, including the 23 new ones.
 
-- [ ] **Step 5: Regenerate types** with `supabase gen types typescript --linked > lib/supabase/database.types.ts`. If the CLI isn't logged in, hand-add the two tables and four functions in the existing style. Then `npx tsc --noEmit > $SCRATCH/tsc.out 2>&1; echo EXIT=$?` → `EXIT=0`.
+- [ ] **Step 5: Regenerate types** with `supabase gen types typescript --linked > lib/supabase/database.types.ts`. If the CLI isn't logged in, hand-add the two tables, the two `members` columns and five functions in the existing style. Then `npx tsc --noEmit > $SCRATCH/tsc.out 2>&1; echo EXIT=$?` → `EXIT=0`.
 
 - [ ] **Step 6: Commit** `feat(safety): emergency & safety records, incidents and holds (0059)`.
 
@@ -179,6 +192,7 @@ FLOW changes:
 **Files:**
 - Create: `lib/safety.ts`, `lib/safety.test.ts`
 - Modify: `lib/reports/build/onboarding-summary.ts` (export `conditionsSummary`; add and export `medicationsSummary(value): string`, "Name dose, frequency; …" or "—")
+- Modify: `lib/wa.ts` (`telHref`: keep `+` only when the number was typed with one; accept 3+ digits so 108 and 999 dial; `waMeLink` keeps its 8-digit floor). The coordinator page's existing call links get the same fix.
 - Modify: `package.json` (add `lib/safety.test.ts` to `test:unit`)
 
 **Interfaces:**
@@ -187,12 +201,13 @@ FLOW changes:
   - `type SkipReason = "chest_pain" | "dizziness" | "breathlessness" | "high_bp" | "other"`; `SKIP_REASONS: readonly { value: SkipReason; label: string }[]` (Chest pain, Dizziness, Breathlessness, Very high BP, Feeling unwell / other)
   - `safetyInputSchema` (Zod: the 11 fields, with phones trimmed and min 3 chars, `private_ambulance_phone` optional, booleans) → `type SafetyInput`
   - `parseEmergencyCard(json: unknown): EmergencyCard`: Zod, matching Task 1's `emergency_card` shape
-  - `telHref(phone: string): string`: keeps a leading `+` and digits
   - `whatsappText(memberName: string, card: EmergencyCard): string`
+  - `askFamilyText(caregiverFirstName: string, memberFirstName: string, url: string): string`: "Hello {cg}, this is PHLOEM. For {member}'s safety during training sessions, please add a nearby contact, the nearest hospital and the ambulance number on the PHLOEM dashboard — it takes about 2 minutes: {url}. If it's easier, reply here and we'll call you to fill it in together."
   - `SAFETY_PROTOCOL: { before: string[]; during: string[]; after: string[] }`: the Task 6 copy
 
 - [ ] **Step 1: Write `lib/safety.test.ts`:**
-  - `telHref dials what families type`: `"+91 98470 12345"` → `"tel:+919847012345"`; `"0484-2345678"` → `"tel:04842345678"`
+  - `telHref dials what families type` (from `lib/wa`): `"+91 98470 12345"` → `"tel:+919847012345"`; `"0484-2345678"` → `"tel:04842345678"`; `"108"` → `"tel:108"`; `""` → `null`
+  - `the ask-the-family message`: contains both first names and the url
   - `a card with no record parses`: `parseEmergencyCard({ safety: null, address: "x", pin_code: "682001", family_contact: { name: "A", phone: "1" }, health: null, hold: null }).safety === null`
   - `the WhatsApp text uses the stored ambulance number`: with `ambulance_phone: "999"`, the text contains `"Ambulance: 999"` and does not contain `"108"`
   - `the WhatsApp text`: contains the member name, the address with PIN, `"Nearby contact: <name> (<relation>) — <phone> · reaches in Under 10 minutes"`, `"Hospital: <name> — <phone>"`, `"Private ambulance: none"` when null, `"Anyone else home during sessions: No"`, and `"BP machine or glucometer: Yes"`
@@ -213,17 +228,20 @@ FLOW changes:
   - `saveMemberSafetyAction(memberId: string, input: SafetyInput): Promise<ActionResult>`
   - `reportSafetyEventAction(input: { member_id: string; kind: "skipped" | "incident"; reasons: SkipReason[]; detail: string }): Promise<ActionResult<{ eventId: string }>>`
   - `clearSafetyHoldAction(input: { member_id: string; note: string }): Promise<ActionResult<{ cleared: number }>>`
+  - `requestSafetyDetailsAction(memberId: string): Promise<ActionResult>`
 
   Each one Zod-parses the input, calls its RPC, and maps errors with `actionFromError`:
-  - `not_allowed` → "Only the member's coordinator, trainer or doctor can do this."
+  - `not_allowed` → "You can't change this client's emergency details."
   - `emergency_consent_required` → "Read the consent sentence to the family and tick that they agreed."
   - `safety_incomplete` → "Fill in every detail; only the private ambulance can be left blank."
   - `reasons_required` → "Choose why there's no session today."
   - `detail_required` → "Say what happened and what you did."
   - `note_required` → "Add a short note on why sessions can restart."
   - `not_on_hold` → "Sessions aren't on hold any more."
+  - `already_filled` → "The details are already filled in."
+  - `no_family_login` → "This client has no family login — fill it in on a call."
   
-  Each then calls `revalidatePath` on `/clinician/clients/<id>`, `/coordinator/members/<id>` and `/coordinator`.
+  Each then calls `revalidatePath` on `/clinician/clients/<id>`, `/coordinator/members/<id>`, `/coordinator` and `/portal`.
 
 - [ ] **Step 1: Implement** in the style of `app/(app)/clinician/clients/[id]/actions.ts`.
 - [ ] **Step 2: Typecheck and lint.** `npx tsc --noEmit` and `npx eslint app/(app)/safety-actions.ts` → both exit 0.
@@ -271,20 +289,23 @@ Behaviour:
   - `components/safety/safety-details-card.tsx` (server)
   - `components/safety/safety-form-sheet.tsx` (client)
   - `components/safety/copy-whatsapp-button.tsx` (client)
+  - `components/safety/ask-family-button.tsx` (client)
   - `components/safety/safety-protocol.tsx` (server, print CSS)
   - `app/(app)/clinician/safety-card/page.tsx`
   - `app/(app)/coordinator/safety-card/page.tsx`
 - Modify:
   - `app/(app)/coordinator/members/[id]/page.tsx`: `SafetyDetailsCard` after the Contacts card, with `id="safety"`
-  - `app/(app)/coordinator/page.tsx`: one `Callout` listing members with no `member_safety` row (status not `inactive`), linking `/coordinator/members/<id>#safety`, and one listing members on hold. The spec's "Safety details missing" filter lands here: the coordinator has no member list, and Today is where her work queue already lives **(builder)**.
+  - `app/(app)/coordinator/page.tsx`: one `Callout` listing members with no `member_safety` row (status not `invited`, `signed_up`, `onboarding` — those get it in the onboarding form — or `inactive`), each marked "Not asked yet" or "Family asked {date}" from `safety_requested_at`, linking `/coordinator/members/<id>#safety`; and one listing members on hold. The spec's "Safety details missing" list lands here: the coordinator has no member list, and Today is their work queue **(builder)**.
 
 **Interfaces:**
-- Consumes: the Task 4 actions, Task 5's `SafetyEventSheet`, and Task 3's `whatsappText`, `ETA_LABEL` and `SAFETY_PROTOCOL`.
+- Consumes: the Task 4 actions (including `requestSafetyDetailsAction`), Task 5's `SafetyEventSheet`, Task 3's `whatsappText`, `askFamilyText`, `ETA_LABEL` and `SAFETY_PROTOCOL`, and `waMeLink` from `lib/wa`.
 
 Behaviour:
-- **`SafetyDetailsCard`** shows the record or "Missing — fill it in on your call with the family".
-  - **Edit** opens `SafetyFormSheet`. It has the 11 fields as native inputs with `required`; `ambulance_phone` defaults to 108; the two booleans are Yes/No radios.
-  - When no record exists, the sheet shows the consent sentence in a box, plus the required checkbox "I read this to the family and they agreed".
+- **`SafetyDetailsCard`** shows the record, with "Filled in by the family on {date}" when `consent_source` is `family_form`. While missing, it shows two ways to get it:
+  - **Fill it in on a call** opens `SafetyFormSheet` (`mode="call"`).
+  - **Ask the family** (`AskFamilyButton`) calls `requestSafetyDetailsAction`, then offers **Send on WhatsApp** (`waMeLink(caregiver whatsapp ?? phone)` + `?text=` of `askFamilyText`, link to `${NEXT_PUBLIC_APP_URL}/portal`) and **Copy message**. Once asked it reads "Family asked on {date}" and offers the WhatsApp reminder again. With no caregiver it is replaced by "No family login — fill it in on a call."
+  - **Edit** opens `SafetyFormSheet` (`mode: "call" | "family"`, also used by Task 7). It has the 11 fields as native inputs with `required`; `ambulance_phone` defaults to 108; the two booleans are Yes/No radios.
+  - When no record exists: in `call` mode the sheet shows the consent sentence in a box, plus the required checkbox "I read this to the family and they agreed"; in `family` mode the consent sentence is itself the required checkbox's label.
   - The card also has "Copy for WhatsApp" (clipboard, then toast "Copied — paste it in the family's group and pin it"), the event log (last 10: kind, date, reporter, detail, cleared by/when), and the "Report an incident" sheet (a family may phone in).
 
 `SAFETY_PROTOCOL` copy. Per the owner's approval this is the client's text, with "her" made neutral (flag this in the hand-off):
@@ -297,22 +318,41 @@ The safety-card page renders `SafetyProtocol` with a Print button (`window.print
 - [ ] **Step 1: Implement**, then `npx tsc --noEmit` and eslint → exit 0.
 - [ ] **Step 2: Commit** `feat(safety): coordinator safety details, WhatsApp copy, printable safety card`.
 
-### Task 7: Verify end to end, record it, hand over
+### Task 7: The family fills it on their dashboard
+
+**Files:**
+- Create: `components/portal/family-safety-card.tsx` (server)
+- Modify: `app/(app)/portal/page.tsx` (`CaregiverMember`: one `member_safety` select for the member, alongside the existing `Promise.all`)
+
+**Interfaces:**
+- Consumes: Task 6's `SafetyFormSheet` (`mode="family"`), Task 4's `saveMemberSafetyAction`, Task 3's `ETA_LABEL`.
+- Produces: `<FamilySafetyCard memberId firstName safety />`, rendered with `id="safety"` (the notification links to `#safety`).
+
+Behaviour, only when status is not `invited`, `signed_up`, `onboarding` (those fill it in onboarding) or `inactive`:
+- **Missing:** a prompt card right after the hero (and the renewal card): "Add emergency details for {first name}" / "If something happens during a training session, the trainer needs to know who to call and which hospital is nearest. It takes about 2 minutes." Button **Add details** opens the sheet. Success toast "Thank you — the trainer and doctor can now see these details."
+- **Filled:** an "Emergency & safety" card after "Their details", listing the details (labels from Task 2, `ETA_LABEL`, Yes/No), with **Edit**.
+- The elderly `ElderlyHome` gets nothing (no member logins exist).
+
+- [ ] **Step 1: Implement**, then `npx tsc --noEmit` and eslint → exit 0.
+- [ ] **Step 2: Commit** `feat(safety): families add and update emergency details on their dashboard`.
+
+### Task 8: Verify end to end, record it, hand over
 
 **Files:**
 - Create: `scripts/safety-fixtures.ts` (throwaway; deleted in Step 5)
-- Modify: `PROGRESS.md`, `CLAUDE.md` (permission matrix: a row "Emergency & Safety record + incidents (0059)" — ✅ admin, ✅ coordinator edit, 👁 assigned doctor, ❌ nutritionist, 👁 assigned trainer + report, ❌ psychologist, ✅ own caregiver read), and the memory files
+- Modify: `PROGRESS.md`, `CLAUDE.md` (permission matrix: a row "Emergency & Safety record + incidents (0059)" — ✅ admin, ✅ coordinator edit, 👁 assigned doctor, ❌ nutritionist, 👁 assigned trainer + report, ❌ psychologist, ✅ own caregiver fill/edit), and the memory files
 
 - [ ] **Step 1: Full checks.** Delete `.next`, then run `npm run test:unit`, `npx tsc --noEmit`, eslint on the touched files, and `npm run build`. Each must print `EXIT=0`. Then run the §16 suite once more → all PASS.
 
-- [ ] **Step 2: Fixtures.** `scripts/safety-fixtures.ts up` uses the service role from `.env.local` (never printed). It creates `safety-{trainer,doctor,coord}@example.test` with a generated password written only to the scratchpad, plus a member "ZZ Safety check" with contacts, an onboarding answer and assignments, and a saved record. `down` deletes all of them, member cascade included.
+- [ ] **Step 2: Fixtures.** `scripts/safety-fixtures.ts up` uses the service role from `.env.local` (never printed). It creates `safety-{trainer,doctor,coord,family}@example.test` with a generated password written only to the scratchpad, plus a member "ZZ Safety check" with contacts, an onboarding answer and assignments, and a saved record. `down` deletes all of them, member cascade included.
 
 - [ ] **Step 3: Browser check** against `npm run dev`, with screenshots in the scratchpad at 390 and 1280px:
   - trainer: the card at the top and tap targets ≥ 44px; both sheets open (do NOT submit, since an incident notifies the real coordinators)
   - doctor: the card shows
   - coordinator: the safety card fills, and Copy for WhatsApp works
   - the safety-card page prints on one page
-  - a second fixture member with no record shows the "No emergency details yet" card
+  - a second fixture member with no record shows the "No emergency details yet" card, and on the coordinator page the two ways to get it (do NOT press Ask the family — it notifies)
+  - family (caregiver of the no-record member): the prompt shows near the top and the sheet opens at 390px (do NOT save — it notifies the real coordinators)
 
 - [ ] **Step 4: Tear down.** Run `scripts/safety-fixtures.ts down`, then a read-only check that no `@example.test` profile or "ZZ Safety check" member remains.
 
@@ -323,4 +363,4 @@ The safety-card page renders `SafetyProtocol` with a Print button (`window.print
   - Memory: a new `phloem-emergency-safety.md` plus its index line.
   - Commit `docs: Emergency & Safety shipped — progress, matrix, verification`.
 
-- [ ] **Step 6: Hand over.** Tell the owner what changed and what the coordinator does next: 22 calls, reading the consent sentence, correcting the ambulance number for the 8 clients abroad, and inviting the missing trainers. Ask before pushing.
+- [ ] **Step 6: Hand over.** Tell the owner what changed and what the coordinator does next: for each of the current clients, ask the family on WhatsApp or call (2 have no family login), reading the consent sentence on calls, correcting the ambulance number for the 8 clients abroad, and inviting the missing trainers. Ask before pushing.

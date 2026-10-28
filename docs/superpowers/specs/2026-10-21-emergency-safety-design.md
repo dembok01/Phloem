@@ -15,8 +15,9 @@ and nothing stops training restarting before the doctor has looked.
 
 ## Goals
 
-1. Every client has an Emergency & Safety record — new families fill it in onboarding;
-   the coordinator fills it for the 22 current clients during a ~5-minute call each.
+1. Every client has an Emergency & Safety record — new families fill it in onboarding.
+   For current clients the coordinator drives it: either asks the family to fill it in on
+   their dashboard, or fills it in during a ~5-minute call **(owner, 2026-10-28)**.
 2. The assigned trainer and doctor see it pinned on the client's page, tap-to-call, without
    searching.
 3. A one-page safety card in the client's own words, printable.
@@ -32,8 +33,8 @@ and nothing stops training restarting before the doctor has looked.
 - Conditions and medicines are not asked again **(owner)**: the card shows what onboarding
   collected, updated by the doctor's reports.
 - No other onboarding question changes (client rule: questions are frozen).
-- The family editing its safety details after onboarding — later, if asked; the
-  coordinator edits meanwhile.
+- No prompt on the elderly member's own login — none exist today; families use the
+  caregiver dashboard.
 
 ## Anti-goals
 
@@ -84,7 +85,10 @@ Access, through RLS and security-definer RPCs only:
 
 - `member_safety` read: admin, coordinator, the caregiver, the assigned trainer and doctor.
   Write `save_member_safety(member, fields)`: admin, coordinator (consent source
-  `coordinator_call`); onboarding writes it as `family_form`.
+  `coordinator_call`), and the member's caregiver from the dashboard (`family_form`, as
+  onboarding writes it). A family save tells the coordinators.
+- `request_safety_details(member)`: admin, coordinator. Records when the family was
+  asked (`members.safety_requested_at`) and sends the caregiver an in-app notification.
 - `emergency_card(member)`: the safety row + address, PIN and the family emergency
   contact, for the same readers as `member_safety`. For the trainer and doctor only, it adds
   conditions and medicines as given at onboarding, with a link to the latest doctor's report
@@ -116,8 +120,15 @@ is unchanged.
   to the safety card. The doctor gets **Clear to restart** (with a note) on the banner, and an
   uncleared incident lights the existing "Adverse event" chip in "Needs your attention".
 - **Coordinator, member page:** an Emergency & Safety card with **Edit**, the event log, and
-  **Copy for WhatsApp** (the details as text, to pin in the group). The member list gets a
-  "Safety details missing" filter so the 22 calls can be worked through.
+  **Copy for WhatsApp** (the details as text, to pin in the group). While it is missing, two
+  ways to get it: **Fill it in on a call**, or **Ask the family** — which notifies them and
+  opens WhatsApp to the caregiver with a ready message and the dashboard link. The
+  coordinator's Today page lists every client still missing details, each marked "Not asked
+  yet" or "Family asked {date}", so nobody is forgotten.
+- **Family, dashboard:** while details are missing (and onboarding is done), a prompt near
+  the top — "Add emergency details for {name}" — opens the same form, with the consent
+  sentence as the family's own tick. Once filled, the details sit under "Their details" with
+  **Edit**, so the family can update a changed number.
 - **Safety card:** a print-friendly page in the client's words (before the session / if
   something happens / after), for trainers, doctors, coordinators and admin.
 
@@ -131,7 +142,16 @@ clinicians." That stops being true, so:
   address for that purpose."*
 - The notice gains: *"…never shared with clinicians, except the Emergency & Safety details,
   which the trainer and doctor can see so they can act in an emergency."*
-- The coordinator reads the consent sentence on each of the 22 calls.
+- The coordinator reads the consent sentence on each call; a family filling it in on the
+  dashboard ticks it themselves.
+
+## Family fills it too (owner, 2026-10-28)
+
+The family can fill the details on their dashboard; the coordinator owns getting it done,
+by asking them or by calling. Of 23 current clients, 21 caregivers have signed in at some
+point but only 4 in the last 30 days, and 2 clients have no family login — so the WhatsApp
+message, not the in-app notification, is what actually reaches families, and the call stays
+the fallback.
 
 Design approved by the owner 2026-10-28.
 
