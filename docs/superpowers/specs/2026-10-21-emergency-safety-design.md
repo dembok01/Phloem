@@ -66,9 +66,8 @@ saved resume position don't move) **(builder)**. All required except the private
 | Ambulance number | text | Pre-filled **108**, editable: 8 of 22 clients live in the UAE, UK, Oman or Canada, where 108 does not work. The coordinator corrects those on the call. |
 | Private ambulance number | text | Optional — "Leave blank if none" |
 | Is anyone else usually at home during session time? | boolean | |
-| BP machine at home? | boolean | Split from "BP machine or glucometer" **(owner)** — if the client prefers one question, it stays one. |
-| Glucometer at home? | boolean | |
-| Emergency consent | boolean | Must be yes to save **(builder)** — without it there is no card, and the trainer sees "No emergency details — call the coordinator". Wording: open question 1 |
+| BP machine or glucometer at home? | boolean | One question, as the client wrote it **(owner, 2026-10-28: don't split)** |
+| Emergency consent | boolean | Must be yes to save **(builder)** — without it there is no card, and the trainer sees "No emergency details — call the coordinator". Wording: see Consent below |
 
 ## Data (migration 0059)
 
@@ -112,7 +111,7 @@ is unchanged.
 
 - **Trainer and doctor, client page:** the Emergency card above the tabs on every tab —
   numbers as tap-to-call buttons, the address, warnings ("Alone at home during sessions",
-  "No BP machine at home"), and a red **"Sessions on hold since … — waiting for the doctor"**
+  "No BP machine or glucometer at home"), and a red **"Sessions on hold since … — waiting for the doctor"**
   banner when held. Trainer buttons: **No session today**, **Report an incident**, and a link
   to the safety card. The doctor gets **Clear to restart** (with a note) on the banner, and an
   uncleared incident lights the existing "Adverse event" chip in "Needs your attention".
@@ -122,17 +121,19 @@ is unchanged.
 - **Safety card:** a print-friendly page in the client's words (before the session / if
   something happens / after), for trainers, doctors, coordinators and admin.
 
-## Open questions (owner / client)
+## Consent (owner, confirmed 2026-10-28)
 
-1. **Consent wording.** The current onboarding notice tells families "Your contact details
-   are never shared with clinicians." That stops being true. Proposed:
-   - New consent field: *"I agree that PHLOEM's care team may contact the people above in an
-     emergency, and that the member's trainer and doctor may see these details and the home
-     address for that purpose."*
-   - The notice gains: *"…never shared with clinicians, except the Emergency & Safety details,
-     which the trainer and doctor can see so they can act in an emergency."*
-   - The coordinator reads the consent sentence on each of the 22 calls.
-2. **BP / glucometer split** — the client's OK (otherwise one question, as written).
+The current onboarding notice tells families "Your contact details are never shared with
+clinicians." That stops being true, so:
+
+- New consent field: *"I agree that PHLOEM's care team may contact the people above in an
+  emergency, and that the member's trainer and doctor may see these details and the home
+  address for that purpose."*
+- The notice gains: *"…never shared with clinicians, except the Emergency & Safety details,
+  which the trainer and doctor can see so they can act in an emergency."*
+- The coordinator reads the consent sentence on each of the 22 calls.
+
+Design approved by the owner 2026-10-28.
 
 ## Left to the builder
 
