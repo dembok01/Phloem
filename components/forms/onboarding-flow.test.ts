@@ -7,10 +7,27 @@ import { requiredMessage, toggleChoice } from "./logic";
 import { buildCards, FIELD_HINTS, firstNameOf, voiceOf, withListButtons } from "./onboarding-flow";
 import type { FormField } from "./types";
 
-const template = parseFormTemplate(
-  JSON.parse(readFileSync(join(process.cwd(), "supabase/templates/onboarding.v1.json"), "utf8")),
-);
+type RawTemplate = { sections: { id: string; title: string; fields: Record<string, unknown>[] }[] };
+const raw = (v: number): RawTemplate =>
+  JSON.parse(readFileSync(join(process.cwd(), `supabase/templates/onboarding.v${v}.json`), "utf8"));
+const template = parseFormTemplate(raw(2));
 const byId = new Map(template.sections.flatMap((s) => s.fields).map((f) => [f.id, f]));
+
+// The client asked for this section (items 3–6, 2026-10-21); labels as the owner approved.
+const SAFETY_LABELS: Record<string, string> = {
+  local_contact_name: "Name of a contact person who lives nearby",
+  local_contact_relation: "Their relation to the member",
+  local_contact_phone: "Their phone number",
+  local_contact_eta: "How quickly can they reach the house?",
+  hospital_name: "Nearest hospital",
+  hospital_phone: "Hospital phone number",
+  ambulance_phone: "Ambulance number",
+  private_ambulance_phone: "Private ambulance number",
+  someone_home: "Is anyone else usually at home during session time?",
+  bp_or_glucometer: "Is there a BP machine or glucometer at home?",
+  emergency_consent:
+    "I agree that PHLOEM's care team may contact the people above in an emergency, and that the member's trainer and doctor may see these details and the home address for that purpose.",
+};
 
 test("None is exclusive in a multiselect", () => {
   assert.deepEqual(toggleChoice(["Breathlessness", "Dizziness"], "None"), ["None"]);
@@ -72,4 +89,61 @@ test("every question is on exactly one card, and each chapter after the first op
     cards.filter((c) => c.opener).map((c) => c.id),
     firsts.slice(1).map((c) => c.id),
   );
+});
+
+test("v2 keeps every v1 question unchanged except the consent notice", () => {
+  const v1 = raw(1);
+  const v2 = raw(2);
+  v1.sections.forEach((sec, i) => {
+    assert.equal(v2.sections[i].id, sec.id);
+    assert.equal(v2.sections[i].title, sec.title);
+    assert.deepEqual(
+      v2.sections[i].fields.map((f) => f.id),
+      sec.fields.map((f) => f.id),
+    );
+    sec.fields.forEach((f, j) => {
+      if (f.id !== "consent_info") assert.deepEqual(v2.sections[i].fields[j], f, `${String(f.id)} changed`);
+    });
+  });
+  const info = (t: RawTemplate) => t.sections[0].fields.find((f) => f.id === "consent_info") as { text: string };
+  assert.equal(
+    info(v2).text,
+    info(v1).text.replace(
+      "Your contact details are never shared with clinicians.",
+      "Your contact details are never shared with clinicians, except the Emergency & Safety details, which the trainer and doctor can see so they can act in an emergency.",
+    ),
+  );
+  assert.notEqual(info(v2).text, info(v1).text);
+});
+
+test("v2 adds exactly the Emergency & Safety section", () => {
+  assert.equal(template.sections.length, 6);
+  const s6 = template.sections[5];
+  assert.equal(s6.id, "s6");
+  assert.equal(s6.title, "Emergency & Safety");
+  assert.deepEqual(s6.fields.map((f) => f.id), Object.keys(SAFETY_LABELS));
+  for (const f of s6.fields) assert.equal(f.label, SAFETY_LABELS[f.id], `${f.id} label`);
+  assert.deepEqual(s6.fields.filter((f) => !f.required).map((f) => f.id), ["private_ambulance_phone"]);
+  assert.deepEqual(byId.get("local_contact_eta")?.options, [
+    { value: "under_10", label: "Under 10 minutes" },
+    { value: "10_30", label: "10–30 minutes" },
+    { value: "over_30", label: "Over 30 minutes" },
+  ]);
+  assert.deepEqual(
+    ["someone_home", "bp_or_glucometer", "emergency_consent"].map((id) => byId.get(id)?.type),
+    ["boolean", "boolean", "boolean"],
+  );
+});
+
+test("the safety chapter comes last, on four cards", () => {
+  const cards = buildCards(template).filter((c) => c.sectionId === "s6");
+  assert.deepEqual(
+    cards.map((c) => c.title),
+    ["Someone nearby", "Hospital & ambulance", "At home during sessions", "Your consent"],
+  );
+  assert.deepEqual(cards[0].opener, {
+    title: "One last thing — safety.",
+    lead: "Who to call if something happens during a session.",
+  });
+  assert.equal(buildCards(template).at(-1)?.sectionId, "s6");
 });

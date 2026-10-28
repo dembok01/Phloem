@@ -84,12 +84,9 @@ test("buildPatch returns an empty object when nothing moved", () => {
 });
 
 test("the amendment form hides exactly the keys amend_onboarding refuses", () => {
-  const sql = readFileSync(
-    join(process.cwd(), "supabase", "migrations", "0040_amend_onboarding_consent_guard.sql"),
-    "utf8",
-  );
-  const block = sql.match(/if v_key = any\(array\[([\s\S]*?)\]\)/);
-  assert.ok(block, "no refused-key array found in 0040");
+  // The latest restatement of amend_onboarding wins (0040, then 0060 for the safety keys).
+  const block = [...SQL.matchAll(/if v_key = any\(array\[([\s\S]*?)\]\)/g)].at(-1);
+  assert.ok(block, "no refused-key array found in the migrations");
   const refused = [...block[1].matchAll(/'([a-z_]+)'/g)].map((m) => m[1]).sort();
   assert.deepEqual([...AMEND_REFUSED_KEYS].sort(), refused);
 });

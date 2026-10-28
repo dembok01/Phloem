@@ -1752,6 +1752,75 @@ insert into results select pg_temp.assert_true('safety: none of it callable by a
   and not has_function_privilege('anon', 'public.clear_safety_hold(uuid,text)', 'execute')
   and not has_function_privilege('authenticated', 'public._save_safety(uuid,jsonb,text)', 'execute'));
 
+-- ============ 0060: onboarding v2 — the Emergency & Safety section ============
+-- v2 is the only live onboarding. Submitting it files the s6 answers as the family's
+-- member_safety record (consent ticked, or refused) and strips them from the answers
+-- clinicians read; amend_onboarding cannot touch them. Self-contained throwaway users.
+reset role;
+select set_config('request.jwt.claims', '', true);
+insert into auth.users (id, instance_id, aud, role, email)
+select ('0f0f0000-0000-4000-8000-0000000060' || k)::uuid, '00000000-0000-0000-0000-000000000000',
+       'authenticated', 'authenticated', 'onb2-' || k || '@example.test'
+  from unnest(array['61','a1']) k;
+insert into profiles (id, role, full_name, email)
+select ('0f0f0000-0000-4000-8000-0000000060' || k)::uuid, r::user_role, 'ONB2 ' || k, 'onb2-' || k || '@example.test'
+  from (values ('61','caregiver'),('a1','admin')) v(k, r);
+create temp table onb2 as select gen_random_uuid() as m, gen_random_uuid() as resp;
+grant select on onb2 to authenticated;
+insert into members(id, full_name, caregiver_id, status, onboarding_video_watched_at)
+  select m, 'ONB2 — test fixture', '0f0f0000-0000-4000-8000-000000006061'::uuid, 'onboarding'::member_status, now() from onb2;
+insert into form_responses(id, member_id, template_id, respondent_id, answers)
+  select resp, m, (select id from form_templates where key = 'onboarding' and active order by version desc limit 1),
+         '0f0f0000-0000-4000-8000-000000006061',
+         '{"full_name":"ONB2 — test fixture","age":72,"contact_number":"+91 90000 00002","pin_code":"682001",
+           "conditions":[{"condition":"Hypertension","duration":"10 years"}],
+           "local_contact_name":"Suma","local_contact_relation":"Neighbour","local_contact_phone":"+91 98470 12345",
+           "local_contact_eta":"10_30","hospital_name":"Lakeshore Hospital","hospital_phone":"0484-2345678",
+           "ambulance_phone":"108","private_ambulance_phone":"","someone_home":false,"bp_or_glucometer":true,
+           "emergency_consent":false}'::jsonb
+    from onb2;
+create function pg_temp.onb2_try(q text) returns text language plpgsql as $$
+begin execute q; return 'ok'; exception when others then return SQLERRM; end $$;
+create function pg_temp.onb2_as(k text) returns void language sql as $$
+  select set_config('request.jwt.claims', json_build_object('sub',
+    ('0f0f0000-0000-4000-8000-0000000060' || k)::uuid, 'role', 'authenticated')::text, true) $$;
+create function pg_temp.onb2_submit() returns text language sql as $$
+  select pg_temp.onb2_try(format('select submit_onboarding(%L, %L, null)', (select m from onb2), (select resp from onb2))) $$;
+
+insert into results select pg_temp.assert_true('onboarding v2: the only active onboarding version',
+  (select count(*) = 1 and min(version) = 2 from form_templates where key = 'onboarding' and active));
+insert into results select pg_temp.assert_eq('onboarding v2: no unsubmitted v1 draft is left behind',
+  (select count(*) from form_responses fr join form_templates t on t.id = fr.template_id
+    where t.key = 'onboarding' and t.version = 1 and fr.submitted_at is null), 0);
+select pg_temp.onb2_as('61');
+set local role authenticated;
+insert into results select pg_temp.assert_true('onboarding v2: consent No is refused',
+  pg_temp.onb2_submit() = 'emergency_consent_required');
+reset role;
+update form_responses set answers = answers || '{"emergency_consent":true}' where id = (select resp from onb2);
+select pg_temp.onb2_as('61');
+set local role authenticated;
+insert into results select pg_temp.assert_true('onboarding v2: the family submits',
+  pg_temp.onb2_submit() = 'ok');
+reset role;
+insert into results select pg_temp.assert_true('onboarding v2: the safety record is filed as the family''s',
+  (select consent_source = 'family_form' and someone_home = false and bp_or_glucometer = true
+          and local_contact_eta = '10_30' and private_ambulance_phone is null
+     from member_safety where member_id = (select m from onb2)));
+insert into results select pg_temp.assert_true('onboarding v2: no safety answer is left in the answers clinicians read',
+  (select not (answers ?| array['local_contact_name','local_contact_relation','local_contact_phone',
+                                 'local_contact_eta','hospital_name','hospital_phone','ambulance_phone',
+                                 'private_ambulance_phone','someone_home','bp_or_glucometer','emergency_consent'])
+          and answers ? 'conditions' and not (answers ? 'contact_number')
+     from form_responses where id = (select resp from onb2)));
+select pg_temp.onb2_as('a1');
+set local role authenticated;
+insert into results select pg_temp.assert_true('onboarding v2: amend refuses the safety answers',
+  pg_temp.onb2_try(format('select amend_onboarding(%L, %L, %L, null)', (select m from onb2),
+    '{"hospital_name":"Elsewhere"}', 'fix')) = 'field_not_allowed');
+reset role;
+select set_config('request.jwt.claims', '', true);
+
 select line from results;
 
 rollback;

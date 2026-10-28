@@ -3,7 +3,7 @@
 // question content, required rules, or clinical logic: it only decides how the
 // existing template fields are grouped into bite-sized cards, the warm copy that
 // wraps them, and soft UI hints (units / steppers). The template
-// (`onboarding.v1.json`) stays the single source of truth for the questions
+// (`onboarding.v2.json`) stays the single source of truth for the questions
 // themselves, so nothing here touches red-flags, reports, or role-scoped reads.
 import type { FieldHint, FormField, FormSection, FormTemplateSchema, FormValues } from "./types";
 
@@ -211,8 +211,8 @@ const FLOW: ChapterSpec[] = [
   {
     sectionId: "s5",
     opener: {
-      title: "Last chapter.",
-      lead: "What you're hoping for — then you're done.",
+      title: "Next: your goals.",
+      lead: "What you're hoping for — then a few safety details.",
     },
     cards: [
       { kind: "fields", title: "What matters most", fieldIds: ["goals", "focus_area", "reason"] },
@@ -221,6 +221,29 @@ const FLOW: ChapterSpec[] = [
         title: "Sessions & anything else",
         fieldIds: ["trainer_before", "preferred_slots", "other_info"],
       },
+    ],
+  },
+  {
+    // Emergency & Safety (onboarding v2, 0060) — last, so earlier cards and a saved
+    // resume position don't move.
+    sectionId: "s6",
+    opener: {
+      title: "One last thing — safety.",
+      lead: "Who to call if something happens during a session.",
+    },
+    cards: [
+      {
+        kind: "fields",
+        title: "Someone nearby",
+        fieldIds: ["local_contact_name", "local_contact_relation", "local_contact_phone", "local_contact_eta"],
+      },
+      {
+        kind: "fields",
+        title: "Hospital & ambulance",
+        fieldIds: ["hospital_name", "hospital_phone", "ambulance_phone", "private_ambulance_phone"],
+      },
+      { kind: "fields", title: "At home during sessions", fieldIds: ["someone_home", "bp_or_glucometer"] },
+      { kind: "fields", title: "Your consent", fieldIds: ["emergency_consent"] },
     ],
   },
 ];

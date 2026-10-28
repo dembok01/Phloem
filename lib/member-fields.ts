@@ -129,4 +129,8 @@ export const AMEND_REFUSED_KEYS: readonly string[] = [
   "full_name", "age", "gender", "language", "occupation", "city", "country",
   "relationship_to_caregiver",
   "consent",
+  // Emergency & Safety (0060): lives in member_safety, corrected there, not here.
+  "local_contact_name", "local_contact_relation", "local_contact_phone", "local_contact_eta",
+  "hospital_name", "hospital_phone", "ambulance_phone", "private_ambulance_phone",
+  "someone_home", "bp_or_glucometer", "emergency_consent",
 ];

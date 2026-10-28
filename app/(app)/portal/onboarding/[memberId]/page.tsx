@@ -177,5 +177,19 @@ async function prefillAnswers(
     if (c.emergency_contact_phone) answers.emergency_contact_phone = c.emergency_contact_phone;
   }
 
+  // Emergency & Safety: 108 unless the coordinator already took the details on a
+  // call (saf_caregiver lets the family read them). Consent stays theirs to tick.
+  answers.ambulance_phone = "108";
+  const { data: s } = await supabase
+    .from("member_safety")
+    .select(
+      "local_contact_name, local_contact_relation, local_contact_phone, local_contact_eta, hospital_name, hospital_phone, ambulance_phone, private_ambulance_phone, someone_home, bp_or_glucometer",
+    )
+    .eq("member_id", memberId)
+    .maybeSingle();
+  if (s) {
+    for (const [k, v] of Object.entries(s)) if (v !== null) answers[k] = v;
+  }
+
   return answers;
 }

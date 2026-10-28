@@ -31,6 +31,10 @@ const RPC_MESSAGES: Partial<Record<RpcErrorCode, string>> = {
   video_not_watched: "Please watch the welcome video first.",
   invalid_response: "We couldn't find your saved answers. Please refresh and try again.",
   not_allowed: "You don't have permission to submit this onboarding.",
+  emergency_consent_required:
+    "Please agree to being contacted in an emergency — without it we can't keep the member safe in sessions.",
+  safety_incomplete: "Fill in every Emergency & Safety detail before submitting.",
+  bad_eta: "Choose how quickly the nearby contact can reach the house.",
 };
 
 /**

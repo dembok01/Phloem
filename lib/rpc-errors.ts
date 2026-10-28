@@ -79,6 +79,16 @@ export const RPC_ERROR_CODES = [
   "same_caregiver",
   // 0043 replace caregiver invite
   "member_past_invited",
+  // 0059 emergency & safety
+  "safety_incomplete",
+  "bad_eta",
+  "emergency_consent_required",
+  "already_filled",
+  "no_family_login",
+  "reasons_required",
+  "detail_required",
+  "note_required",
+  "not_on_hold",
 ] as const;
 
 export type RpcErrorCode = (typeof RPC_ERROR_CODES)[number];
@@ -157,6 +167,15 @@ export const RPC_ERROR_COPY: Record<RpcErrorCode, string> = {
   bad_clearance: "Choose the exercise clearance the doctor's report gives.",
   bad_review_date:
     "Choose the date the review meeting happened — not in the future, and within that cycle.",
+  safety_incomplete: "Fill in every detail — only the private ambulance can be left blank.",
+  bad_eta: "Choose how quickly the nearby contact can reach the house.",
+  emergency_consent_required: "The family has to agree to being contacted in an emergency before this can be saved.",
+  already_filled: "The emergency details are already filled in.",
+  no_family_login: "This client has no family login — fill the details in on a call.",
+  reasons_required: "Choose why there's no session today.",
+  detail_required: "Say what happened and what you did.",
+  note_required: "Add a short note on why sessions can restart.",
+  not_on_hold: "Sessions aren't on hold any more.",
   field_not_allowed: "You can't change that field. Ask your coordinator if it needs correcting.",
   name_required: "A name is required.",
   bad_age: "Age must be between 1 and 120.",
