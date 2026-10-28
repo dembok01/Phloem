@@ -1562,6 +1562,196 @@ insert into results select pg_temp.assert_true('upload: none of it callable by a
   and not has_function_privilege('authenticated', 'public._may_upload_for(uuid,care_role)', 'execute')
   and not has_function_privilege('authenticated', 'public._check_upload_file(uuid,text,text,bigint)', 'execute'));
 
+-- ============ 0059: emergency & safety ============
+-- The Emergency & Safety record and the session log. The assigned trainer and doctor
+-- read the record (and the address, through emergency_card); the nutritionist, the
+-- psychologist and an unassigned trainer read nothing. The family fills it in or the
+-- coordinator does on a call; an incident holds sessions until the assigned doctor
+-- clears it. Self-contained throwaway users.
+reset role;
+select set_config('request.jwt.claims', '', true);
+insert into auth.users (id, instance_id, aud, role, email)
+select ('0f0f0000-0000-4000-8000-0000000059' || k)::uuid, '00000000-0000-0000-0000-000000000000',
+       'authenticated', 'authenticated', 'saf-' || k || '@example.test'
+  from unnest(array['c1','a1','d1','e1','e2','b1','f1','61','62']) k;
+insert into profiles (id, role, full_name, email)
+select ('0f0f0000-0000-4000-8000-0000000059' || k)::uuid, r::user_role, 'SAF ' || k, 'saf-' || k || '@example.test'
+  from (values ('c1','coordinator'),('a1','admin'),('d1','doctor'),('e1','trainer'),('e2','trainer'),
+               ('b1','nutritionist'),('f1','psychologist'),('61','caregiver'),('62','caregiver')) v(k, r);
+create temp table saf as select gen_random_uuid() as m1, gen_random_uuid() as m2;
+grant select on saf to authenticated;
+insert into members(id, full_name, caregiver_id, status)
+  select m1, 'SAF one — test fixture', '0f0f0000-0000-4000-8000-000000005961'::uuid, 'active'::member_status from saf union all
+  select m2, 'SAF two — test fixture', null, 'active'::member_status from saf;
+insert into member_contacts(member_id, address, pin_code, emergency_contact_name, emergency_contact_phone)
+  select m1, '12 Test Road, Kochi', '682001', 'Anil', '+91 90000 00001' from saf;
+insert into assignments(member_id, care_user_id, care_role)
+  select m1, ('0f0f0000-0000-4000-8000-0000000059' || k)::uuid, r::care_role
+    from saf, (values ('d1','doctor'),('e1','trainer'),('b1','nutritionist'),('f1','psychologist')) v(k, r);
+insert into form_responses(member_id, template_id, respondent_id, answers, submitted_at)
+  select m1, (select id from form_templates where key = 'onboarding' and active order by version desc limit 1),
+         '0f0f0000-0000-4000-8000-000000005961',
+         '{"conditions":[{"condition":"Diabetes","duration":"5 years"}],
+           "medications":[{"name":"Metformin","dose":"500 mg","frequency":"twice daily"}]}'::jsonb,
+         now() from saf;
+create function pg_temp.saf_try(q text) returns text language plpgsql as $$
+begin execute q; return 'ok'; exception when others then return SQLERRM; end $$;
+create function pg_temp.saf_as(k text) returns void language sql as $$
+  select set_config('request.jwt.claims', json_build_object('sub',
+    ('0f0f0000-0000-4000-8000-0000000059' || k)::uuid, 'role', 'authenticated')::text, true) $$;
+-- The answers as the form sends them; a patch varies one.
+create function pg_temp.saf_save(m uuid, patch jsonb default '{}') returns text language sql as $$
+  select pg_temp.saf_try(format('select save_member_safety(%L, %L)', m,
+    '{"local_contact_name":"Suma","local_contact_relation":"Neighbour","local_contact_phone":"+91 98470 12345",
+      "local_contact_eta":"under_10","hospital_name":"Lakeshore Hospital","hospital_phone":"0484-2345678",
+      "ambulance_phone":"108","private_ambulance_phone":"","someone_home":true,"bp_or_glucometer":false,
+      "emergency_consent":true}'::jsonb || patch)) $$;
+create function pg_temp.saf_ask(m uuid) returns text language sql as $$
+  select pg_temp.saf_try(format('select request_safety_details(%L)', m)) $$;
+create function pg_temp.saf_event(kind text, reasons text, detail text) returns text language sql as $$
+  select pg_temp.saf_try(format('select report_safety_event(%L, %L, %L, %L)',
+    (select m1 from saf), kind, reasons, detail)) $$;
+create function pg_temp.saf_card() returns jsonb language sql as $$
+  select emergency_card((select m1 from saf)) $$;
+create function pg_temp.saf_notified(k text, t text) returns boolean language sql as $$
+  select exists (select 1 from notifications
+                  where user_id = ('0f0f0000-0000-4000-8000-0000000059' || k)::uuid and type = t) $$;
+
+set local role authenticated;
+select pg_temp.saf_as('e1');
+insert into results select pg_temp.assert_true('safety: the trainer''s card before any record — no details, address shown',
+  pg_temp.saf_card()->'safety' = 'null'::jsonb
+  and pg_temp.saf_card()->>'address' = '12 Test Road, Kochi'
+  and pg_temp.saf_card()->'family_contact'->>'phone' = '+91 90000 00001');
+
+-- The family path (m1)
+select pg_temp.saf_as('c1');
+insert into results select pg_temp.assert_true('safety: the coordinator asks the family',
+  pg_temp.saf_ask((select m1 from saf)) = 'ok');
+insert into results select pg_temp.assert_true('safety: no one to ask',
+  pg_temp.saf_ask((select m2 from saf)) = 'no_family_login');
+select pg_temp.saf_as('62');
+insert into results select pg_temp.assert_true('safety: another family cannot',
+  pg_temp.saf_save((select m1 from saf)) = 'not_allowed');
+select pg_temp.saf_as('61');
+insert into results select pg_temp.assert_true('safety: the family must tick consent',
+  pg_temp.saf_save((select m1 from saf), '{"emergency_consent":false}') = 'emergency_consent_required');
+insert into results select pg_temp.assert_true('safety: the family fills it in',
+  pg_temp.saf_save((select m1 from saf)) = 'ok');
+insert into results select pg_temp.assert_true('safety: the family reads it back as theirs; blank private ambulance is none',
+  (select consent_source = 'family_form' and private_ambulance_phone is null and ambulance_phone = '108'
+     from member_safety where member_id = (select m1 from saf)));
+select pg_temp.saf_as('c1');
+insert into results select pg_temp.assert_true('safety: asking once it''s filled',
+  pg_temp.saf_ask((select m1 from saf)) = 'already_filled');
+reset role;
+insert into results select pg_temp.assert_true('safety: the family was asked and the coordinator told when they filled it',
+  (select safety_requested_at is not null from members where id = (select m1 from saf))
+  and pg_temp.saf_notified('61', 'safety_request')
+  and pg_temp.saf_notified('c1', 'safety_family_saved'));
+
+-- The coordinator's call (m2)
+select pg_temp.saf_as('c1');
+set local role authenticated;
+insert into results select pg_temp.assert_true('safety: saving without consent is refused',
+  pg_temp.saf_save((select m2 from saf), '{"emergency_consent":false}') = 'emergency_consent_required');
+insert into results select pg_temp.assert_true('safety: a blank hospital phone is refused',
+  pg_temp.saf_save((select m2 from saf), '{"hospital_phone":"  "}') = 'safety_incomplete');
+insert into results select pg_temp.assert_true('safety: a yes/no left out is refused',
+  pg_temp.saf_save((select m2 from saf), '{"someone_home":null}') = 'safety_incomplete');
+insert into results select pg_temp.assert_true('safety: an unknown reach time is refused',
+  pg_temp.saf_save((select m2 from saf), '{"local_contact_eta":"soon"}') = 'bad_eta');
+insert into results select pg_temp.assert_true('safety: the coordinator saves it from the call',
+  pg_temp.saf_save((select m2 from saf), '{"ambulance_phone":"999"}') = 'ok');
+insert into results select pg_temp.assert_true('safety: a second save keeps the consent and needs no tick',
+  pg_temp.saf_save((select m2 from saf), '{"emergency_consent":false,"ambulance_phone":"999","hospital_name":"Amrita"}') = 'ok');
+insert into results select pg_temp.assert_true('safety: recorded as a call, with the local ambulance number',
+  (select consent_source = 'coordinator_call' and ambulance_phone = '999' and hospital_name = 'Amrita'
+     from member_safety where member_id = (select m2 from saf)));
+insert into results select pg_temp.assert_true('safety: nobody writes the table directly',
+  pg_temp.saf_try('update member_safety set hospital_name = ''x''') <> 'ok'
+  and pg_temp.saf_try('delete from safety_events') <> 'ok');
+insert into results select pg_temp.assert_true('safety: the coordinator''s card leaves out health',
+  pg_temp.saf_card()->'health' = 'null'::jsonb
+  and pg_temp.saf_card()->'safety'->>'hospital_name' = 'Lakeshore Hospital');
+
+-- Who reads it
+select pg_temp.saf_as('e1');
+insert into results select pg_temp.assert_true('safety: the trainer''s card carries the details and the medicines',
+  pg_temp.saf_card()->'safety'->>'local_contact_phone' = '+91 98470 12345'
+  and pg_temp.saf_card()->'health'->'medications'->0->>'name' = 'Metformin'
+  and not (pg_temp.saf_card()->'safety' ? 'consent_recorded_by'));
+select pg_temp.saf_as('e2');
+insert into results select pg_temp.assert_true('safety: an unassigned trainer cannot',
+  pg_temp.saf_try(format('select emergency_card(%L)', (select m1 from saf))) = 'not_allowed'
+  and (select count(*) from member_safety) = 0);
+select pg_temp.saf_as('b1');
+insert into results select pg_temp.assert_true('safety: the nutritionist cannot',
+  pg_temp.saf_try(format('select emergency_card(%L)', (select m1 from saf))) = 'not_allowed'
+  and (select count(*) from member_safety) = 0);
+select pg_temp.saf_as('f1');
+insert into results select pg_temp.assert_true('safety: the psychologist cannot',
+  pg_temp.saf_try(format('select emergency_card(%L)', (select m1 from saf))) = 'not_allowed'
+  and (select count(*) from member_safety) = 0);
+
+-- No session today, incidents, the hold
+select pg_temp.saf_as('e1');
+insert into results select pg_temp.assert_true('safety: a skipped session needs a reason',
+  pg_temp.saf_event('skipped', '{}', null) = 'reasons_required');
+insert into results select pg_temp.assert_true('safety: only the listed reasons',
+  pg_temp.saf_event('skipped', '{tired}', null) = 'reasons_required');
+insert into results select pg_temp.assert_true('safety: a skipped session is logged',
+  pg_temp.saf_event('skipped', '{dizziness}', null) = 'ok');
+insert into results select pg_temp.assert_true('safety: an incident says what happened',
+  pg_temp.saf_event('incident', '{}', '  ') = 'detail_required');
+insert into results select pg_temp.assert_true('safety: a kind that is not one is refused',
+  pg_temp.saf_event('fall', '{}', 'x') = 'bad_kind');
+insert into results select pg_temp.assert_true('safety: the trainer reports an incident',
+  pg_temp.saf_event('incident', '{}', 'Felt faint, sat down, BP 90/60') = 'ok');
+insert into results select pg_temp.assert_true('safety: and another before the doctor looks',
+  pg_temp.saf_event('incident', '{}', 'Dizzy again next day') = 'ok');
+insert into results select pg_temp.assert_true('safety: sessions are on hold for both',
+  pg_temp.saf_card()->'hold'->>'open_count' = '2'
+  and pg_temp.saf_card()->'hold'->>'detail' = 'Dizzy again next day');
+insert into results select pg_temp.assert_true('safety: the trainer cannot clear it',
+  pg_temp.saf_try(format('select clear_safety_hold(%L, %L)', (select m1 from saf), 'ok now')) = 'not_allowed');
+select pg_temp.saf_as('e2');
+insert into results select pg_temp.assert_true('safety: an unassigned trainer cannot report',
+  pg_temp.saf_event('incident', '{}', 'x') = 'not_allowed');
+reset role;
+insert into results select pg_temp.assert_true('safety: the coordinator heard of the skip; the doctor and admin of the incident',
+  pg_temp.saf_notified('c1', 'safety_skipped')
+  and pg_temp.saf_notified('d1', 'safety_incident')
+  and pg_temp.saf_notified('a1', 'safety_incident')
+  and not pg_temp.saf_notified('d1', 'safety_skipped'));
+select pg_temp.saf_as('d1');
+set local role authenticated;
+insert into results select pg_temp.assert_true('safety: the doctor must say why',
+  pg_temp.saf_try(format('select clear_safety_hold(%L, %L)', (select m1 from saf), '  ')) = 'note_required');
+insert into results select pg_temp.assert_eq('safety: the doctor clears both at once',
+  clear_safety_hold((select m1 from saf), 'Seen, fine to resume'), 2);
+insert into results select pg_temp.assert_true('safety: no longer on hold',
+  pg_temp.saf_card()->'hold' = 'null'::jsonb);
+insert into results select pg_temp.assert_true('safety: clearing again',
+  pg_temp.saf_try(format('select clear_safety_hold(%L, %L)', (select m1 from saf), 'again')) = 'not_on_hold');
+select pg_temp.saf_as('e1');
+insert into results select pg_temp.assert_eq('safety: the trainer sees the log',
+  (select count(*) from safety_events where member_id = (select m1 from saf)), 3);
+select pg_temp.saf_as('f1');
+insert into results select pg_temp.assert_eq('safety: the psychologist sees no events',
+  (select count(*) from safety_events), 0);
+reset role;
+select set_config('request.jwt.claims', '', true);
+insert into results select pg_temp.assert_true('safety: the trainer is told sessions can restart',
+  pg_temp.saf_notified('e1', 'safety_cleared'));
+insert into results select pg_temp.assert_true('safety: none of it callable by anon; the helper is internal',
+  not has_function_privilege('anon', 'public.save_member_safety(uuid,jsonb)', 'execute')
+  and not has_function_privilege('anon', 'public.request_safety_details(uuid)', 'execute')
+  and not has_function_privilege('anon', 'public.emergency_card(uuid)', 'execute')
+  and not has_function_privilege('anon', 'public.report_safety_event(uuid,text,text[],text)', 'execute')
+  and not has_function_privilege('anon', 'public.clear_safety_hold(uuid,text)', 'execute')
+  and not has_function_privilege('authenticated', 'public._save_safety(uuid,jsonb,text)', 'execute'));
+
 select line from results;
 
 rollback;

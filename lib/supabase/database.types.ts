@@ -309,6 +309,20 @@ export type Database = {
             referencedRelation: "members"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "consultations_report_closed_by_fkey"
+            columns: ["report_closed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "consultations_report_uploaded_by_fkey"
+            columns: ["report_uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       cycles: {
@@ -356,8 +370,8 @@ export type Database = {
           member_id: string
           respondent_id: string | null
           submitted_at: string | null
-          template_id: string
           supersedes: string | null
+          template_id: string
         }
         Insert: {
           answers?: Json
@@ -368,8 +382,8 @@ export type Database = {
           member_id: string
           respondent_id?: string | null
           submitted_at?: string | null
-          template_id: string
           supersedes?: string | null
+          template_id: string
         }
         Update: {
           answers?: Json
@@ -380,8 +394,8 @@ export type Database = {
           member_id?: string
           respondent_id?: string | null
           submitted_at?: string | null
-          template_id?: string
           supersedes?: string | null
+          template_id?: string
         }
         Relationships: [
           {
@@ -779,6 +793,85 @@ export type Database = {
           },
         ]
       }
+      member_safety: {
+        Row: {
+          ambulance_phone: string
+          bp_or_glucometer: boolean
+          consent_at: string
+          consent_recorded_by: string | null
+          consent_source: string
+          hospital_name: string
+          hospital_phone: string
+          local_contact_eta: string
+          local_contact_name: string
+          local_contact_phone: string
+          local_contact_relation: string
+          member_id: string
+          private_ambulance_phone: string | null
+          someone_home: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          ambulance_phone?: string
+          bp_or_glucometer: boolean
+          consent_at?: string
+          consent_recorded_by?: string | null
+          consent_source: string
+          hospital_name: string
+          hospital_phone: string
+          local_contact_eta: string
+          local_contact_name: string
+          local_contact_phone: string
+          local_contact_relation: string
+          member_id: string
+          private_ambulance_phone?: string | null
+          someone_home: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          ambulance_phone?: string
+          bp_or_glucometer?: boolean
+          consent_at?: string
+          consent_recorded_by?: string | null
+          consent_source?: string
+          hospital_name?: string
+          hospital_phone?: string
+          local_contact_eta?: string
+          local_contact_name?: string
+          local_contact_phone?: string
+          local_contact_relation?: string
+          member_id?: string
+          private_ambulance_phone?: string | null
+          someone_home?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_safety_consent_recorded_by_fkey"
+            columns: ["consent_recorded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_safety_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: true
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_safety_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       members: {
         Row: {
           age: number | null
@@ -796,6 +889,8 @@ export type Database = {
           photo_path: string | null
           red_flags: Json
           relationship_to_caregiver: string | null
+          safety_requested_at: string | null
+          safety_requested_by: string | null
           status: Database["public"]["Enums"]["member_status"]
         }
         Insert: {
@@ -814,6 +909,8 @@ export type Database = {
           photo_path?: string | null
           red_flags?: Json
           relationship_to_caregiver?: string | null
+          safety_requested_at?: string | null
+          safety_requested_by?: string | null
           status?: Database["public"]["Enums"]["member_status"]
         }
         Update: {
@@ -832,6 +929,8 @@ export type Database = {
           photo_path?: string | null
           red_flags?: Json
           relationship_to_caregiver?: string | null
+          safety_requested_at?: string | null
+          safety_requested_by?: string | null
           status?: Database["public"]["Enums"]["member_status"]
         }
         Relationships: [
@@ -845,6 +944,13 @@ export type Database = {
           {
             foreignKeyName: "members_member_user_id_fkey"
             columns: ["member_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "members_safety_requested_by_fkey"
+            columns: ["safety_requested_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -1068,6 +1174,158 @@ export type Database = {
           },
         ]
       }
+      reports: {
+        Row: {
+          consultation_id: string | null
+          content: Json
+          created_at: string
+          created_by: string | null
+          cycle_id: string | null
+          form_response_id: string | null
+          id: string
+          member_id: string
+          pdf_path: string | null
+          share_with_caregiver: boolean
+          supersedes: string | null
+          type: Database["public"]["Enums"]["report_type"]
+          version: number
+        }
+        Insert: {
+          consultation_id?: string | null
+          content: Json
+          created_at?: string
+          created_by?: string | null
+          cycle_id?: string | null
+          form_response_id?: string | null
+          id?: string
+          member_id: string
+          pdf_path?: string | null
+          share_with_caregiver?: boolean
+          supersedes?: string | null
+          type: Database["public"]["Enums"]["report_type"]
+          version?: number
+        }
+        Update: {
+          consultation_id?: string | null
+          content?: Json
+          created_at?: string
+          created_by?: string | null
+          cycle_id?: string | null
+          form_response_id?: string | null
+          id?: string
+          member_id?: string
+          pdf_path?: string | null
+          share_with_caregiver?: boolean
+          supersedes?: string | null
+          type?: Database["public"]["Enums"]["report_type"]
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reports_consultation_id_fkey"
+            columns: ["consultation_id"]
+            isOneToOne: false
+            referencedRelation: "consultations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reports_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reports_cycle_id_fkey"
+            columns: ["cycle_id"]
+            isOneToOne: false
+            referencedRelation: "cycles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reports_form_response_id_fkey"
+            columns: ["form_response_id"]
+            isOneToOne: false
+            referencedRelation: "form_responses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reports_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reports_supersedes_fkey"
+            columns: ["supersedes"]
+            isOneToOne: false
+            referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      safety_events: {
+        Row: {
+          clear_note: string | null
+          cleared_at: string | null
+          cleared_by: string | null
+          detail: string | null
+          id: string
+          kind: string
+          member_id: string
+          occurred_at: string
+          reasons: string[]
+          reported_by: string | null
+        }
+        Insert: {
+          clear_note?: string | null
+          cleared_at?: string | null
+          cleared_by?: string | null
+          detail?: string | null
+          id?: string
+          kind: string
+          member_id: string
+          occurred_at?: string
+          reasons?: string[]
+          reported_by?: string | null
+        }
+        Update: {
+          clear_note?: string | null
+          cleared_at?: string | null
+          cleared_by?: string | null
+          detail?: string | null
+          id?: string
+          kind?: string
+          member_id?: string
+          occurred_at?: string
+          reasons?: string[]
+          reported_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "safety_events_cleared_by_fkey"
+            columns: ["cleared_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "safety_events_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "safety_events_reported_by_fkey"
+            columns: ["reported_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       thread_messages: {
         Row: {
           author_id: string | null
@@ -1201,102 +1459,15 @@ export type Database = {
           },
         ]
       }
-      reports: {
-        Row: {
-          consultation_id: string | null
-          content: Json
-          created_at: string
-          created_by: string | null
-          cycle_id: string | null
-          form_response_id: string | null
-          id: string
-          member_id: string
-          pdf_path: string | null
-          share_with_caregiver: boolean
-          supersedes: string | null
-          type: Database["public"]["Enums"]["report_type"]
-          version: number
-        }
-        Insert: {
-          consultation_id?: string | null
-          content: Json
-          created_at?: string
-          created_by?: string | null
-          cycle_id?: string | null
-          form_response_id?: string | null
-          id?: string
-          member_id: string
-          pdf_path?: string | null
-          share_with_caregiver?: boolean
-          supersedes?: string | null
-          type: Database["public"]["Enums"]["report_type"]
-          version?: number
-        }
-        Update: {
-          consultation_id?: string | null
-          content?: Json
-          created_at?: string
-          created_by?: string | null
-          cycle_id?: string | null
-          form_response_id?: string | null
-          id?: string
-          member_id?: string
-          pdf_path?: string | null
-          share_with_caregiver?: boolean
-          supersedes?: string | null
-          type?: Database["public"]["Enums"]["report_type"]
-          version?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "reports_consultation_id_fkey"
-            columns: ["consultation_id"]
-            isOneToOne: false
-            referencedRelation: "consultations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "reports_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "reports_cycle_id_fkey"
-            columns: ["cycle_id"]
-            isOneToOne: false
-            referencedRelation: "cycles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "reports_form_response_id_fkey"
-            columns: ["form_response_id"]
-            isOneToOne: false
-            referencedRelation: "form_responses"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "reports_member_id_fkey"
-            columns: ["member_id"]
-            isOneToOne: false
-            referencedRelation: "members"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "reports_supersedes_fkey"
-            columns: ["supersedes"]
-            isOneToOne: false
-            referencedRelation: "reports"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      _amendable_types: {
+        Args: { p_role: Database["public"]["Enums"]["user_role"] }
+        Returns: Database["public"]["Enums"]["report_type"][]
+      }
       _append_review_to_cases: {
         Args: {
           p_actor: string
@@ -1317,18 +1488,28 @@ export type Database = {
         }
         Returns: undefined
       }
-      _amendable_types: {
-        Args: { p_role: Database["public"]["Enums"]["user_role"] }
-        Returns: Database["public"]["Enums"]["report_type"][]
-      }
       _build_performance: { Args: { p_cycle: string }; Returns: Json }
-      _last_family_activity: { Args: { p_member: string }; Returns: string }
+      _check_upload_file: {
+        Args: {
+          p_member: string
+          p_mime: string
+          p_path: string
+          p_size: number
+        }
+        Returns: undefined
+      }
+      _may_upload_for: {
+        Args: {
+          p_member: string
+          p_role: Database["public"]["Enums"]["care_role"]
+        }
+        Returns: boolean
+      }
       _measure_domains: { Args: { m: string }; Returns: string[] }
       _measure_value: {
         Args: { a: Json; p_field: string; p_parse: string }
         Returns: number
       }
-      _missed_consults: { Args: { p_member: string }; Returns: number }
       _norm_name: { Args: { p: string }; Returns: string }
       _notify: {
         Args: {
@@ -1364,6 +1545,11 @@ export type Database = {
         Returns: undefined
       }
       _num_delta: { Args: { cur: string; prev: string }; Returns: string }
+      _open_review_consults: {
+        Args: { p_cycle: string; p_pkg: string }
+        Returns: number
+      }
+      _open_round_after_doctor: { Args: { p_cycle: string }; Returns: number }
       _red_flags: { Args: { a: Json }; Returns: Json }
       _report_readers: {
         Args: { p_type: Database["public"]["Enums"]["report_type"] }
@@ -1372,6 +1558,24 @@ export type Database = {
       _report_stub: {
         Args: { p_cycle: number; p_extra?: Json; p_title: string }
         Returns: Json
+      }
+      _role_in_cycle: {
+        Args: {
+          p_cycle: string
+          p_role: Database["public"]["Enums"]["care_role"]
+        }
+        Returns: boolean
+      }
+      _role_started: {
+        Args: {
+          p_pkg: string
+          p_role: Database["public"]["Enums"]["care_role"]
+        }
+        Returns: boolean
+      }
+      _save_safety: {
+        Args: { p_fields: Json; p_member: string; p_source: string }
+        Returns: undefined
       }
       _seed_cases_from_problem_list: {
         Args: {
@@ -1382,6 +1586,10 @@ export type Database = {
         }
         Returns: number
       }
+      _start_program: {
+        Args: { p_member: string; p_source: string; p_start: string }
+        Returns: string
+      }
       _thread_visible: {
         Args: {
           p_audience: Database["public"]["Enums"]["care_role"][]
@@ -1389,29 +1597,6 @@ export type Database = {
           p_member: string
         }
         Returns: boolean
-      }
-      create_checkin_link: {
-        Args: { p_days?: number; p_member: string }
-        Returns: string
-      }
-      get_checkin_link: { Args: { p_token: string }; Returns: Json }
-      revoke_checkin_link: { Args: { p_token: string }; Returns: undefined }
-      submit_checkin: {
-        Args: { p_answers: Json; p_token: string }
-        Returns: Json
-      }
-      complete_renewal: {
-        Args: { p_months?: number; p_renewal: string }
-        Returns: string
-      }
-      open_due_renewals: { Args: { p_today?: string }; Returns: Json }
-      propose_renewal: {
-        Args: { p_member: string; p_months?: number; p_note?: string }
-        Returns: string
-      }
-      respond_to_renewal: {
-        Args: { p_intent: string; p_note?: string; p_renewal: string }
-        Returns: undefined
       }
       accept_invite: {
         Args: {
@@ -1434,6 +1619,14 @@ export type Database = {
         Args: { p_answers: Json; p_member: string; p_report_content: Json }
         Returns: string
       }
+      admin_set_profile_email: {
+        Args: { p_email: string; p_user: string }
+        Returns: undefined
+      }
+      admin_update_profile: {
+        Args: { p_patch: Json; p_user: string }
+        Returns: undefined
+      }
       amend_clinical_report: {
         Args: {
           p_answers: Json
@@ -1442,14 +1635,6 @@ export type Database = {
           p_report_content?: Json
         }
         Returns: string
-      }
-      admin_set_profile_email: {
-        Args: { p_email: string; p_user: string }
-        Returns: undefined
-      }
-      admin_update_profile: {
-        Args: { p_patch: Json; p_user: string }
-        Returns: undefined
       }
       amend_onboarding: {
         Args: {
@@ -1473,12 +1658,24 @@ export type Database = {
         Returns: Database["public"]["Enums"]["user_role"]
       }
       can_access_thread: { Args: { p_thread: string }; Returns: boolean }
+      clear_safety_hold: {
+        Args: { p_member: string; p_note: string }
+        Returns: number
+      }
       close_cycle_open_next: { Args: { p_cycle: string }; Returns: undefined }
       close_report: {
         Args: { p_cons: string; p_note?: string; p_reason: string }
         Returns: undefined
       }
       compile_performance_report: { Args: { p_cycle: string }; Returns: string }
+      complete_renewal: {
+        Args: { p_months?: number; p_renewal: string }
+        Returns: string
+      }
+      create_checkin_link: {
+        Args: { p_days?: number; p_member: string }
+        Returns: string
+      }
       create_member_with_invite: {
         Args: {
           p_address: string
@@ -1507,18 +1704,9 @@ export type Database = {
         Args: { p_confirm_name: string; p_member: string }
         Returns: Json
       }
+      emergency_card: { Args: { p_member: string }; Returns: Json }
       get_care_team: { Args: { p_member: string }; Returns: Json }
-      get_engagement: {
-        Args: { p_member: string }
-        Returns: {
-          days_quiet: number
-          last_activity_at: string
-          member_id: string
-          missed_consults: number
-          reason: string
-          state: string
-        }[]
-      }
+      get_checkin_link: { Args: { p_token: string }; Returns: Json }
       get_measure_series: {
         Args: { m: string; p_domain?: string }
         Returns: {
@@ -1546,23 +1734,6 @@ export type Database = {
       is_assigned_to: { Args: { m: string }; Returns: boolean }
       is_caregiver_of: { Args: { m: string }; Returns: boolean }
       is_member_self: { Args: { m: string }; Returns: boolean }
-      list_engagement: {
-        Args: never
-        Returns: {
-          days_quiet: number
-          full_name: string
-          last_activity_at: string
-          member_id: string
-          missed_consults: number
-          reason: string
-          state: string
-          status: Database["public"]["Enums"]["member_status"]
-        }[]
-      }
-      log_ai_generation: {
-        Args: { p_kind: string; p_member: string; p_meta?: Json }
-        Returns: undefined
-      }
       list_diet_reviews: {
         Args: { p_member: string }
         Returns: {
@@ -1584,6 +1755,10 @@ export type Database = {
           start_date: string
           status: Database["public"]["Enums"]["cycle_status"]
         }[]
+      }
+      log_ai_generation: {
+        Args: { p_kind: string; p_member: string; p_meta?: Json }
+        Returns: undefined
       }
       log_report_view: { Args: { p_report: string }; Returns: undefined }
       mark_meeting_done: { Args: { p_cons: string }; Returns: undefined }
@@ -1619,19 +1794,19 @@ export type Database = {
         }
         Returns: string
       }
+      open_due_renewals: { Args: { p_today?: string }; Returns: Json }
       pause_program: { Args: { p_package: string }; Returns: undefined }
       post_message: {
         Args: { p_body: string; p_thread: string }
         Returns: string
       }
+      propose_renewal: {
+        Args: { p_member: string; p_months?: number; p_note?: string }
+        Returns: string
+      }
       reactivate_member: {
         Args: { p_duration_months: number; p_member: string }
         Returns: string
-      }
-      remove_uploaded_report: { Args: { p_report: string }; Returns: string[] }
-      record_activity: {
-        Args: { p_kind: string; p_member: string; p_meta?: Json }
-        Returns: undefined
       }
       record_progress_summary: {
         Args: {
@@ -1642,17 +1817,37 @@ export type Database = {
         }
         Returns: string
       }
+      remove_uploaded_report: { Args: { p_report: string }; Returns: string[] }
       replace_caregiver_invite: {
         Args: { p_email: string; p_member: string }
         Returns: string
       }
+      report_safety_event: {
+        Args: {
+          p_detail: string
+          p_kind: string
+          p_member: string
+          p_reasons: string[]
+        }
+        Returns: string
+      }
+      request_safety_details: { Args: { p_member: string }; Returns: undefined }
       resolve_thread: {
         Args: { p_resolved?: boolean; p_thread: string }
         Returns: undefined
       }
+      respond_to_renewal: {
+        Args: { p_intent: string; p_note?: string; p_renewal: string }
+        Returns: undefined
+      }
       resume_program: { Args: { p_package: string }; Returns: undefined }
+      revoke_checkin_link: { Args: { p_token: string }; Returns: undefined }
       revoke_invite: { Args: { p_invite: string }; Returns: Json }
       run_daily_jobs: { Args: { p_today?: string }; Returns: Json }
+      save_member_safety: {
+        Args: { p_fields: Json; p_member: string }
+        Returns: undefined
+      }
       set_account_status: {
         Args: {
           p_status: Database["public"]["Enums"]["account_status"]
@@ -1704,6 +1899,10 @@ export type Database = {
         }
         Returns: string
       }
+      submit_checkin: {
+        Args: { p_answers: Json; p_token: string }
+        Returns: Json
+      }
       submit_clinical_form: {
         Args: { p_answers: Json; p_cons: string; p_report_content?: Json }
         Returns: string
@@ -1713,6 +1912,20 @@ export type Database = {
         Args: { p_member: string; p_report_content?: Json; p_response: string }
         Returns: undefined
       }
+      sync_my_email: { Args: never; Returns: undefined }
+      transfer_caregiver: {
+        Args: { p_member: string; p_new_user: string }
+        Returns: undefined
+      }
+      update_member: {
+        Args: { p_member: string; p_patch: Json }
+        Returns: undefined
+      }
+      update_member_contacts: {
+        Args: { p_member: string; p_patch: Json }
+        Returns: undefined
+      }
+      update_my_profile: { Args: { p_patch: Json }; Returns: undefined }
       upload_diet_review: {
         Args: {
           p_cycle: string
@@ -1738,20 +1951,6 @@ export type Database = {
         }
         Returns: string
       }
-      sync_my_email: { Args: never; Returns: undefined }
-      transfer_caregiver: {
-        Args: { p_member: string; p_new_user: string }
-        Returns: undefined
-      }
-      update_member: {
-        Args: { p_member: string; p_patch: Json }
-        Returns: undefined
-      }
-      update_member_contacts: {
-        Args: { p_member: string; p_patch: Json }
-        Returns: undefined
-      }
-      update_my_profile: { Args: { p_patch: Json }; Returns: undefined }
     }
     Enums: {
       account_status: "active" | "suspended"
