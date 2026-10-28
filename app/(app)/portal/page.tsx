@@ -19,6 +19,8 @@ import { formatDateIST, formatDateTimeIST, istDaysSince } from "@/lib/datetime";
 import { CareTeamCard, type CareTeamMember } from "@/components/portal/care-team-card";
 import { RenewalCard } from "@/components/portal/renewal-card";
 import { MemberTimeline } from "@/components/member-timeline";
+import { FamilySafetyCard } from "@/components/portal/family-safety-card";
+import { safetyRecordSchema } from "@/lib/safety";
 
 type MemberStatus = Database["public"]["Enums"]["member_status"];
 type SB = Awaited<ReturnType<typeof createClient>>;
@@ -188,7 +190,7 @@ async function CaregiverMember({
   const needsOnboarding = member.status === "signed_up" || member.status === "onboarding";
 
 
-  const [{ data: pkg }, team, { data: contacts }] = await Promise.all([
+  const [{ data: pkg }, team, { data: contacts }, { data: safetyRow }] = await Promise.all([
     supabase
       .from("packages")
       .select("id, status, paused_at, end_date")
@@ -204,7 +206,18 @@ async function CaregiverMember({
       .select("phone, whatsapp, email, address, pin_code, emergency_contact_name, emergency_contact_phone")
       .eq("member_id", member.id)
       .maybeSingle(),
+    // saf_caregiver (0059): the family reads its own emergency & safety record.
+    supabase
+      .from("member_safety")
+      .select(
+        "local_contact_name, local_contact_relation, local_contact_phone, local_contact_eta, hospital_name, hospital_phone, ambulance_phone, private_ambulance_phone, someone_home, bp_or_glucometer, consent_source, consent_at, updated_at",
+      )
+      .eq("member_id", member.id)
+      .maybeSingle(),
   ]);
+  const safety = safetyRow ? (safetyRecordSchema.safeParse(safetyRow).data ?? null) : null;
+  // Onboarding asks for these itself; afterwards the dashboard does.
+  const safetyHere = !needsOnboarding && member.status !== "invited" && member.status !== "inactive";
   const { data: cycles } = pkg
     ? await supabase
         .from("cycles")
@@ -303,6 +316,10 @@ async function CaregiverMember({
           </div>
         </CardContent>
       </Card>
+
+      {safetyHere && !safety ? (
+        <FamilySafetyCard memberId={member.id} firstName={member.full_name.split(" ")[0]} safety={null} />
+      ) : null}
 
       {renewal ? (
         <RenewalCard
@@ -456,6 +473,10 @@ async function CaregiverMember({
           </dl>
         </CardContent>
       </Card>
+
+      {safetyHere && safety ? (
+        <FamilySafetyCard memberId={member.id} firstName={member.full_name.split(" ")[0]} safety={safety} />
+      ) : null}
 
       <CareTeamCard team={team} />
     </div>
