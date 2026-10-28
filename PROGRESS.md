@@ -2592,3 +2592,83 @@ database (same doctor, another member) is empty.
 - Not exercised in a browser: the seeded demo doctor is suspended with no members, and
   making fixtures on the live database wasn't worth it for this.
 - `tsc` clean · `eslint` clean · unit tests · `npm run build`.
+
+## Emergency & Safety (client items 3–6, 2026-10-28, migrations 0059–0060)
+
+Client request: an Emergency & Safety section in onboarding (every field required), filled
+for every current client; a one-page safety card for trainers; the emergency details in
+front of the trainer during a session. Owner decisions: trainer and doctor see the numbers
+**and the home address**; both "No session today" and "Report an incident"; conditions and
+medicines are not asked again (the card shows onboarding's, with the latest doctor's report);
+BP machine / glucometer stays one question; the consent wording; families can fill it on
+their dashboard too, with the coordinator owning getting it done (ask the family, or call).
+Design: `docs/superpowers/specs/2026-10-21-emergency-safety-design.md`; plan:
+`docs/superpowers/plans/2026-10-28-emergency-safety.md`.
+
+### What was built
+
+- **0059 (applied).** `member_safety` and `safety_events`, select-only RLS, every write an
+  RPC: `save_member_safety` (coordinator/admin → `coordinator_call`; the family →
+  `family_form`, which notifies coordinators), `request_safety_details` (records
+  `members.safety_requested_at`, notifies the caregiver), `emergency_card` (the record +
+  address, PIN, family emergency contact; conditions/medicines and the latest doctor's report
+  for trainer, doctor and admin, never the coordinator), `report_safety_event` (assigned
+  trainer, coordinator, admin; skipped → coordinators, incident → assigned doctor +
+  coordinators + admin), `clear_safety_hold` (assigned doctor, admin; clears every open
+  incident; the doctor's note is not granted to anyone — it goes to the trainer's
+  notification and the audit log).
+- **0060 (committed, NOT applied — goes live with the code).** Onboarding v2 = live v1 + s6
+  "Emergency & Safety" + the consent-notice sentence; v1 drafts move to v2;
+  `submit_onboarding` files s6 as the family's record and strips it from the answers;
+  `amend_onboarding` refuses the s6 keys. Applying it before the code would show the family
+  mid-onboarding the new questions on a generic card with no consent copy.
+- **Trainer/doctor:** the Emergency card above the tabs on every tab (tap-to-call tiles,
+  address, warnings, medicines, "Sessions on hold since … — waiting for the doctor"), the two
+  trainer sheets, the doctor's two-step "Clear to restart"; an open incident lights the
+  "Adverse event" chip with its own wording (`IssueInput.sessionsOnHold`).
+- **Coordinator:** the member page's Emergency & Safety card (Edit, Copy for WhatsApp, Fill it
+  in on a call with the consent read out, Ask on WhatsApp / in the dashboard, the session log);
+  Today lists "Sessions on hold" and "Emergency details missing" (Not asked yet / Family
+  asked {date}).
+- **Family:** a prompt on the dashboard while details are missing (after onboarding), then the
+  details with Edit.
+- **Safety card:** `/clinician/safety-card` and `/coordinator/safety-card`, the client's words
+  ("her" made neutral), prints on one A4 page.
+- **Call links fixed (`lib/wa.ts`):** 44 stored numbers are ten digits with no country code;
+  `tel:` used to prefix "+" (dialling +98… — Iran) and WhatsApp links lacked 91. Now `tel:`
+  dials what was typed (108/999 included), WhatsApp adds 91 to Indian numbers, and a field
+  holding two numbers uses the first. Affects the coordinator page's existing buttons too.
+
+### Verification
+
+- §16: the 0059 block, 41 assertions, all PASS (rolled back). The 0060 block, 7 assertions,
+  all PASS — run together with the 0060 migration body inside a rolled-back transaction; the
+  v2 built in SQL has the same fingerprint as `supabase/templates/onboarding.v2.json`
+  (md5 of live v1 = file v1). Afterwards: onboarding still `1:true`, 0 fixtures, 0 safety rows.
+- `npm run test:unit` 159/159 · `tsc` clean · `eslint` clean on every changed file.
+- Browser (throwaway `@example.test` trainer/doctor/coordinator/family + two "ZZ Safety"
+  members, deleted afterwards), 390 and 1280px: trainer card with hold, tap targets 88–106px,
+  no horizontal scroll; both trainer sheets open (not submitted); "No emergency details yet"
+  card; doctor's Clear opens (not submitted); doctor's list shows the Adverse event chip;
+  Copy for WhatsApp yields the expected nine lines; coordinator's call form; Ask in the
+  dashboard (notifies only the fixture family) → "Family asked on …" and the Today row;
+  family prompt + form (not saved — a family save notifies the real coordinators); safety
+  card prints as 1 page.
+- Dev-server hydration mismatches (app layout `<main>` vs `<div class="space-y-6">`) showed
+  intermittently when a check navigated straight after the post-login redirect; with the
+  redirect allowed to settle, the coordinator member page with the new card was clean in 3/3
+  runs. A dev-mode timing artefact, not the new components.
+- **Not yet run:** the full §16 suite. Its new 0060 block needs 0060 applied, which is held
+  until the push; run the whole suite right after applying 0060. 0059 adds tables, columns and
+  functions only, and no older block touches them.
+- Fixtures torn down: 0 `@example.test` profiles/users, 0 "ZZ Safety" members, 0 safety rows,
+  0 safety notifications; onboarding still v1 active.
+
+### At push time (owner's go-ahead)
+
+1. Apply 0060 via MCP `apply_migration` (file `supabase/migrations/0060_onboarding_v2_safety.sql`).
+2. Run the full §16 suite; expect every line PASS.
+3. Push.
+4. The coordinator works the "Emergency details missing" list on Today: Ask on WhatsApp, or
+   call (reading the consent sentence). Correct the ambulance number for the 8 clients abroad,
+   and invite the trainers who aren't set up yet.

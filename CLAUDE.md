@@ -60,6 +60,7 @@ Legend: ✅ full · 👁 view · 🔸 partial · ❌ none. "Assigned" = active a
 | Assign care team / schedule / mark meeting done | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Program trigger / pause / resume / package duration | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Deactivate/reactivate member, suspend accounts, audit log, invites | ✅ | 🔸 client invites only | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Emergency & Safety record + session log (0059) | ✅ | ✅ edit, ask family | 👁 assigned + clear hold | ❌ | 👁 assigned + report | ❌ | ✅ own fill/edit |
 
 Anyone who cannot see the wellbeing report sees only *"Wellbeing check-in completed — {date}"* (from the consultation row). Clinicians never see contact identifiers (mechanism: `member_contacts` is a separate table their RLS policies do not cover).
 
@@ -109,6 +110,18 @@ soft fields; every role has `/account`. Professional profiles, sign-in addresses
 transfer and onboarding amendment stay admin-only. 0041 (`accept_invite` status guard) is
 still committed-not-applied. Coordinators also enrol members from `/coordinator/members/new`
 — `create_member_with_invite` always accepted them; only the screen was admin-only.
+
+**Emergency & Safety (client items 3–6, owner decisions 2026-10-21/28, migrations 0059–0060).**
+`member_safety` (nearby contact, hospital, ambulance — 108 pre-filled, editable for clients
+abroad — two yes/no answers, consent source) and `safety_events` ("no session today",
+incidents). The assigned trainer and doctor read the record plus the address and family
+emergency contact through `emergency_card` — `member_contacts` keeps its policies, so the
+member's own phone/WhatsApp/email still reach no clinician; nutritionist and psychologist see
+none of it. The family fills it in onboarding (v2, section s6 — the one sanctioned exception to
+frozen questions) or on their dashboard; the coordinator asks them (`request_safety_details`)
+or fills it on a call. An incident holds sessions until the assigned doctor clears it with a
+note; the note is not granted to the coordinator (doctor content). 0060 is applied together
+with the code that renders it.
 
 ## Current phase
 
