@@ -4,11 +4,23 @@
 
 type Typed = { plus: boolean; digits: string };
 
-/** The first number in a field: whether it was typed with "+", and its digits. */
+const digitsOf = (s: string) => s.replace(/\D/g, "");
+
+/** The first number in a field: whether it was typed with "+", and its digits. Null
+ * rather than a link to a number that cannot exist (more than 15 digits). */
 function firstNumber(phone: string | null | undefined): Typed | null {
-  const first = (phone ?? "").split(/[/,;]|\bor\b/)[0].trim();
-  const digits = first.replace(/\D/g, "");
-  return digits ? { plus: first.startsWith("+"), digits } : null;
+  let first = (phone ?? "").split(/[/,;&\n]|\bor\b|\band\b|\s[-–]\s/)[0].trim();
+  if (digitsOf(first).length > 15) {
+    // Two numbers with only a space between: take words until one number's worth.
+    let acc = "";
+    for (const word of first.split(/\s+/)) {
+      acc = acc ? `${acc} ${word}` : word;
+      if (digitsOf(acc).length >= 10) break;
+    }
+    first = acc;
+  }
+  const digits = digitsOf(first);
+  return digits && digits.length <= 15 ? { plus: first.startsWith("+"), digits } : null;
 }
 
 /** Strip a phone string down to its digits; null if too short to be usable. */
@@ -28,12 +40,13 @@ export function waMeLink(phone: string | null | undefined): string | null {
   return `https://wa.me/${d}`;
 }
 
-/** tel: dials what was typed — "+" only when it was typed (or an Indian number
- * written with 91 and no "+"), so a local number dials locally. Short emergency
- * numbers (108, 999) are kept. */
+/** tel: dials what was typed, so a local number dials locally. "+" when it was typed,
+ * or when the digits carry a country code without it (11+ digits not starting with 0,
+ * e.g. 91…, 971…, 44…; 1800 toll-free excepted). Short emergency numbers (108, 999) are
+ * kept. */
 export function telHref(phone: string | null | undefined): string | null {
   const n = firstNumber(phone);
   if (!n || n.digits.length < 3) return null;
-  const plus = n.plus || (n.digits.length === 12 && n.digits.startsWith("91"));
-  return `tel:${plus ? "+" : ""}${n.digits}`;
+  const countryCode = n.digits.length >= 11 && !n.digits.startsWith("0") && !n.digits.startsWith("1800");
+  return `tel:${n.plus || countryCode ? "+" : ""}${n.digits}`;
 }

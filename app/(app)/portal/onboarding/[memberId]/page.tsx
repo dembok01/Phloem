@@ -10,6 +10,7 @@ import { VideoGate } from "@/components/forms/VideoGate";
 import { OnboardingWizard } from "@/components/forms/OnboardingWizard";
 import type { FormValues } from "@/components/forms/types";
 import { parseFormTemplate } from "@/components/forms/schema";
+import { templateHasSafety } from "@/lib/safety";
 
 // member_status values at or beyond a completed questionnaire.
 const DONE_STATUSES = new Set([
@@ -109,7 +110,7 @@ export default async function OnboardingPage({
 
   if (!responseId) {
     const session = await getSessionProfile();
-    initialAnswers = await prefillAnswers(supabase, member.id, member.full_name);
+    initialAnswers = await prefillAnswers(supabase, member.id, member.full_name, templateHasSafety(schema));
     const { data: created, error } = await supabase
       .from("form_responses")
       .insert({
@@ -148,6 +149,7 @@ async function prefillAnswers(
   supabase: Awaited<ReturnType<typeof createClient>>,
   memberId: string,
   fullName: string,
+  withSafety: boolean,
 ): Promise<FormValues> {
   const answers: FormValues = { full_name: fullName };
 
@@ -177,8 +179,9 @@ async function prefillAnswers(
     if (c.emergency_contact_phone) answers.emergency_contact_phone = c.emergency_contact_phone;
   }
 
-  // Emergency & Safety: 108 unless the coordinator already took the details on a
-  // call (saf_caregiver lets the family read them). Consent stays theirs to tick.
+  // Emergency & Safety (v2+ only): 108 unless the coordinator already took the details
+  // on a call (saf_caregiver lets the family read them). Consent stays theirs to tick.
+  if (!withSafety) return answers;
   answers.ambulance_phone = "108";
   const { data: s } = await supabase
     .from("member_safety")

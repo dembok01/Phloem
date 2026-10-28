@@ -2617,11 +2617,14 @@ Design: `docs/superpowers/specs/2026-10-21-emergency-safety-design.md`; plan:
   coordinators + admin), `clear_safety_hold` (assigned doctor, admin; clears every open
   incident; the doctor's note is not granted to anyone — it goes to the trainer's
   notification and the audit log).
-- **0060 (committed, NOT applied — goes live with the code).** Onboarding v2 = live v1 + s6
-  "Emergency & Safety" + the consent-notice sentence; v1 drafts move to v2;
-  `submit_onboarding` files s6 as the family's record and strips it from the answers;
-  `amend_onboarding` refuses the s6 keys. Applying it before the code would show the family
-  mid-onboarding the new questions on a generic card with no consent copy.
+- **0060 (committed, NOT applied — applied after the new code is live).** Onboarding v2 =
+  live v1 + s6 "Emergency & Safety" + the consent-notice sentence; v1 drafts move to v2;
+  `submit_onboarding` files s6 as the family's record (the family's own "Yes" is required, even
+  when the coordinator already took consent on a call) and strips it from the answers;
+  `amend_onboarding` refuses the s6 keys. Order matters: the old code's card flow knows only
+  s1–s5, so with v2 live it would hide s6 and every submit would fail `safety_incomplete` with
+  no way to fix it. The new code against v1 simply skips s6, and the s6 pre-fill only runs for
+  a form that has s6 (`templateHasSafety`).
 - **Trainer/doctor:** the Emergency card above the tabs on every tab (tap-to-call tiles,
   address, warnings, medicines, "Sessions on hold since … — waiting for the doctor"), the two
   trainer sheets, the doctor's two-step "Clear to restart"; an open incident lights the
@@ -2666,9 +2669,11 @@ Design: `docs/superpowers/specs/2026-10-21-emergency-safety-design.md`; plan:
 
 ### At push time (owner's go-ahead)
 
-1. Apply 0060 via MCP `apply_migration` (file `supabase/migrations/0060_onboarding_v2_safety.sql`).
-2. Run the full §16 suite; expect every line PASS.
-3. Push.
-4. The coordinator works the "Emergency details missing" list on Today: Ask on WhatsApp, or
+1. Push, and wait until the production deploy is live.
+2. Then apply 0060 via MCP `apply_migration` (file `supabase/migrations/0060_onboarding_v2_safety.sql`).
+3. Run the full §16 suite; expect every line PASS.
+4. Don't run `npm run seed` against the hosted DB before step 2 — it would activate v2 without
+   moving the drafts or the new `submit_onboarding`.
+5. The coordinator works the "Emergency details missing" list on Today: Ask on WhatsApp, or
    call (reading the consent sentence). Correct the ambulance number for the 8 clients abroad,
    and invite the trainers who aren't set up yet.

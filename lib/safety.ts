@@ -40,7 +40,8 @@ export const SAFETY_FIELD_LABELS = {
 } as const;
 
 const filled = z.string().trim().min(1, "Required.");
-const phone = z.string().trim().min(3, "Enter a phone number.");
+const oneNumber = (v: string) => v.replace(/\D/g, "").length <= 15;
+const phone = z.string().trim().min(3, "Enter a phone number.").refine(oneNumber, "One number per field.");
 
 /** What the form sends. Consent is only needed for a new record — the RPC decides. */
 export const safetyInputSchema = z.object({
@@ -51,12 +52,18 @@ export const safetyInputSchema = z.object({
   hospital_name: filled,
   hospital_phone: phone,
   ambulance_phone: phone,
-  private_ambulance_phone: z.string().trim().default(""),
+  private_ambulance_phone: z.string().trim().refine(oneNumber, "One number per field.").default(""),
   someone_home: z.boolean(),
   bp_or_glucometer: z.boolean(),
   emergency_consent: z.boolean(),
 });
 export type SafetyInput = z.infer<typeof safetyInputSchema>;
+
+/** Onboarding v2+ asks the safety questions (section s6); v1 does not, so a v1 draft
+ * must not be pre-filled with them — they would stay in the answers clinicians read. */
+export function templateHasSafety(schema: { sections: { id: string }[] }): boolean {
+  return schema.sections.some((s) => s.id === "s6");
+}
 
 /** A member_safety row as its readers see it. */
 export const safetyRecordSchema = z.object({

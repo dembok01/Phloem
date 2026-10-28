@@ -120,8 +120,8 @@ member's own phone/WhatsApp/email still reach no clinician; nutritionist and psy
 none of it. The family fills it in onboarding (v2, section s6 — the one sanctioned exception to
 frozen questions) or on their dashboard; the coordinator asks them (`request_safety_details`)
 or fills it on a call. An incident holds sessions until the assigned doctor clears it with a
-note; the note is not granted to the coordinator (doctor content). 0060 is applied together
-with the code that renders it.
+note; the note is not granted to the coordinator (doctor content). 0060 is applied only after
+the code that renders it is live (the old card flow would hide s6 and block every submit).
 
 ## Current phase
 

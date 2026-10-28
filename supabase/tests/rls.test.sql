@@ -1797,6 +1797,16 @@ set local role authenticated;
 insert into results select pg_temp.assert_true('onboarding v2: consent No is refused',
   pg_temp.onb2_submit() = 'emergency_consent_required');
 reset role;
+-- Even when the coordinator already took the details (and consent) on a call.
+insert into member_safety(member_id, local_contact_name, local_contact_relation, local_contact_phone, local_contact_eta,
+                          hospital_name, hospital_phone, someone_home, bp_or_glucometer, consent_source)
+  select m, 'Suma', 'Neighbour', '9847012345', 'under_10', 'Lakeshore', '04842345678', true, true, 'coordinator_call' from onb2;
+select pg_temp.onb2_as('61');
+set local role authenticated;
+insert into results select pg_temp.assert_true('onboarding v2: the family''s No stands over consent taken on a call',
+  pg_temp.onb2_submit() = 'emergency_consent_required');
+reset role;
+delete from member_safety where member_id = (select m from onb2);
 update form_responses set answers = answers || '{"emergency_consent":true}' where id = (select resp from onb2);
 select pg_temp.onb2_as('61');
 set local role authenticated;

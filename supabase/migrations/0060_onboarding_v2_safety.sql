@@ -171,6 +171,10 @@ begin
   -- 0060: the Emergency & Safety answers become the member_safety record and leave
   -- the answers, the same way the contact details just did.
   if v_version >= 2 then
+    -- The family's own answer stands, even over consent the coordinator took on a call.
+    if coalesce(v_ans->>'emergency_consent', '') <> 'true' then
+      raise exception 'emergency_consent_required';
+    end if;
     perform _save_safety(p_member, v_ans, 'family_form');
     v_ans := v_ans - array['local_contact_name','local_contact_relation','local_contact_phone',
                            'local_contact_eta','hospital_name','hospital_phone','ambulance_phone',

@@ -80,7 +80,13 @@ export async function EmergencyCard({
                 note={`Reaches in ${ETA_LABEL[s.local_contact_eta].toLowerCase()}`}
               />
               <CallTile label="Hospital" name={s.hospital_name} phone={s.hospital_phone} />
-              <CallTile label="Ambulance" phone={s.ambulance_phone} />
+              {/* Emergency numbers reach the service where the CALLER is, and sessions
+                  are by video — so the trainer's own call may reach the wrong place. */}
+              <CallTile
+                label="Ambulance"
+                phone={s.ambulance_phone}
+                note="Reaches the service where the caller is. Not near the client? Ask the person at home or the nearby contact to call it."
+              />
               {s.private_ambulance_phone ? (
                 <CallTile label="Private ambulance" phone={s.private_ambulance_phone} />
               ) : null}

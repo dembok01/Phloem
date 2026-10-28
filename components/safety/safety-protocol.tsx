@@ -56,8 +56,9 @@ export function SafetyProtocol() {
 
         <p className="border-t pt-4 text-sm text-muted-foreground">
           Each client&apos;s nearby contact, hospital and ambulance numbers are on the Emergency card at the top of
-          their page. Outside India, call the ambulance number shown there instead of 108. Log a day with no session
-          and any incident from that card.
+          their page. An ambulance number reaches the service where the caller is — if you are not near the
+          client, ask the person at home or the nearby contact to call the number on their card, and call the
+          hospital yourself. Log a day with no session and any incident from that card.
         </p>
       </article>
     </div>

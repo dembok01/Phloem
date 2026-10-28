@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { askFamilyText, parseEmergencyCard, safetyInputSchema, whatsappText, type EmergencyCard } from "./safety";
+import { askFamilyText, parseEmergencyCard, safetyInputSchema, templateHasSafety, whatsappText, type EmergencyCard } from "./safety";
 import { medicationsSummary } from "./reports/build/onboarding-summary";
 
 const record = {
@@ -108,4 +108,16 @@ test("medicines in one line", () => {
     "Metformin 500 mg, twice daily; Amlodipine",
   );
   assert.equal(medicationsSummary([]), "—");
+});
+
+test("one number per field", () => {
+  const input = { ...record, emergency_consent: true, private_ambulance_phone: "" };
+  const two = safetyInputSchema.safeParse({ ...input, local_contact_phone: "9847012345 9847054321" });
+  assert.equal(two.success, false);
+  assert.equal(two.error?.issues[0]?.message, "One number per field.");
+});
+
+test("safety answers are pre-filled only for a form that asks them", () => {
+  assert.equal(templateHasSafety({ sections: [{ id: "s1" }, { id: "s6" }] }), true);
+  assert.equal(templateHasSafety({ sections: [{ id: "s1" }, { id: "s5" }] }), false);
 });
