@@ -7,6 +7,7 @@ import {
   ChevronRight,
   FileClock,
   PartyPopper,
+  ShieldAlert,
   Sunrise,
   UserPlus,
 } from "lucide-react";
@@ -17,7 +18,7 @@ import { Monogram, toneForRole } from "@/components/monogram";
 import { PageHeader } from "@/components/page-header";
 import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
-import { formatDateTimeIST } from "@/lib/datetime";
+import { formatDateIST, formatDateTimeIST } from "@/lib/datetime";
 import type { CareRole } from "@/lib/member-status";
 import { actionsFor, nextActions, type ActionKind, type NextAction } from "@/lib/next-actions";
 import { Explain } from "@/components/ui/explain";
@@ -53,14 +54,33 @@ export default async function CoordinatorTodayPage() {
   // actually started: a month-2 review could sit unscheduled forever and never
   // appear as work. The embedded cycle number is what lets a row say
   // "month-2 doctor review" rather than an anonymous "consultation".
-  const [{ data: members }, { data: consults }] = await Promise.all([
-    supabase.from("members").select("id, full_name, status"),
+  const [{ data: members }, { data: consults }, { data: safetyRows }, { data: openIncidents }] = await Promise.all([
+    supabase.from("members").select("id, full_name, status, safety_requested_at"),
     supabase
       .from("consultations")
       .select(
         "id, member_id, type, meeting_status, report_status, scheduled_at, completed_at, cycle_id, cycles(number)",
       ),
+    supabase.from("member_safety").select("member_id"),
+    supabase
+      .from("safety_events")
+      .select("member_id, occurred_at")
+      .eq("kind", "incident")
+      .is("cleared_at", null)
+      .order("occurred_at"),
   ]);
+
+  // Emergency & Safety (0059). The coordinator has no member list, so the clients
+  // still missing details are listed here until every one is filled (onboarding
+  // asks the families who are still in it). Sessions on hold come first: they
+  // wait on the doctor, and the family may call.
+  const nameOf = new Map((members ?? []).map((m) => [m.id, m.full_name]));
+  const heldSince = new Map<string, string>();
+  for (const e of openIncidents ?? []) if (!heldSince.has(e.member_id)) heldSince.set(e.member_id, e.occurred_at);
+  const hasSafety = new Set((safetyRows ?? []).map((r) => r.member_id));
+  const missingSafety = (members ?? [])
+    .filter((m) => !hasSafety.has(m.id) && !["invited", "signed_up", "onboarding", "inactive"].includes(m.status))
+    .sort((a, b) => Number(Boolean(a.safety_requested_at)) - Number(Boolean(b.safety_requested_at)) || a.full_name.localeCompare(b.full_name));
 
   const tasks = actionsFor(
     nextActions({
@@ -130,6 +150,30 @@ export default async function CoordinatorTodayPage() {
             </div>
           </CardContent>
         </Card>
+      ) : null}
+
+      {heldSince.size > 0 ? (
+        <ListSection
+          label="Sessions on hold"
+          count={heldSince.size}
+          tone="danger"
+          icon={<ShieldAlert className="size-3.5 text-danger" aria-hidden />}
+        >
+          <List>
+            {[...heldSince.entries()].map(([memberId, since]) => (
+              <ListRow
+                key={memberId}
+                href={`/coordinator/members/${memberId}#safety`}
+                tone="danger"
+                leading={<Monogram name={nameOf.get(memberId) ?? "Member"} size="sm" />}
+                eyebrow="Incident in a session"
+                title={nameOf.get(memberId) ?? "Member"}
+                detail="Waiting for the doctor to clear sessions to restart."
+                meta={formatDateIST(since)}
+              />
+            ))}
+          </List>
+        </ListSection>
       ) : null}
 
       {tasks.length === 0 ? (
@@ -232,6 +276,32 @@ export default async function CoordinatorTodayPage() {
           );
         })
       )}
+
+      {missingSafety.length > 0 ? (
+        <ListSection
+          label="Emergency details missing"
+          count={missingSafety.length}
+          icon={<ShieldAlert className="size-3.5 text-warning" aria-hidden />}
+        >
+          <List stagger={false}>
+            {missingSafety.map((m) => (
+              <ListRow
+                key={m.id}
+                href={`/coordinator/members/${m.id}#safety`}
+                leading={<Monogram name={m.full_name} size="sm" />}
+                eyebrow={m.safety_requested_at ? "Family asked" : "Not asked yet"}
+                title={m.full_name}
+                detail={
+                  m.safety_requested_at
+                    ? "Waiting for the family to fill it in — call if they haven't."
+                    : "Ask the family to fill it in, or fill it in on a call."
+                }
+                meta={m.safety_requested_at ? formatDateIST(m.safety_requested_at) : undefined}
+              />
+            ))}
+          </List>
+        </ListSection>
+      ) : null}
     </section>
   );
 }

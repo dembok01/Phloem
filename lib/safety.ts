@@ -24,6 +24,21 @@ export const SKIP_REASONS: readonly { value: SkipReason; label: string }[] = [
 export const EMERGENCY_CONSENT =
   "I agree that PHLOEM's care team may contact the people above in an emergency, and that the member's trainer and doctor may see these details and the home address for that purpose.";
 
+/** The questions, worded as onboarding v2 asks them (onboarding-flow.test pins the two together). */
+export const SAFETY_FIELD_LABELS = {
+  local_contact_name: "Name of a contact person who lives nearby",
+  local_contact_relation: "Their relation to the member",
+  local_contact_phone: "Their phone number",
+  local_contact_eta: "How quickly can they reach the house?",
+  hospital_name: "Nearest hospital",
+  hospital_phone: "Hospital phone number",
+  ambulance_phone: "Ambulance number",
+  private_ambulance_phone: "Private ambulance number",
+  someone_home: "Is anyone else usually at home during session time?",
+  bp_or_glucometer: "Is there a BP machine or glucometer at home?",
+  emergency_consent: EMERGENCY_CONSENT,
+} as const;
+
 const filled = z.string().trim().min(1, "Required.");
 const phone = z.string().trim().min(3, "Enter a phone number.");
 

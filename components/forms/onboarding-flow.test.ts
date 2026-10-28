@@ -6,6 +6,7 @@ import { parseFormTemplate } from "./schema";
 import { requiredMessage, toggleChoice } from "./logic";
 import { buildCards, FIELD_HINTS, firstNameOf, voiceOf, withListButtons } from "./onboarding-flow";
 import type { FormField } from "./types";
+import { SAFETY_FIELD_LABELS } from "@/lib/safety";
 
 type RawTemplate = { sections: { id: string; title: string; fields: Record<string, unknown>[] }[] };
 const raw = (v: number): RawTemplate =>
@@ -14,20 +15,7 @@ const template = parseFormTemplate(raw(2));
 const byId = new Map(template.sections.flatMap((s) => s.fields).map((f) => [f.id, f]));
 
 // The client asked for this section (items 3–6, 2026-10-21); labels as the owner approved.
-const SAFETY_LABELS: Record<string, string> = {
-  local_contact_name: "Name of a contact person who lives nearby",
-  local_contact_relation: "Their relation to the member",
-  local_contact_phone: "Their phone number",
-  local_contact_eta: "How quickly can they reach the house?",
-  hospital_name: "Nearest hospital",
-  hospital_phone: "Hospital phone number",
-  ambulance_phone: "Ambulance number",
-  private_ambulance_phone: "Private ambulance number",
-  someone_home: "Is anyone else usually at home during session time?",
-  bp_or_glucometer: "Is there a BP machine or glucometer at home?",
-  emergency_consent:
-    "I agree that PHLOEM's care team may contact the people above in an emergency, and that the member's trainer and doctor may see these details and the home address for that purpose.",
-};
+const SAFETY_LABELS: Record<string, string> = SAFETY_FIELD_LABELS;
 
 test("None is exclusive in a multiselect", () => {
   assert.deepEqual(toggleChoice(["Breathlessness", "Dizziness"], "None"), ["None"]);

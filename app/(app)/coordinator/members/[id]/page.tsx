@@ -1,5 +1,8 @@
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 import { MessageCircle, Phone } from "lucide-react";
+import { CardSkeleton } from "@/components/ui/skeleton";
+import { SafetyDetailsCard } from "@/components/safety/safety-details-card";
 import { ActivationMoment } from "@/components/activation-moment";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
@@ -101,7 +104,7 @@ export default async function CoordinatorMemberPage({
   const { data: member } = await supabase
     .from("members")
     .select(
-      "id, full_name, status, red_flags, caregiver_id, age, city, gender, language, occupation, country, relationship_to_caregiver",
+      "id, full_name, status, red_flags, caregiver_id, age, city, gender, language, occupation, country, relationship_to_caregiver, safety_requested_at",
     )
     .eq("id", id)
     .maybeSingle();
@@ -358,6 +361,17 @@ export default async function CoordinatorMemberPage({
           ) : null}
         </CardContent>
       </Card>
+
+      {/* Emergency & Safety (0059): the record, or the two ways to get it. */}
+      <Suspense fallback={<CardSkeleton />}>
+        <SafetyDetailsCard
+          memberId={member.id}
+          memberName={member.full_name}
+          status={member.status}
+          caregiver={caregiver ?? null}
+          requestedAt={member.safety_requested_at}
+        />
+      </Suspense>
 
       {/* Assign care team (§6 assign_care_team) */}
       <Card>
