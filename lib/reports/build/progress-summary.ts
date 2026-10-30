@@ -19,6 +19,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 import { groupSeries, summarise, formatValue, type MeasurePoint } from "@/lib/measures";
 import { humanize } from "@/lib/reports/build/helpers";
+import { inPeriod, periodLabel, type Period } from "@/lib/progress-period";
 import type {
   MeasureTrendEntry,
   ReportContent,
@@ -32,6 +33,9 @@ export type ProgressSummaryInput = {
   memberId: string;
   /** null builds an all-time summary (used before the first cycle closes) */
   cycleId: string | null;
+  /** 0061: the admin's report for a chosen period, on request from the family.
+   *  What happened is narrowed to the period; the numbers run up to its end. */
+  period?: Period;
 };
 
 const dateFmt = new Intl.DateTimeFormat("en-IN", {
@@ -53,7 +57,7 @@ function d(iso: string | null): string {
  */
 export async function buildProgressSummary(
   admin: Admin,
-  { memberId, cycleId }: ProgressSummaryInput,
+  { memberId, cycleId, period }: ProgressSummaryInput,
 ): Promise<ReportContent> {
   const [
     { data: member },
@@ -61,7 +65,7 @@ export async function buildProgressSummary(
     { data: cycles },
     { data: consults },
     { data: reports },
-    { data: cases },
+    { data: allCases },
     { data: catalog },
     { data: responses },
   ] = await Promise.all([
@@ -98,6 +102,9 @@ export async function buildProgressSummary(
   const name = member?.full_name ?? "Member";
   const cycleNo = cycle?.number ?? null;
   const sections: ReportSection[] = [];
+  const span = period ? periodLabel(period) : null;
+  const periodEnd = period ? Date.parse(`${period.to}T23:59:59.999+05:30`) : Infinity;
+  const cases = period ? casesAsOf(allCases ?? [], period) : allCases;
 
   // ---- measures (family-safe only) -------------------------------------------
   const { data: sources } = await admin
@@ -120,13 +127,15 @@ export async function buildProgressSummary(
       if (value === null) continue;
       const meta = (catalog ?? []).find((c) => c.measure_key === s.measure_key);
       if (!meta) continue;
+      const at = preferConsultDate(answers, r.submitted_at);
+      if (Date.parse(at) > periodEnd) continue;
       points.push({
         measure_key: s.measure_key,
         label: meta.label,
         unit: meta.unit,
         domain: meta.domain,
         higher_is_better: meta.higher_is_better,
-        at: preferConsultDate(answers, r.submitted_at),
+        at,
         cycle_number: cycNumber ?? null,
         value,
         source: key,
@@ -141,7 +150,13 @@ export async function buildProgressSummary(
   sections.push({
     heading: "In plain words",
     kind: "plain_language",
-    data: plainLanguage({ name, cycleNo, stats, series, cases: cases ?? [] }),
+    data: plainLanguage({
+      name,
+      scope: span ? `the period ${span}` : cycleNo ? `cycle ${cycleNo}` : null,
+      stats,
+      series,
+      cases: cases ?? [],
+    }),
   });
 
   // ---- 2. timeline ----------------------------------------------------------
@@ -150,11 +165,11 @@ export async function buildProgressSummary(
     reports: (reports ?? []).filter((r) => r.type !== "wellbeing"),
     cycles: (cycles ?? []) as { number: number; start_date: string; end_date: string; status: string }[],
     cases: cases ?? [],
-    from: cycle?.start_date ?? null,
-    to: cycle?.end_date ?? null,
+    from: period?.from ?? cycle?.start_date ?? null,
+    to: period?.to ?? cycle?.end_date ?? null,
   });
   sections.push({
-    heading: cycleNo ? `What happened in cycle ${cycleNo}` : "The journey so far",
+    heading: period ? "What happened in this period" : cycleNo ? `What happened in cycle ${cycleNo}` : "The journey so far",
     kind: "timeline",
     data: { entries },
   });
@@ -174,7 +189,7 @@ export async function buildProgressSummary(
       data: {
         measures,
         note:
-          "Each figure is the most recent reading, compared with the very first one taken. " +
+          `Each figure is the most recent reading${period ? ` up to ${periodLabel({ from: period.to, to: period.to })}` : ""}, compared with the very first one taken. ` +
           "Some numbers, like weight, are shown without a verdict — whether a change is good " +
           "depends on the plan, and that is the doctor's call.",
       },
@@ -182,7 +197,11 @@ export async function buildProgressSummary(
   }
 
   // ---- 4. comparison with the previous cycle --------------------------------
-  const comparison = cycleComparison(series, cycleNo);
+  const comparison = cycleComparison(
+    series,
+    period ? `By ${periodLabel({ from: period.to, to: period.to })}` : cycleNo ? `Now (cycle ${cycleNo})` : "Now",
+  );
+  if (comparison && period) comparison.heading = "Where things stood against the start";
   if (comparison) sections.push(comparison);
 
   // ---- 5. cases ------------------------------------------------------------
@@ -203,7 +222,13 @@ export async function buildProgressSummary(
   }
 
   // ---- 6. care received this cycle -----------------------------------------
-  const inCycle = (consults ?? []).filter((c) => !cycleId || c.cycle_id === cycleId);
+  const inCycle = (consults ?? []).filter((c) => {
+    if (period) {
+      const when = c.completed_at ?? c.scheduled_at;
+      return !!when && inPeriod(when, period);
+    }
+    return !cycleId || c.cycle_id === cycleId;
+  });
   const held = inCycle.filter((c) => c.meeting_status === "done");
   sections.push({
     heading: "Care received",
@@ -213,6 +238,7 @@ export async function buildProgressSummary(
       "Specialists involved": held.length
         ? [...new Set(held.map((c) => humanize(c.type)))].sort().join(", ")
         : "—",
+      ...(span ? { Period: span } : {}),
       ...(cycle
         ? { "Cycle dates": `${d(cycle.start_date)} – ${d(cycle.end_date)}` }
         : {}),
@@ -220,11 +246,36 @@ export async function buildProgressSummary(
   });
 
   return {
-    title: cycleNo ? `Progress Summary — ${name} · Cycle ${cycleNo}` : `Progress Summary — ${name}`,
+    title: span
+      ? `Progress Report — ${name} · ${span}`
+      : cycleNo
+        ? `Progress Summary — ${name} · Cycle ${cycleNo}`
+        : `Progress Summary — ${name}`,
     generated_at: new Date().toISOString(),
     cycle: cycleNo,
     sections,
+    ...(period ? { period: { from: period.from, to: period.to } } : {}),
   };
+}
+
+/** The health matters that were open at some point in the period, each as it stood
+ *  on the period's last day — a matter resolved after it is still being tracked. */
+function casesAsOf<C extends { status: string; opened_at: string; resolved_at: string | null }>(
+  cases: C[],
+  period: Period,
+): C[] {
+  const start = Date.parse(`${period.from}T00:00:00+05:30`);
+  const end = Date.parse(`${period.to}T23:59:59.999+05:30`);
+  return cases
+    .filter((c) => Date.parse(c.opened_at) <= end && (!c.resolved_at || Date.parse(c.resolved_at) >= start))
+    .map((c) => {
+      const resolvedByEnd = !!c.resolved_at && Date.parse(c.resolved_at) <= end;
+      return {
+        ...c,
+        status: resolvedByEnd ? "resolved" : c.status === "resolved" ? "open" : c.status,
+        resolved_at: resolvedByEnd ? c.resolved_at : null,
+      };
+    });
 }
 
 // ---------------------------------------------------------------------------
@@ -303,7 +354,7 @@ function timelineEntries(args: {
 
 function cycleComparison(
   series: ReturnType<typeof groupSeries>,
-  cycleNo: number | null,
+  rightLabel: string,
 ): ReportSection | null {
   const movable = series.filter((s) => s.points.length > 1);
   if (movable.length === 0) return null;
@@ -312,7 +363,7 @@ function cycleComparison(
     kind: "comparison",
     data: {
       left_label: "At the start",
-      right_label: cycleNo ? `Now (cycle ${cycleNo})` : "Now",
+      right_label: rightLabel,
       rows: movable.map((s) => ({
         label: s.label,
         left: formatValue(s.baseline, s.unit),
@@ -327,7 +378,8 @@ function cycleComparison(
  *  than saying so. */
 function plainLanguage(args: {
   name: string;
-  cycleNo: number | null;
+  /** "cycle 2", "the period 1 Sept 2026 – 30 Sept 2026"; null = the programme so far */
+  scope: string | null;
   stats: { tracked: number; improved: number; declined: number };
   series: ReturnType<typeof groupSeries>;
   cases: { title: string; status: string }[];
@@ -338,7 +390,7 @@ function plainLanguage(args: {
 
   if (tracked === 0) {
     parts.push(
-      `This is ${first}'s summary${args.cycleNo ? ` for cycle ${args.cycleNo}` : ""}. ` +
+      `This is ${first}'s summary${args.scope ? ` for ${args.scope}` : ""}. ` +
         `No measurements have been recorded yet, so there is nothing to compare — the care team ` +
         `takes the first readings during the initial consultations.`,
     );
@@ -346,7 +398,7 @@ function plainLanguage(args: {
   }
 
   parts.push(
-    `Over ${args.cycleNo ? `cycle ${args.cycleNo}` : "the programme so far"}, the care team tracked ` +
+    `Over ${args.scope ?? "the programme so far"}, the care team tracked ` +
       `${tracked} measure${tracked === 1 ? "" : "s"} for ${first}.`,
   );
 

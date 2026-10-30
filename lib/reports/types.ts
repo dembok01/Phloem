@@ -68,6 +68,8 @@ export type ReportContent = {
   cycle: number | null;
   sections: ReportSection[];
   upload?: UploadedFile;
+  /** 0061 — an admin's on-demand progress report covers these IST days. */
+  period?: { from: string; to: string };
 };
 
 /** Narrow untyped `reports.content` (Json) into a renderable ReportContent. */

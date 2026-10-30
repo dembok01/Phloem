@@ -9,6 +9,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 import { buildProgressSummary } from "@/lib/reports/build/progress-summary";
+import type { Period } from "@/lib/progress-period";
 import { logError, logEvent } from "@/lib/observe";
 
 type Admin = SupabaseClient<Database>;
@@ -45,6 +46,36 @@ export async function generateProgressSummary(
     return { error: error.message };
   }
   logEvent("progress_summary.recorded", { member_id: args.memberId, cycle_id: args.cycleId });
+  return { reportId: data as unknown as string };
+}
+
+/**
+ * 0061 — the admin's progress report for a chosen period, when a family asks.
+ * Same two-client split as above: `admin` reads, the admin USER's client records,
+ * so record_progress_report refuses anyone who isn't an active admin.
+ */
+export async function generateProgressReport(
+  admin: Admin,
+  recorder: Admin,
+  args: { memberId: string; period: Period },
+): Promise<{ reportId: string } | { error: string }> {
+  const content = await buildProgressSummary(admin, {
+    memberId: args.memberId,
+    cycleId: null,
+    period: args.period,
+  });
+
+  const { data, error } = await recorder.rpc("record_progress_report", {
+    p_member: args.memberId,
+    p_from: args.period.from,
+    p_to: args.period.to,
+    p_content: content as unknown as Database["public"]["Tables"]["reports"]["Row"]["content"],
+  });
+  if (error) {
+    logError("progress_report.record_failed", error, { member_id: args.memberId, ...args.period });
+    return { error: error.message };
+  }
+  logEvent("progress_report.recorded", { member_id: args.memberId, ...args.period });
   return { reportId: data as unknown as string };
 }
 

@@ -1808,6 +1808,15 @@ export type Database = {
         Args: { p_duration_months: number; p_member: string }
         Returns: string
       }
+      record_progress_report: {
+        Args: {
+          p_content: Json
+          p_from: string
+          p_member: string
+          p_to: string
+        }
+        Returns: string
+      }
       record_progress_summary: {
         Args: {
           p_content: Json

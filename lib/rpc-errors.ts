@@ -89,6 +89,8 @@ export const RPC_ERROR_CODES = [
   "detail_required",
   "note_required",
   "not_on_hold",
+  // 0061 progress report for a chosen period
+  "bad_period",
 ] as const;
 
 export type RpcErrorCode = (typeof RPC_ERROR_CODES)[number];
@@ -176,6 +178,7 @@ export const RPC_ERROR_COPY: Record<RpcErrorCode, string> = {
   detail_required: "Say what happened and what you did.",
   note_required: "Add a short note on why sessions can restart.",
   not_on_hold: "Sessions aren't on hold any more.",
+  bad_period: "Choose a start date before the end date, ending no later than today.",
   field_not_allowed: "You can't change that field. Ask your coordinator if it needs correcting.",
   name_required: "A name is required.",
   bad_age: "Age must be between 1 and 120.",

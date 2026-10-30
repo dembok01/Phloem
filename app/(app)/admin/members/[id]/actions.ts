@@ -11,6 +11,8 @@ import {
   type MemberDeletionState,
 } from "@/lib/member-deletion";
 import { actionFail, actionFromError, actionOk, type ActionResult } from "@/lib/action-result";
+import { checkPeriod, todayIST } from "@/lib/progress-period";
+import { generateProgressReport } from "@/lib/reports/progress";
 
 // P-1 / CODE-REVIEW H-3 — flip a doctor/performance report's caregiver visibility
 // through the audited §6 set_report_sharing RPC (clinicians have no UPDATE on
@@ -40,6 +42,38 @@ export async function setReportSharing(formData: FormData): Promise<void> {
 
   revalidatePath(to);
   redirect(`${to}?ok=${parsed.data.shared ? "shared" : "unshared"}`);
+}
+
+// ── A progress report for a chosen period (0061) ─────────────────────────────
+// When a family asks how things have gone. The builder narrows to family-safe
+// content itself; record_progress_report refuses anyone but an active admin.
+const progressSchema = z.object({
+  memberId: z.string().uuid(),
+  from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+});
+
+export async function createProgressReportAction(
+  memberId: string,
+  from: string,
+  to: string,
+): Promise<ActionResult<string>> {
+  const parsed = progressSchema.safeParse({ memberId, from, to });
+  if (!parsed.success) return actionFail("Choose both dates.");
+  const period = { from: parsed.data.from, to: parsed.data.to };
+  const problem = checkPeriod(period, todayIST());
+  if (problem) return actionFail(problem, "bad_period");
+
+  const supabase = await createClient();
+  const result = await generateProgressReport(createAdminClient(), supabase, {
+    memberId: parsed.data.memberId,
+    period,
+  });
+  if ("error" in result) {
+    return actionFromError({ message: result.error }, "Could not create the report. Please try again.");
+  }
+  revalidatePath(`/admin/members/${parsed.data.memberId}`);
+  return actionOk(result.reportId);
 }
 
 // ── Deleting a member ────────────────────────────────────────────────────────

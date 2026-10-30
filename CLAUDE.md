@@ -61,6 +61,7 @@ Legend: ✅ full · 👁 view · 🔸 partial · ❌ none. "Assigned" = active a
 | Program trigger / pause / resume / package duration | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Deactivate/reactivate member, suspend accounts, audit log, invites | ✅ | 🔸 client invites only | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Emergency & Safety record + session log (0059) | ✅ | ✅ edit, ask family | 👁 assigned + clear hold | ❌ | 👁 assigned + report | ❌ | ✅ own fill/edit |
+| Progress report for a chosen period (0061) | ✅ create | ❌ | 👁 assigned | 👁 assigned | 👁 assigned | ❌ | ✅ own |
 
 Anyone who cannot see the wellbeing report sees only *"Wellbeing check-in completed — {date}"* (from the consultation row). Clinicians never see contact identifiers (mechanism: `member_contacts` is a separate table their RLS policies do not cover).
 
@@ -122,6 +123,15 @@ frozen questions) or on their dashboard; the coordinator asks them (`request_saf
 or fills it on a call. An incident holds sessions until the assigned doctor clears it with a
 note; the note is not granted to the coordinator (doctor content). 0060 is applied only after
 the code that renders it is live (the old card flow would hide s6 and block every submit).
+
+**Progress report on request (owner request 2026-10-30, migration 0061).** When a family asks
+how things have gone, the admin picks a period on the member page (everything so far, a cycle,
+or two dates) and `record_progress_report` files a `progress_summary` — the same family-safe
+document as the monthly one (no psych content, wellbeing only acknowledged), narrowed to the
+period, with `content.period`. Created shared and the family is notified; the PDF downloads from
+the card for WhatsApp. Admin only: the coordinator was ruled out because §3 gives them no
+clinical content. `record_progress_summary` ignores period reports when looking for a cycle's
+(or the all-time) summary.
 
 ## Current phase
 

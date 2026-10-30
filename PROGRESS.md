@@ -2617,7 +2617,7 @@ Design: `docs/superpowers/specs/2026-10-21-emergency-safety-design.md`; plan:
   coordinators + admin), `clear_safety_hold` (assigned doctor, admin; clears every open
   incident; the doctor's note is not granted to anyone — it goes to the trainer's
   notification and the audit log).
-- **0060 (committed, NOT applied — applied after the new code is live).** Onboarding v2 =
+- **0060 (applied 2026-10-30, after the new code went live).** Onboarding v2 =
   live v1 + s6 "Emergency & Safety" + the consent-notice sentence; v1 drafts move to v2;
   `submit_onboarding` files s6 as the family's record (the family's own "Yes" is required, even
   when the coordinator already took consent on a call) and strips it from the answers;
@@ -2677,3 +2677,55 @@ Design: `docs/superpowers/specs/2026-10-21-emergency-safety-design.md`; plan:
 5. The coordinator works the "Emergency details missing" list on Today: Ask on WhatsApp, or
    call (reading the consent sentence). Correct the ambulance number for the 8 clients abroad,
    and invite the trainers who aren't set up yet.
+
+### Released (2026-10-29/30)
+
+- `main` pushed 2026-10-29 (`055ad37..2e21753`); Vercel production deploy succeeded.
+- 0060 applied 2026-10-30 via MCP `apply_migration`. Onboarding v1 inactive (fingerprint
+  `44a17d7b…` unchanged), v2 active with 6 sections, fingerprint `e5f2e505…` = the repo file.
+  No v1 drafts were open at apply time.
+- §16 after apply (`supabase db query --linked`, one rolled-back transaction):
+  - The seed-dependent persona blocks (lines up to "admin desks") still stop at their fixture
+    insert (`one_active_per_role`: the live DB has two doctors) — known since 2026-08-21, see
+    the RLS-baseline note; they never reach an assertion.
+  - Every id-agnostic block except 0046 — admin desks, 0035, 0037–0040, 0036, 0045, 0048,
+    0054/0055, 0059, 0060 — **168/168 PASS**, including all 49 safety assertions.
+  - The 0035 assertion "coordinator REFUSED update_member_contacts" was stale since 0057
+    (owner decision 2026-10-10: coordinators edit contacts); now asserts the coordinator is
+    ALLOWED.
+  - The 0046 block: 31 PASS, 3 stale since 0053 (owner decision 2026-10-02: the month's
+    review round follows the doctor) — "backdate: the current review round is the doctor
+    only", "cron: rollover opens cycle 2 reviews for doctor + nutritionist only", "a nutrition
+    plan submitted mid-programme joins the next round". 0053 opens a cycle with the doctor's
+    review only and the other assigned roles once the doctor has met; these assertions still
+    expect 0046's rule. Not yet rewritten.
+
+## Progress report on request (2026-10-30, migration 0061)
+
+Owner: "if the caregiver asks for a report of the progress made till now, or to that date, we
+should be able to provide it" — admin only (the coordinator may not read clinical content, §3).
+
+- **Screen:** admin member page → "Progress report" card. One tap for *Everything so far*
+  (enrolment, or the first cycle if earlier, → today) or any cycle that has begun (the running
+  one stops at today); *Choose dates* for anything else (end no later than today). *Create
+  report* → *Download PDF* (to send on WhatsApp) and *Read it*. The report also lands on the
+  family's dashboard with a notification, like every progress summary.
+- **Content:** `buildProgressSummary(…, { period })` — the monthly summary's sections, with the
+  timeline, consultations and health matters narrowed to the period (a matter shows how it
+  stood on the last day), and the numbers running up to the end date against the very first
+  reading. Family-safe as before: `family_safe` measures only, the psychologist acknowledged
+  ("Wellbeing check-in completed"), never described.
+- **0061:** `record_progress_report(member, from, to, content)` — admin only, `bad_period`
+  (start after end, or end after today), stamps `content.period` from its arguments, always a new
+  report, notifies the family, audits `progress_report.created`. `record_progress_summary`
+  restated from 0026: its existing-summary lookup skips period reports.
+- **Verification:** unit 176/176 (new `lib/progress-period.test.ts`, 6; new
+  `lib/reports/build/progress-summary.test.ts`, 7, a stand-in DB with events inside and outside
+  the period); tsc 0; eslint 0; `npm run build` 0. §16 0061 block, 12 assertions: RED before the
+  migration existed, then 12/12 PASS with the migration body inside one rolled-back transaction.
+  A real member's "everything so far" report rendered read-only to PDF (4 pages, all sections
+  sensible); the card checked at 1280 and 390 px with no horizontal scroll. Create was not pressed
+  against real data (it would notify a real family).
+- **Not yet applied:** 0061. It is additive (a new function; the restated one only skips period
+  reports), so apply it BEFORE the push — the card's Create needs it.
+

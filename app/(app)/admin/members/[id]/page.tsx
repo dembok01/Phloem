@@ -13,6 +13,7 @@ import { ThreadPanel } from "@/components/threads/thread-panel";
 import { RenewalPanel } from "@/components/renewal-panel";
 import { RedFlagBanner } from "@/components/red-flag-banner";
 import { ReportShareToggle } from "@/components/admin/report-share-toggle";
+import { ProgressReportCard } from "@/components/admin/progress-report-card";
 import { EditRecordSheet } from "@/components/edit-record-sheet";
 import { MEMBER_DEMOGRAPHICS, MEMBER_CONTACTS } from "@/lib/member-fields";
 import { updateMemberAction, updateMemberContactsAction } from "@/app/(app)/record-actions";
@@ -25,6 +26,7 @@ import { deleteMemberAction } from "./actions";
 import { createClient } from "@/lib/supabase/server";
 import { formatDateIST, formatDateTimeIST } from "@/lib/datetime";
 import { parseRedFlags } from "@/lib/red-flags";
+import { presetPeriods, todayIST } from "@/lib/progress-period";
 import { humanize } from "@/lib/reports/build/helpers";
 import {
   CARE_ROLES,
@@ -80,7 +82,7 @@ export default async function AdminMemberPage({
 
   const { data: member } = await supabase
     .from("members")
-    .select("id, full_name, status, red_flags, age, city, gender, photo_path, language, occupation, country, relationship_to_caregiver, caregiver_id")
+    .select("id, full_name, status, red_flags, age, city, gender, photo_path, language, occupation, country, relationship_to_caregiver, caregiver_id, created_at")
     .eq("id", id)
     .maybeSingle();
   if (!member) notFound();
@@ -170,6 +172,17 @@ export default async function AdminMemberPage({
   }
 
   const redFlags = parseRedFlags(member.red_flags);
+
+  // 0061 — "everything so far" runs from enrolment (or the first cycle, if the
+  // record predates it), so the first consultations are in it.
+  const today = todayIST();
+  const enrolledOn = todayIST(Date.parse(member.created_at));
+  const firstCycle = (cycles ?? [])[0]?.start_date;
+  const reportPresets = presetPeriods({
+    enrolledOn: firstCycle && firstCycle < enrolledOn ? firstCycle : enrolledOn,
+    cycles: (cycles ?? []) as ProgramCycle[],
+    today,
+  });
 
   return (
     <section className="mx-auto max-w-4xl space-y-6">
@@ -282,6 +295,14 @@ export default async function AdminMemberPage({
           ))}
         </CardContent>
       </Card>
+
+      <ProgressReportCard
+        memberId={member.id}
+        firstName={member.full_name.split(" ")[0]}
+        presets={reportPresets}
+        today={today}
+        hasFamilyLogin={!!member.caregiver_id}
+      />
 
       {/* Reports (admin sees all — rep_admin). Doctor & performance reports carry
           a "Shared with family" switch (P-1 / H-3); other types are always

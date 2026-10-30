@@ -580,7 +580,7 @@ begin
   insert into results values ('PASS  edit: doctor REFUSED update_member');
 end $$;
 
--- A coordinator may VIEW contacts (§3 gives them 👁) but never write them.
+-- 0057 (owner decision 2026-10-10): the coordinator corrects contacts too (§3 ✅ edit).
 reset role;
 select set_config('request.jwt.claims',
   json_build_object('sub', (select coord from t35), 'role', 'authenticated')::text, true);
@@ -593,10 +593,10 @@ begin
     msg := 'no error';
   exception when others then msg := SQLERRM;
   end;
-  if msg <> 'not_allowed' then
-    raise exception 'RLS TEST FAILED: coordinator must be refused update_member_contacts — got %', msg;
+  if msg <> 'no error' then
+    raise exception 'RLS TEST FAILED: coordinator must be allowed update_member_contacts (0057) — got %', msg;
   end if;
-  insert into results values ('PASS  edit: coordinator REFUSED update_member_contacts');
+  insert into results values ('PASS  edit: coordinator ALLOWED update_member_contacts (0057)');
 end $$;
 
 -- The caregiver half of the field split: soft fields yes, identity no, and only
@@ -1830,6 +1830,92 @@ insert into results select pg_temp.assert_true('onboarding v2: amend refuses the
     '{"hospital_name":"Elsewhere"}', 'fix')) = 'field_not_allowed');
 reset role;
 select set_config('request.jwt.claims', '', true);
+
+-- ============ 0061: the admin's progress report for a chosen period ============
+-- Id-agnostic: a live member with a family login, and live admin / coordinator
+-- profiles. Everything it files is rolled back with the rest.
+create temp table t61 as
+select m.id as m, m.caregiver_id as cg,
+       (select id from profiles where role = 'admin' and status = 'active' limit 1) as admin_id,
+       (select id from profiles where role = 'coordinator' and status = 'active' limit 1) as coord_id,
+       (select a.care_user_id from assignments a
+         where a.member_id = m.id and a.care_role = 'doctor' and a.active limit 1) as doctor_id,
+       (now() at time zone 'Asia/Kolkata')::date as today
+  from members m join profiles p on p.id = m.caregiver_id
+ where p.role = 'caregiver' and p.status = 'active'
+ limit 1;
+grant select on t61 to authenticated;
+create function pg_temp.p61_try(q text) returns text language plpgsql as $$
+begin execute q; return 'ok'; exception when others then return SQLERRM; end $$;
+create function pg_temp.p61_as(who uuid) returns void language sql as $$
+  select set_config('request.jwt.claims',
+    json_build_object('sub', who, 'role', 'authenticated')::text, true) $$;
+create function pg_temp.p61_file(f date, t date) returns text language sql as $$
+  select pg_temp.p61_try(format('select record_progress_report(%L, %L::date, %L::date, %L::jsonb)',
+    (select m from t61), f, t,
+    '{"title":"Progress Report","sections":[],"period":{"from":"1999-01-01","to":"1999-01-02"}}')) $$;
+
+select pg_temp.p61_as((select coord_id from t61));
+set local role authenticated;
+insert into results select pg_temp.assert_true('progress report: a coordinator cannot create one',
+  pg_temp.p61_file((select today - 30 from t61), (select today from t61)) = 'not_allowed');
+reset role;
+select pg_temp.p61_as((select cg from t61));
+set local role authenticated;
+insert into results select pg_temp.assert_true('progress report: the family cannot create one',
+  pg_temp.p61_file((select today - 30 from t61), (select today from t61)) = 'not_allowed');
+reset role;
+select pg_temp.p61_as((select doctor_id from t61));
+set local role authenticated;
+insert into results select pg_temp.assert_true('progress report: the doctor cannot create one',
+  pg_temp.p61_file((select today - 30 from t61), (select today from t61)) = 'not_allowed');
+reset role;
+
+select pg_temp.p61_as((select admin_id from t61));
+set local role authenticated;
+insert into results select pg_temp.assert_true('progress report: the start must not be after the end',
+  pg_temp.p61_file((select today - 1 from t61), (select today - 2 from t61)) = 'bad_period');
+insert into results select pg_temp.assert_true('progress report: the end must not be after today',
+  pg_temp.p61_file((select today - 1 from t61), (select today + 1 from t61)) = 'bad_period');
+insert into results select pg_temp.assert_true('progress report: an admin creates one',
+  pg_temp.p61_file((select today - 30 from t61), (select today from t61)) = 'ok');
+reset role;
+select set_config('request.jwt.claims', '', true);
+
+create temp table t61r as
+select id, content, share_with_caregiver, created_by from reports
+ where member_id = (select m from t61) and type = 'progress_summary' and content ? 'period'
+   and created_by = (select admin_id from t61)
+ order by created_at desc limit 1;
+grant select on t61r to authenticated;
+insert into results select pg_temp.assert_true('progress report: filed as a shared progress summary, dated by its arguments',
+  (select share_with_caregiver
+          and content->'period'->>'from' = ((select today - 30 from t61))::text
+          and content->'period'->>'to' = ((select today from t61))::text
+     from t61r));
+insert into results select pg_temp.assert_eq('progress report: the family is told',
+  (select count(*) from notifications
+    where user_id = (select cg from t61) and link = '/reports/' || (select id from t61r)), 1);
+insert into results select pg_temp.assert_eq('progress report: audited',
+  (select count(*) from audit_log
+    where action = 'progress_report.created' and entity_id = (select id from t61r)), 1);
+
+select pg_temp.p61_as((select cg from t61));
+set local role authenticated;
+insert into results select pg_temp.assert_eq('progress report: the family reads it',
+  (select count(*) from reports where id = (select id from t61r)), 1);
+reset role;
+select pg_temp.p61_as((select coord_id from t61));
+set local role authenticated;
+insert into results select pg_temp.assert_eq('progress report: the coordinator does not read it',
+  (select count(*) from reports where id = (select id from t61r)), 0);
+reset role;
+select set_config('request.jwt.claims', '', true);
+
+-- The doctor's all-time compile (cycle null) must not hand back the admin's report.
+insert into results select pg_temp.assert_true('progress report: an all-time summary compile never returns it',
+  record_progress_summary((select m from t61), null, '{"title":"t","sections":[]}'::jsonb, false)
+    <> (select id from t61r));
 
 select line from results;
 
