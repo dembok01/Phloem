@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { MessageCircle, Phone } from "lucide-react";
+import { ChevronDown, MessageCircle, Phone } from "lucide-react";
 import { CardSkeleton } from "@/components/ui/skeleton";
 import { SafetyDetailsCard } from "@/components/safety/safety-details-card";
 import { ActivationMoment } from "@/components/activation-moment";
@@ -464,8 +464,9 @@ export default async function CoordinatorMemberPage({
                 {c.meeting_status !== "done" && c.meeting_status !== "cancelled" ? (
                   <div className="mt-3 flex flex-wrap items-center gap-3">
                     <details className="group">
-                      <summary className="inline-flex cursor-pointer list-none items-center rounded-lg border border-input px-3 py-1.5 text-sm font-medium hover:bg-muted">
+                      <summary className="inline-flex cursor-pointer list-none items-center gap-1.5 rounded-lg border border-input px-3 py-1.5 text-sm font-medium hover:bg-muted [&::-webkit-details-marker]:hidden">
                         {c.meeting_status === "scheduled" ? "Reschedule" : "Schedule"}
+                        <ChevronDown className="size-3.5 text-muted-foreground transition-transform duration-(--motion-pop) ease-out group-open:rotate-180" aria-hidden />
                       </summary>
                       <form action={scheduleConsultation} className="mt-3 grid gap-2 sm:grid-cols-[auto_auto_1fr_auto] sm:items-end">
                         <input type="hidden" name="member_id" value={member.id} />
@@ -508,8 +509,9 @@ export default async function CoordinatorMemberPage({
                     in another way (e.g. WhatsApp), or isn't needed at all. */}
                 {c.meeting_status === "done" && c.report_status === "pending" ? (
                   <details className="group mt-3">
-                    <summary className="inline-flex cursor-pointer list-none items-center rounded-lg border border-input px-3 py-1.5 text-sm font-medium hover:bg-muted">
+                    <summary className="inline-flex cursor-pointer list-none items-center gap-1.5 rounded-lg border border-input px-3 py-1.5 text-sm font-medium hover:bg-muted [&::-webkit-details-marker]:hidden">
                       Close report manually
+                        <ChevronDown className="size-3.5 text-muted-foreground transition-transform duration-(--motion-pop) ease-out group-open:rotate-180" aria-hidden />
                     </summary>
                     <form action={closeReport} className="mt-3 space-y-3">
                       <input type="hidden" name="member_id" value={member.id} />

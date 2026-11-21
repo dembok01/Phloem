@@ -177,9 +177,10 @@ export function PipelineBoard({
               <div
                 {...dropProps}
                 className={cn(
-                  "flex h-full flex-col rounded-xl border bg-sidebar/60 p-2 transition-colors md:min-h-40",
+                  "flex h-full flex-col rounded-xl border bg-sidebar/60 p-2 transition-[background-color,border-color,box-shadow] duration-(--motion-pop) ease-out md:min-h-40",
                   hot && "border-warning/40",
-                  isOver && "border-primary/50 bg-secondary/40",
+                  // The column under the dragged card lights up: "it lands here".
+                  isOver && "border-primary/60 bg-secondary/50 ring-2 ring-primary/25",
                   isActiveTarget && "border-success/60 bg-success-tint",
                 )}
               >
@@ -194,7 +195,7 @@ export function PipelineBoard({
                     No match here
                   </p>
                 ) : (
-                  <div className="grid grid-cols-[repeat(auto-fill,minmax(12rem,1fr))] gap-2">
+                  <div className="fl-stagger grid grid-cols-[repeat(auto-fill,minmax(12rem,1fr))] gap-2">
                     {colCards.map((m) => (
                       <Link
                         key={m.id}
@@ -211,8 +212,10 @@ export function PipelineBoard({
                         }}
                         aria-disabled={pending}
                         className={cn(
-                          "group relative block cursor-grab rounded-lg border border-input/50 bg-card p-2.5 shadow-card transition-[translate,box-shadow,border-color] duration-(--motion-press) ease-out hover:-translate-y-px hover:border-primary/60 hover:shadow-pop active:cursor-grabbing",
-                          dragId === m.id && "opacity-50",
+                          "group relative block cursor-grab rounded-lg border border-input/50 bg-card p-2.5 shadow-card transition-[translate,box-shadow,border-color,opacity,scale] duration-(--motion-press) ease-out hover:-translate-y-px hover:border-primary/60 hover:shadow-pop active:cursor-grabbing",
+                          // What stays behind while you carry it: a dashed ghost of the
+                          // card, so the eye knows where it came from.
+                          dragId === m.id && "scale-[0.97] border-dashed border-primary/50 opacity-40 shadow-none",
                         )}
                       >
                         <div className="flex items-center gap-2.5">

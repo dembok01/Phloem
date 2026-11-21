@@ -318,6 +318,17 @@
   [aria-disabled="true"] {
     cursor: not-allowed;
   }
+  /* Native checkboxes, radios and ranges take the brand blue, not the browser's. */
+  :root {
+    accent-color: var(--primary);
+  }
+  /* Every field eases its focus ring in (native selects and textareas included,
+     which no component wraps). Zero specificity: components still win. */
+  :where(input, select, textarea) {
+    transition-property: border-color, box-shadow, background-color, color;
+    transition-duration: var(--motion-press);
+    transition-timing-function: var(--motion-ease-out);
+  }
   /* Every link and button eases its colour into a hover instead of snapping —
      the smallest micro-interaction in the product, and the most frequent.
      `:where()` keeps it at zero specificity, so any component or utility that
@@ -738,6 +749,19 @@
      slides in at the top so the eye catches what changed. */
   .arrive {
     animation: fl-rise var(--motion-card) var(--motion-ease-out) backwards;
+  }
+
+  /* Every disclosure in the product: what a <details> reveals eases in under
+     its summary (6px, 200ms) instead of appearing in one frame. Closing stays
+     instant — the content you dismissed should not linger. */
+  @keyframes disclose-in {
+    from {
+      opacity: 0;
+      transform: translateY(-6px);
+    }
+  }
+  details[open] > summary ~ * {
+    animation: disclose-in var(--motion-pop) var(--motion-ease-out) backwards;
   }
 
   /* A tab's panel arriving (keyed per tab, so it replays). Opacity only, 160ms —

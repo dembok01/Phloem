@@ -8,7 +8,7 @@
 // RLS is the boundary: member_cases is invisible to the psychologist and the
 // coordinator, and a caregiver sees only cases the doctor shared. This component
 // just reads what the caller may read.
-import { Stethoscope } from "lucide-react";
+import { ChevronRight, Stethoscope } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -110,8 +110,12 @@ export async function CasePanel({
         ))}
 
         {resolved.length > 0 ? (
-          <details className="rounded-xl border bg-muted/30 px-3 py-2">
-            <summary className="cursor-pointer text-sm font-medium">
+          <details className="group/resolved rounded-xl border bg-muted/30 px-3 py-2">
+            <summary className="flex cursor-pointer list-none items-center gap-1.5 text-sm font-medium [&::-webkit-details-marker]:hidden">
+              <ChevronRight
+                className="size-3.5 text-muted-foreground transition-transform duration-(--motion-pop) ease-out group-open/resolved:rotate-90"
+                aria-hidden
+              />
               {resolved.length} resolved{" "}
               {resolved.length === 1 ? "matter" : "matters"}
             </summary>
