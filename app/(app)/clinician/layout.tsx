@@ -1,4 +1,5 @@
 import { CommandPalette } from "@/components/command-palette";
+import { PageEnter } from "@/components/first-look";
 
 // The clinician desk had no shell of its own, which is why the ⌘K palette — the
 // fastest way to reach a client — stopped at the coordinator and admin doors.
@@ -10,7 +11,7 @@ export default function ClinicianLayout({ children }: { children: React.ReactNod
       <div className="flex justify-end">
         <CommandPalette desk="clinician" />
       </div>
-      {children}
+      <PageEnter>{children}</PageEnter>
     </div>
   );
 }

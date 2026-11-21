@@ -7,19 +7,20 @@
 
 /* ---------------------------------------------------------------------------
    PHLOEM design tokens — see DESIGN-SYSTEM.md.
-   Palette: Loam #1F2A24 · Paper #F5F8F5 · Phloem #1E6B4E · Moss #5A6B60 ·
-   Honey #8A5A0B · Clay #A63A24 (+ Water #2F6DB5 as the informational hue).
-   All pairs verified ≥4.5:1 (AA); elderly overrides reach 7:1 (AAA).
+   Palette (brand-true, 2026-11-22): Ink #0F1B2D · Canvas #F4F7FB · Phloem Blue
+   #0052F7 · Leaf #00CC66 (fill only) · Success #007A3D · Warning #9A5800 ·
+   Danger #C0352B · Muted ink #526175.
+   All text pairs verified ≥4.5:1 (AA); elderly overrides reach 7:1 (AAA).
 --------------------------------------------------------------------------- */
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   /* Fonts: --font-brand-* are set by next/font in app/layout.tsx. */
-  --font-sans: var(--font-brand-body), "Atkinson Hyperlegible", system-ui, sans-serif;
+  --font-sans: var(--font-brand-body), "Atkinson Hyperlegible Next", system-ui, sans-serif;
   --font-display: var(--font-brand-display), "Bricolage Grotesque", var(--font-brand-body), sans-serif;
-  --font-data: var(--font-brand-data), "IBM Plex Mono", ui-monospace, monospace;
-  --font-mono: var(--font-brand-data), "IBM Plex Mono", ui-monospace, monospace;
+  --font-data: var(--font-brand-data), "Atkinson Hyperlegible Mono", ui-monospace, monospace;
+  --font-mono: var(--font-brand-data), "Atkinson Hyperlegible Mono", ui-monospace, monospace;
   --font-heading: var(--font-brand-display), sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -47,6 +48,7 @@
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
   --color-primary-hover: var(--primary-hover);
+  --color-leaf: var(--leaf);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
@@ -71,6 +73,7 @@
   --color-role-member: var(--role-member);
   --shadow-card: var(--shadow-1);
   --shadow-pop: var(--shadow-2);
+  --shadow-primary: var(--shadow-primary);
   --radius-sm: calc(var(--radius) * 0.45);
   --radius-md: calc(var(--radius) * 0.72);
   --radius-lg: var(--radius);
@@ -89,61 +92,74 @@
 }
 
 :root {
-  --background: #f5f8f5; /* Paper */
-  --foreground: #1f2a24; /* Loam */
+  /* Brand-true palette (owner decision 2026-11-22): the UI now wears the logo.
+     Blue is action and trust — buttons, links, focus, selection, the current tab.
+     Leaf green is life and progress — growth rings, success, positive change. The
+     blue→green blend is spent only on the signature (rings, the mark, moments).
+     Every text pair below was measured: ≥4.5:1 on white AND on the canvas. */
+  --background: #f4f7fb; /* Canvas — cool, a breath of the brand blue */
+  --foreground: #0f1b2d; /* Ink — 17.3:1 on white */
   --card: #ffffff;
-  --card-foreground: #1f2a24;
+  --card-foreground: #0f1b2d;
   --popover: #ffffff;
-  --popover-foreground: #1f2a24;
-  --primary: #1e6b4e; /* Phloem */
+  --popover-foreground: #0f1b2d;
+  --primary: #0052f7; /* Phloem Blue, straight from the logo — 5.9:1 with white text */
   --primary-foreground: #ffffff;
-  --primary-hover: #185a41; /* hover DARKENS — 8.2:1 with white text */
-  --secondary: #e7f1ec;
-  --secondary-foreground: #17513b;
-  --muted: #edf2ed;
-  --muted-foreground: #5a6b60; /* Moss */
-  --accent: #e7f1ec;
-  --accent-foreground: #17513b;
-  --destructive: #a63a24; /* Clay */
-  --border: #dce5dd; /* structure only — dividers, card edges */
-  /* Control edges: inputs, selects, toggle chips, switch tracks. 3.7:1 on white,
-     3.4:1 on the inset list ground — WCAG 1.4.11. At #c9d6cc (1.5:1) an empty
-     field or an unselected chip had no edge you could find; `--border` is for
-     structure and is deliberately quieter. Outline buttons take it at 60%. */
-  --input: #78897e;
-  --ring: #1e6b4e;
-  --success: #1e6b4e;
-  --success-tint: #e7f1ec;
-  --warning: #8a5a0b; /* Honey */
-  --warning-tint: #fbf3e4;
-  --danger: #a63a24; /* Clay */
-  --danger-tint: #f9ece8;
-  --info: #2f6db5; /* Water */
-  --info-tint: #e9f1fa;
-  --role-doctor: #2f6db5;
-  --role-nutritionist: #1e6b4e;
-  --role-trainer: #96610f;
-  --role-psychologist: #6d4a78;
-  --role-coordinator: #20707a;
-  --role-admin: #4b5563;
-  --role-caregiver: #1e6b4e;
-  --role-member: #1e6b4e;
-  /* Chart series (validated for chroma floor + CVD separation on white). */
-  /* Chart series (dataviz). Four CATEGORICAL slots, validated with
-     `validate_palette.js --pairs all` in both modes — all-pairs, not merely
-     adjacent, because the previous plum sat ΔE 0.8 from the blue under
-     deuteranopia while passing an adjacent-only check. --chart-5 is NOT a fifth
-     series: it is the neutral "Other"/overflow slot and must never be used as a
-     peer of 1–4 (it is deliberately below the chroma floor). A 5th real series
-     folds into Other, small multiples, or a second chart. */
-  --chart-1: #17855c;
-  --chart-2: #2f6db5;
+  --primary-hover: #0043cc; /* hover DARKENS — 7.9:1 with white text */
+  --secondary: #eaf1ff;
+  --secondary-foreground: #0039b3; /* 8.3:1 on its tint */
+  --muted: #eef2f7;
+  --muted-foreground: #526175; /* 6.3:1 on white, 5.6:1 on muted */
+  --accent: #eaf1ff;
+  --accent-foreground: #0039b3;
+  --destructive: #c0352b;
+  --border: #dde3ec; /* structure only — dividers, card edges */
+  /* Control edges: inputs, selects, toggle chips, switch tracks. 3.8:1 on white,
+     3.4:1 on the muted ground — WCAG 1.4.11. `--border` is for structure and is
+     deliberately quieter. Outline buttons take it at 60%. */
+  --input: #75839a;
+  --ring: #0052f7;
+  /* The logo's green. 2.1:1 on white, so it is NEVER text on a light ground: it is
+     a fill (rings, progress, dots, the mark) or sits under ink (8.1:1). Text that
+     means "good" uses --success. */
+  --leaf: #00cc66;
+  --brand-gradient: linear-gradient(135deg, #0052f7 0%, #00a8a0 55%, #00cc66 100%);
+  --success: #007a3d; /* leaf, deepened for text — 5.5:1 */
+  --success-tint: #e3f6ec;
+  --warning: #9a5800; /* 5.6:1 */
+  --warning-tint: #fdf3e3;
+  --danger: #c0352b; /* 5.6:1 */
+  --danger-tint: #fcedeb;
+  --info: #0052f7;
+  --info-tint: #eaf1ff;
+  /* Role hues — doctor moved off blue now that blue means "act". Each is ≥5:1 as
+     text on white and on its own 12% avatar tint. Always paired with the role's
+     name, never the only signal. */
+  --role-doctor: #5b3fd0;
+  --role-nutritionist: #00703a;
+  --role-trainer: #9a5800;
+  --role-psychologist: #a23e8c;
+  --role-coordinator: #0b6a85;
+  --role-admin: #475569;
+  --role-caregiver: #0052f7;
+  --role-member: #0052f7;
+  /* Chart series (dataviz). Four CATEGORICAL slots, checked all-pairs (not merely
+     adjacent) for OKLab separation under normal vision and simulated protan,
+     deutan and tritan (Machado 2009): worst pair ΔE 4.6, against 3.5 for the set
+     they replace. --chart-5 is NOT a fifth series: it is the neutral
+     "Other"/overflow slot and must never be used as a peer of 1–4. A 5th real
+     series folds into Other, small multiples, or a second chart. */
+  --chart-1: #0f8a55;
+  --chart-2: #0052f7;
   --chart-3: #a35f00;
-  --chart-4: #8f2d5e;
-  --chart-5: #5a6b60;
+  --chart-4: #a23e8c;
+  --chart-5: #64748b;
   --radius: 0.875rem;
-  --shadow-1: 0 1px 2px rgb(31 42 36 / 0.05), 0 1px 6px rgb(31 42 36 / 0.05);
-  --shadow-2: 0 4px 12px rgb(31 42 36 / 0.08), 0 12px 32px rgb(31 42 36 / 0.1);
+  /* Ink-tinted, never grey-black: shadows read as the same light as the canvas. */
+  --shadow-1: 0 1px 2px rgb(15 27 45 / 0.04), 0 2px 8px -2px rgb(15 27 45 / 0.06);
+  --shadow-2: 0 4px 12px -2px rgb(15 27 45 / 0.08), 0 16px 40px -8px rgb(15 27 45 / 0.16);
+  /* A primary control's own light: a soft blue bloom under the solid button. */
+  --shadow-primary: 0 1px 2px rgb(0 82 247 / 0.2), 0 6px 16px -6px rgb(0 82 247 / 0.45);
   /* Motion scale (DESIGN-SYSTEM §4). Raw values live here, not in @theme, for two
      reasons: inline styles and the React `style` prop need real custom properties
      to read, and Tailwind v4 has no --duration-* namespace at all. The names are
@@ -161,77 +177,90 @@
   --motion-card: 220ms; /* wizard cards, route swaps */
   --motion-sheet: 320ms; /* drawers */
   --motion-signature: 700ms; /* GrowthRings arc — the one orchestrated moment */
-  --sidebar: #eef3ee;
-  --sidebar-foreground: #1f2a24;
-  --sidebar-primary: #1e6b4e;
+  --motion-hover: 120ms; /* colour/background answering a pointer */
+  --motion-exit: 120ms; /* leaving is faster than arriving */
+  /* The first-look tier (owner decision 2026-11-22): a page's arrival plays the
+     first time it is opened in a session, then the page appears instantly. */
+  --motion-first-look: 420ms;
+  --motion-stagger: 40ms;
+  --motion-count: 600ms; /* operational counts only — NEVER a clinical value */
+  --motion-draw: 600ms; /* chart lines and sparklines drawing in */
+  /* A gentle overshoot for things that arrive to be noticed (a new unread count). */
+  --motion-ease-pop: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --sidebar: #eef2f7;
+  --sidebar-foreground: #0f1b2d;
+  --sidebar-primary: #0052f7;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #e7f1ec;
-  --sidebar-accent-foreground: #17513b;
-  --sidebar-border: #dce5dd;
-  --sidebar-ring: #1e6b4e;
+  --sidebar-accent: #eaf1ff;
+  --sidebar-accent-foreground: #0039b3;
+  --sidebar-border: #dde3ec;
+  --sidebar-ring: #0052f7;
 }
 
 .dark {
-  --background: #141c17;
-  --foreground: #e8eee9;
-  --card: #1b2620;
-  --card-foreground: #e8eee9;
-  --popover: #1b2620;
-  --popover-foreground: #e8eee9;
-  --primary: #6fbf9a;
-  --primary-foreground: #10241b;
-  --primary-hover: #8fd1b2;
-  --secondary: #23332b;
-  --secondary-foreground: #cfe5d9;
-  --muted: #212d26;
-  --muted-foreground: #9fb0a6;
-  --accent: #23332b;
-  --accent-foreground: #cfe5d9;
-  --destructive: #d9765f;
-  --border: #2c3a31;
-  --input: #6c8174; /* 3.7:1 on the dark card */
-  --ring: #6fbf9a;
-  --success: #6fbf9a;
-  --success-tint: #1d2f26;
-  --warning: #d9a94e;
-  --warning-tint: #2e2717;
-  --danger: #d9765f;
-  --danger-tint: #33201a;
-  --info: #7aa8dd;
-  --info-tint: #1c2836;
-  --role-doctor: #7aa8dd;
-  --role-nutritionist: #6fbf9a;
-  --role-trainer: #d9a94e;
-  --role-psychologist: #b490c0;
-  --role-coordinator: #6cb5bf;
-  --role-admin: #9ca3af;
-  --role-caregiver: #6fbf9a;
-  --role-member: #6fbf9a;
-  /* Dark series sit in band L 0.48–0.67 — the previous set was 0.70–0.76, i.e.
-     too light for a dark ground, and failed the lightness check outright. */
-  --chart-1: #22a878;
-  --chart-2: #5090dd;
-  --chart-3: #bd7d0d;
-  --chart-4: #b5487f;
-  --chart-5: #9fb0a6;
+  /* Dark parity for the brand-true palette. Dark mode is not switched on anywhere
+     (owner scope 2026-11-22); these keep the token set complete so a future toggle
+     starts from measured values. */
+  --background: #0a1120;
+  --foreground: #e6ecf5;
+  --card: #111a2c;
+  --card-foreground: #e6ecf5;
+  --popover: #111a2c;
+  --popover-foreground: #e6ecf5;
+  --primary: #5b93ff;
+  --primary-foreground: #0a1120;
+  --primary-hover: #7aa8ff;
+  --secondary: #14213d;
+  --secondary-foreground: #c9dbff;
+  --muted: #18233a;
+  --muted-foreground: #9aa8bd;
+  --accent: #14213d;
+  --accent-foreground: #c9dbff;
+  --destructive: #ff8a7a;
+  --border: #22304a;
+  --input: #5d6b82;
+  --ring: #5b93ff;
+  --leaf: #2edb85;
+  --success: #2edb85;
+  --success-tint: #0f2a1e;
+  --warning: #f0b44c;
+  --warning-tint: #2a2112;
+  --danger: #ff8a7a;
+  --danger-tint: #33191a;
+  --info: #7aa8ff;
+  --info-tint: #14213d;
+  --role-doctor: #a28bff;
+  --role-nutritionist: #2edb85;
+  --role-trainer: #f0b44c;
+  --role-psychologist: #e58ad0;
+  --role-coordinator: #5cc8e0;
+  --role-admin: #a3b1c6;
+  --role-caregiver: #7aa8ff;
+  --role-member: #7aa8ff;
+  --chart-1: #22b874;
+  --chart-2: #5b93ff;
+  --chart-3: #d99a2b;
+  --chart-4: #d667b8;
+  --chart-5: #9aa8bd;
   --shadow-1: 0 1px 2px rgb(0 0 0 / 0.3), 0 1px 6px rgb(0 0 0 / 0.25);
   --shadow-2: 0 4px 12px rgb(0 0 0 / 0.4), 0 12px 32px rgb(0 0 0 / 0.35);
-  --sidebar: #18211b;
-  --sidebar-foreground: #e8eee9;
-  --sidebar-primary: #6fbf9a;
-  --sidebar-primary-foreground: #10241b;
-  --sidebar-accent: #23332b;
-  --sidebar-accent-foreground: #cfe5d9;
-  --sidebar-border: #2c3a31;
-  --sidebar-ring: #6fbf9a;
+  --shadow-primary: 0 1px 2px rgb(0 0 0 / 0.3), 0 6px 16px -6px rgb(91 147 255 / 0.5);
+  --sidebar: #0d1527;
+  --sidebar-foreground: #e6ecf5;
+  --sidebar-primary: #5b93ff;
+  --sidebar-primary-foreground: #0a1120;
+  --sidebar-accent: #14213d;
+  --sidebar-accent-foreground: #c9dbff;
+  --sidebar-border: #22304a;
+  --sidebar-ring: #5b93ff;
 }
 
 /* Elderly mode (§10): AAA contrast, larger type, no motion. Applied as a class
    on <html> for `member` logins — tokens shift, components stay unchanged. */
 .elderly {
-  --muted-foreground: #3f4e45; /* 8.8:1 on white — AAA */
-  --border: #c4d1c6; /* firmer edges for low vision */
-  --input: #5a6b60; /* control edges at 5.7:1 */
+  --muted-foreground: #3a4659; /* 9.5:1 on white — AAA */
+  --border: #c3ccd8; /* firmer edges for low vision */
+  --input: #526175; /* control edges at 6.3:1 */
   font-size: 20px;
 }
 
@@ -440,11 +469,17 @@
     height: 70%;
     z-index: -1;
     border-radius: 999px;
-    background: radial-gradient(
-      60% 100% at 50% 0%,
-      color-mix(in oklab, var(--primary) 16%, transparent) 0%,
-      transparent 70%
-    );
+    background:
+      radial-gradient(
+        45% 100% at 35% 0%,
+        color-mix(in oklab, var(--primary) 16%, transparent) 0%,
+        transparent 70%
+      ),
+      radial-gradient(
+        35% 90% at 75% 10%,
+        color-mix(in oklab, var(--leaf) 14%, transparent) 0%,
+        transparent 70%
+      );
     filter: blur(28px);
   }
   .elderly .hero-glow::before { display: none; }
@@ -531,6 +566,194 @@
     }
     to {
       translate: 250% 0;
+    }
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   First look (owner decision 2026-11-22). A page's arrival choreography plays the
+   FIRST time that page is opened in a session; after that the page simply appears.
+   A visitor always sees the moment; a coordinator who opens Today two hundred
+   times a day sees it once. `html[data-look="first"]` is decided before first paint
+   (an inline head script for a hard load, components/first-look.tsx for client
+   navigations), so nothing flashes in and then animates.
+
+   Everything here is `animation` with fill-mode `backwards`: hidden only during
+   its own delay, never asserting a transform once finished, so it composes with
+   `.pressable` / `.liftable` exactly like `.stagger-in` does. The global
+   reduced-motion and `.elderly` rules zero all of it.
+
+   Never put these on a clinical value. Counts of work (members in care,
+   consultations this week) may count up; a blood pressure, a weight or a WHO-5
+   score renders at its value, always.
+--------------------------------------------------------------------------- */
+@layer components {
+  @keyframes fl-rise {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+  }
+  @keyframes fl-fade {
+    from {
+      opacity: 0;
+    }
+  }
+  @keyframes fl-draw {
+    from {
+      stroke-dashoffset: 1;
+    }
+  }
+  @keyframes fl-grow-x {
+    from {
+      transform: scaleX(0);
+    }
+  }
+  @keyframes fl-grow-y {
+    from {
+      transform: scaleY(0);
+    }
+  }
+
+  [data-look="first"] .fl-rise {
+    animation: fl-rise var(--motion-first-look) var(--motion-ease-out) backwards;
+  }
+  [data-look="first"] .fl-fade {
+    animation: fl-fade var(--motion-first-look) var(--motion-ease-out) backwards;
+  }
+  [data-look="first"] .fl-stagger > * {
+    animation: fl-rise var(--motion-first-look) var(--motion-ease-out) backwards;
+  }
+  [data-look="first"] .fl-stagger > *:nth-child(2) { animation-delay: calc(var(--motion-stagger) * 1); }
+  [data-look="first"] .fl-stagger > *:nth-child(3) { animation-delay: calc(var(--motion-stagger) * 2); }
+  [data-look="first"] .fl-stagger > *:nth-child(4) { animation-delay: calc(var(--motion-stagger) * 3); }
+  [data-look="first"] .fl-stagger > *:nth-child(5) { animation-delay: calc(var(--motion-stagger) * 4); }
+  [data-look="first"] .fl-stagger > *:nth-child(6) { animation-delay: calc(var(--motion-stagger) * 5); }
+  [data-look="first"] .fl-stagger > *:nth-child(7) { animation-delay: calc(var(--motion-stagger) * 6); }
+  [data-look="first"] .fl-stagger > *:nth-child(n + 8) { animation-delay: calc(var(--motion-stagger) * 7); }
+  /* Delay steps for hand-placed blocks (the hero, then the strip, then the rest). */
+  [data-look="first"] .fl-d1 { animation-delay: 80ms; }
+  [data-look="first"] .fl-d2 { animation-delay: 160ms; }
+  [data-look="first"] .fl-d3 { animation-delay: 240ms; }
+  /* A line drawing itself. The path needs pathLength="1" and stroke-dasharray 1. */
+  [data-look="first"] .fl-draw {
+    animation: fl-draw var(--motion-draw) var(--motion-ease-out) 160ms backwards;
+  }
+  /* A bar or meter growing from its baseline. */
+  [data-look="first"] .fl-grow-x {
+    transform-origin: left center;
+    animation: fl-grow-x var(--motion-draw) var(--motion-ease-out) 120ms backwards;
+  }
+  [data-look="first"] .fl-grow-y {
+    transform-origin: center bottom;
+    animation: fl-grow-y var(--motion-draw) var(--motion-ease-out) 120ms backwards;
+  }
+
+  /* A chart revealing left to right, the way a line is drawn — a clip-path wipe,
+     so it works on any chart (Recharts included) without touching its own
+     animation. The marks are revealed, never changed: values do not move. */
+  @keyframes fl-reveal-x {
+    from {
+      clip-path: inset(0 100% 0 0);
+    }
+  }
+  [data-look="first"] .fl-reveal-x {
+    animation: fl-reveal-x 700ms var(--motion-ease-out) 160ms backwards;
+  }
+
+  /* A hard load of a first-look page: the whole page fades in under the
+     choreography (client navigations do the same from components/first-look.tsx
+     with WAAPI, because a persisting element cannot replay a CSS animation). */
+  [data-look="first"][data-boot] .page-root {
+    animation: fl-fade 300ms var(--motion-ease-out) backwards;
+  }
+
+  /* Skeleton shimmer: one soft band sweeping across the placeholder, so a wait
+     reads as "loading" rather than "broken". Linear — constant motion has no
+     ease. Reduced motion and elderly mode stop it (the band parks off-edge). */
+  .shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+  .shimmer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      color-mix(in oklab, var(--card) 65%, transparent) 50%,
+      transparent 100%
+    );
+    animation: shimmer 1.4s linear infinite;
+  }
+  @keyframes shimmer {
+    to {
+      transform: translateX(100%);
+    }
+  }
+
+  /* Something arriving to be noticed — a new unread count. A small overshoot,
+     once, on mount (re-keyed when the count rises). */
+  @keyframes pop-in {
+    from {
+      opacity: 0;
+      scale: 0.5;
+    }
+  }
+  .pop-in {
+    animation: pop-in 280ms var(--motion-ease-pop) backwards;
+  }
+
+  /* A number that changed in place rolls in from above instead of blinking. */
+  @keyframes num-roll {
+    from {
+      opacity: 0;
+      transform: translateY(-40%);
+    }
+  }
+  .num-roll {
+    display: inline-block;
+    animation: num-roll var(--motion-pop) var(--motion-ease-out) backwards;
+  }
+
+  /* The brand mark coming together: the two leaves of the logo meet. Used for the
+     sign-in door and the program-start moment — once, never looped. */
+  @keyframes leaf-top-in {
+    from {
+      opacity: 0;
+      transform: translate(-18%, -14%) rotate(-8deg);
+    }
+  }
+  @keyframes leaf-bottom-in {
+    from {
+      opacity: 0;
+      transform: translate(18%, 14%) rotate(8deg);
+    }
+  }
+  .mark-assemble .leaf-top {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: leaf-top-in 620ms var(--motion-ease-out) backwards;
+  }
+  .mark-assemble .leaf-bottom {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: leaf-bottom-in 620ms var(--motion-ease-out) 80ms backwards;
+  }
+
+  /* Text set in the brand blend — reserved for the one signature figure on a
+     screen. Falls back to solid primary where background-clip:text is missing. */
+  .brand-text {
+    color: var(--primary);
+  }
+  @supports (-webkit-background-clip: text) or (background-clip: text) {
+    .brand-text {
+      background: var(--brand-gradient);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
     }
   }
 }

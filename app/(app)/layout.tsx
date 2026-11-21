@@ -12,6 +12,7 @@ import { logEvent } from "@/lib/observe";
 import { getLens, viewRoleFor } from "@/lib/lens";
 import { CareTeamSwitcher, lensLabel } from "@/components/care-team-switcher";
 import { LensChrome } from "@/components/lens-chrome";
+import { PageEnter } from "@/components/first-look";
 import { type UserRole } from "@/lib/roles";
 
 const ROLE_HOME: Record<UserRole, string> = {
@@ -91,7 +92,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           />
         </header>
         <main id="main" className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 sm:py-8">
-          {children}
+          {/* The sections with a tab rail mount their own PageEnter UNDER the rail,
+              so the rail stays put while the page changes beneath it. */}
+          <PageEnter except={["/admin", "/coordinator", "/clinician"]}>{children}</PageEnter>
         </main>
       </div>
       </Tooltip.Provider>

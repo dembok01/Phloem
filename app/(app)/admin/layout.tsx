@@ -1,5 +1,6 @@
 import { NavTabs, type NavItem } from "@/components/nav-tabs";
 import { CommandPalette } from "@/components/command-palette";
+import { PageEnter } from "@/components/first-look";
 
 const ADMIN_TABS: NavItem[] = [
   { href: "/admin", label: "Overview", exact: true },
@@ -17,7 +18,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <NavTabs items={ADMIN_TABS} />
         <CommandPalette />
       </div>
-      {children}
+      <PageEnter>{children}</PageEnter>
     </div>
   );
 }

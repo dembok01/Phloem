@@ -1,8 +1,7 @@
-import Image from "next/image";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { SubmitButton } from "@/components/ui/submit-button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { AuthNotice, AuthShell } from "../../auth-shell";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -82,39 +81,20 @@ export default async function InvitePage({
   const errorId = error && ERRORS[error] ? "invite-error" : undefined;
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background p-4 text-base">
-      <Card className="w-full max-w-md shadow-pop">
-        <CardHeader className="items-center text-center">
-          <Image
-            src="/phloem-logo.png"
-            alt="PHLOEM"
-            width={180}
-            height={60}
-            priority
-            className="mx-auto h-14 w-auto"
-          />
-          <h1 className="font-display text-2xl font-semibold tracking-tight">
-            {usable ? "You're invited to PHLOEM" : "Invitation"}
-          </h1>
-          {/* This is the moment a family joins a care programme, not a form to
-              fill. Name who invited them and who they will be caring for. */}
-          <p className="text-muted-foreground">
-            {!usable
-              ? "About this invitation"
-              : memberFirstName
-                ? `${inviterName ?? "Your care coordinator"} has set up care for ${memberFirstName}. Create your account to follow their plans, reports and schedule.`
-                : `${inviterName ?? "PHLOEM"} has invited you to join a care team. Set a password to activate your account.`}
-          </p>
-        </CardHeader>
-        <CardContent>
+    <AuthShell
+      title={usable ? "You're invited to PHLOEM" : "Invitation"}
+      subtitle={
+        // This is the moment a family joins a care programme, not a form to
+        // fill. Name who invited them and who they will be caring for.
+        !usable
+          ? "About this invitation"
+          : memberFirstName
+            ? `${inviterName ?? "Your care coordinator"} has set up care for ${memberFirstName}. Create your account to follow their plans, reports and schedule.`
+            : `${inviterName ?? "PHLOEM"} has invited you to join a care team. Set a password to activate your account.`
+      }
+    >
           {error && ERRORS[error] ? (
-            <p
-              id={errorId}
-              role="alert"
-              className="mb-4 rounded-md border border-danger/30 bg-danger-tint p-3 text-foreground"
-            >
-              {ERRORS[error]}
-            </p>
+            <AuthNotice id={errorId}>{ERRORS[error]}</AuthNotice>
           ) : null}
 
           {!usable ? (
@@ -205,8 +185,6 @@ export default async function InvitePage({
               </p>
             </form>
           )}
-        </CardContent>
-      </Card>
-    </main>
+    </AuthShell>
   );
 }

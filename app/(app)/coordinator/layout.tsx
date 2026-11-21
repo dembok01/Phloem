@@ -1,4 +1,5 @@
 import { CommandPalette } from "@/components/command-palette";
+import { PageEnter } from "@/components/first-look";
 import { NavTabs } from "@/components/nav-tabs";
 
 export default function CoordinatorLayout({ children }: { children: React.ReactNode }) {
@@ -15,7 +16,7 @@ export default function CoordinatorLayout({ children }: { children: React.ReactN
         />
         <CommandPalette />
       </div>
-      {children}
+      <PageEnter>{children}</PageEnter>
     </div>
   );
 }
