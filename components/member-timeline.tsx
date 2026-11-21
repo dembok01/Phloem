@@ -277,7 +277,7 @@ export async function MemberTimeline({
       <CardHeader className="gap-3">
         <CardTitle>{title}</CardTitle>
         {basePath ? (
-          <nav className="flex flex-wrap gap-1.5" aria-label="Filter timeline">
+          <nav className="flex flex-wrap gap-1.5 rounded-2xl border border-border/60 bg-background/50 p-2" aria-label="Filter timeline">
             <FilterLink href={basePath} label="Everything" count={items.length} active={!active} />
             {(Object.keys(KIND_META) as Kind[])
               .filter((k) => (counts.get(k) ?? 0) > 0)
@@ -293,12 +293,12 @@ export async function MemberTimeline({
           </nav>
         ) : null}
       </CardHeader>
-      <CardContent className="space-y-5">
+      <CardContent className="space-y-7">
         {groups.map((g) => (
           <div key={g.month}>
             {/* Sticky, so you always know which month you are reading in a year
                 of care. The spine fades at both ends rather than stopping dead. */}
-            <p className="eyebrow sticky top-0 z-10 mb-2 -mx-1 bg-card/85 px-1 py-1.5 backdrop-blur-sm">
+            <p className="eyebrow sticky top-0 z-10 mb-3 -mx-1 border-b border-border/60 bg-card/95 px-1 py-2.5 backdrop-blur-sm">
               {g.month}
             </p>
             <ol className="relative space-y-1 before:absolute before:inset-y-2 before:left-[13px] before:w-px before:bg-gradient-to-b before:from-transparent before:via-border before:to-transparent">
@@ -327,7 +327,7 @@ function Entry({ item, upcoming }: { item: Item; upcoming: boolean }) {
   const dot = (
     <span
       className={cn(
-        "relative z-10 mt-0.5 inline-flex size-6 shrink-0 items-center justify-center rounded-full ring-4 ring-card transition-transform duration-150 group-hover/entry:scale-110",
+        "relative z-10 mt-0.5 inline-flex size-6 shrink-0 items-center justify-center rounded-full ring-4 ring-card transition-transform duration-150 motion-safe:group-hover/entry:scale-105 elderly:group-hover/entry:scale-100",
         item.role ? (ROLE_TINT[item.role] ?? meta.tint) : meta.tint,
         // A dated-in-the-future entry is a plan, not a record. The dashed ring
         // says so at a glance, in the one place the eye is already looking.
@@ -356,7 +356,7 @@ function Entry({ item, upcoming }: { item: Item; upcoming: boolean }) {
 
   if (!expandable) {
     return (
-      <li className="group/entry relative flex gap-3 rounded-lg py-2 pr-2 pl-0.5">
+      <li className="group/entry relative flex gap-3 rounded-xl py-3 pr-3 pl-0.5">
         {dot}
         {heading}
       </li>
@@ -365,8 +365,8 @@ function Entry({ item, upcoming }: { item: Item; upcoming: boolean }) {
 
   return (
     <li className="relative">
-      <details className="group/entry rounded-lg transition-colors open:bg-muted/40 hover:bg-muted/50">
-        <summary className="flex cursor-pointer list-none gap-3 rounded-lg py-2 pr-2 pl-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
+      <details className="group/entry rounded-xl transition-colors duration-160 open:bg-muted/40 hover:bg-muted/50">
+        <summary className="flex cursor-pointer list-none gap-3 rounded-xl py-3 pr-3 pl-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
           {dot}
           {heading}
           <ChevronRight
@@ -419,9 +419,9 @@ function FilterLink({
       href={href}
       aria-current={active ? "true" : undefined}
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors max-md:min-h-8",
+        "inline-flex min-h-9 items-center gap-1.5 rounded-xl border px-3 py-1 text-xs font-medium transition-[background-color,color,box-shadow] duration-160 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
         active
-          ? "border-transparent bg-secondary text-secondary-foreground"
+          ? "border-primary/15 bg-card text-primary shadow-sm"
           : "bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground",
       )}
     >

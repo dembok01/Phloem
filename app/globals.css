@@ -89,7 +89,9 @@
 }
 
 :root {
-  --background: #f5f8f5; /* Paper */
+  --background: #f6f5f0; /* Warm paper */
+  --surface-tint: #eef2e8;
+  --workspace-ink: #193e32;
   --foreground: #1f2a24; /* Loam */
   --card: #ffffff;
   --card-foreground: #1f2a24;
@@ -105,7 +107,7 @@
   --accent: #e7f1ec;
   --accent-foreground: #17513b;
   --destructive: #a63a24; /* Clay */
-  --border: #dce5dd; /* structure only — dividers, card edges */
+  --border: #dce1d7; /* structure only — dividers, card edges */
   /* Control edges: inputs, selects, toggle chips, switch tracks. 3.7:1 on white,
      3.4:1 on the inset list ground — WCAG 1.4.11. At #c9d6cc (1.5:1) an empty
      field or an unselected chip had no edge you could find; `--border` is for
@@ -142,8 +144,8 @@
   --chart-4: #8f2d5e;
   --chart-5: #5a6b60;
   --radius: 0.875rem;
-  --shadow-1: 0 1px 2px rgb(31 42 36 / 0.05), 0 1px 6px rgb(31 42 36 / 0.05);
-  --shadow-2: 0 4px 12px rgb(31 42 36 / 0.08), 0 12px 32px rgb(31 42 36 / 0.1);
+  --shadow-1: 0 1px 2px rgb(31 42 36 / 0.03), 0 4px 16px -8px rgb(31 42 36 / 0.12);
+  --shadow-2: 0 2px 4px rgb(31 42 36 / 0.04), 0 16px 40px -12px rgb(31 42 36 / 0.18);
   /* Motion scale (DESIGN-SYSTEM §4). Raw values live here, not in @theme, for two
      reasons: inline styles and the React `style` prop need real custom properties
      to read, and Tailwind v4 has no --duration-* namespace at all. The names are
@@ -159,7 +161,7 @@
   --motion-press: 160ms; /* press feedback */
   --motion-pop: 200ms; /* toasts, popovers, chips */
   --motion-card: 220ms; /* wizard cards, route swaps */
-  --motion-sheet: 320ms; /* drawers */
+  --motion-sheet: 280ms; /* drawers */
   --motion-signature: 700ms; /* GrowthRings arc — the one orchestrated moment */
   --sidebar: #eef3ee;
   --sidebar-foreground: #1f2a24;
@@ -172,6 +174,8 @@
 }
 
 .dark {
+  --surface-tint: #21372b;
+  --workspace-ink: #10291f;
   --background: #141c17;
   --foreground: #e8eee9;
   --card: #1b2620;
@@ -292,6 +296,113 @@
 }
 
 @layer components {
+  .workspace-shell {
+    background: radial-gradient(ellipse at 90% 0%, color-mix(in oklab, var(--secondary) 60%, transparent), transparent 45%);
+  }
+  .workspace-sidebar {
+    background: radial-gradient(ellipse at 0% 100%, #2b5842 0%, transparent 65%), var(--workspace-ink);
+    color: #f2f6ee;
+    box-shadow: 0 8px 28px -12px rgb(25 62 50 / 0.4);
+  }
+  .workspace-topbar {
+    background: color-mix(in oklab, var(--background) 88%, transparent);
+    border-bottom: 1px solid color-mix(in oklab, var(--border) 75%, transparent);
+    /* Keep fixed overlays relative to the viewport, not a filtered ancestor. */
+  }
+  .workspace-nav-link {
+    color: rgb(255 255 255 / 0.73);
+    transition: background-color var(--motion-press) ease, color var(--motion-press) ease;
+  }
+  .workspace-nav-link:hover { color: white; background: rgb(255 255 255 / 0.07); }
+  .workspace-nav-link.is-active {
+    background: #dbe9d2;
+    color: #193e32;
+    font-weight: 700;
+    box-shadow: 0 2px 8px rgb(0 0 0 / 0.06), inset 0 1px rgb(255 255 255 / 0.5);
+  }
+  .workspace-nav-link:focus-visible { outline-color: #dbe9d2; }
+  .workspace-mobile-link {
+    transition: color var(--motion-press) ease, background-color var(--motion-press) ease;
+  }
+  .dashboard-hero {
+    position: relative;
+    isolation: isolate;
+    background: linear-gradient(115deg, var(--card) 12%, var(--surface-tint) 100%);
+    border: 1px solid color-mix(in oklab, var(--primary) 13%, var(--border));
+    box-shadow: var(--shadow-1);
+    border-radius: 1.5rem;
+  }
+  .dashboard-hero::after {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    pointer-events: none;
+    inset: 0;
+    border-radius: inherit;
+    background: repeating-radial-gradient(circle at 100% 110%, transparent 0 32px, color-mix(in oklab, var(--primary) 5%, transparent) 33px 34px, transparent 35px 62px);
+    mask-image: linear-gradient(to right, transparent 20%, black);
+  }
+  .metric-tile, .portal-tile {
+    position: relative;
+    border: 1px solid var(--border);
+    background: var(--card);
+    box-shadow: var(--shadow-1);
+    border-radius: 1.25rem;
+    transition: transform var(--motion-press) var(--motion-ease-out), border-color var(--motion-press) ease, box-shadow var(--motion-press) ease, background-color var(--motion-press) ease;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    :is(a,button).metric-tile:hover, .portal-tile:hover {
+      transform: translateY(-2px);
+      border-color: color-mix(in oklab, var(--primary) 40%, var(--border));
+      box-shadow: 0 8px 24px -12px rgb(31 42 36 / 0.2);
+    }
+  }
+  :is(a,button).metric-tile:active, .portal-tile:active { transform: scale(0.985); }
+  .metric-tile:focus-visible, .portal-tile:focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; }
+  .icon-well {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 0.875rem;
+    background: var(--secondary);
+    color: var(--primary);
+    box-shadow: inset 0 1px 1px rgb(255 255 255 / 0.65);
+  }
+  .section-heading {
+    font-family: var(--font-brand-display), sans-serif;
+    font-size: 1.25rem;
+    font-weight: 600;
+    letter-spacing: -0.025em;
+    line-height: 1.3;
+  }
+  .page-heading {
+    font-size: clamp(1.9rem, 1.4rem + 1.25vw, 2.65rem);
+    line-height: 1.12;
+    letter-spacing: -0.045em;
+  }
+  .page-eyebrow::before {
+    content: "";
+    display: inline-block;
+    width: 1.25rem;
+    height: 2px;
+    border-radius: 2px;
+    background: var(--primary);
+    margin-right: 0.6rem;
+    vertical-align: middle;
+  }
+  .content-enter { animation: content-enter var(--motion-card) var(--motion-ease-out) backwards; }
+  @keyframes content-enter { from { opacity: 0; transform: translateY(4px); } }
+  @media (prefers-reduced-motion: reduce) {
+    :is(a,button).metric-tile:hover, .portal-tile:hover, :is(a,button).metric-tile:active, .portal-tile:active { transform: none; }
+    .content-enter { animation: none; }
+  }
+  .elderly :is(.metric-tile, .portal-tile):is(:hover, :active) { transform: none; }
+  .elderly .dashboard-hero::after { display: none; }
+  .elderly .content-enter { animation: none; }
+
   /* Section eyebrow — structure label in the data face (DESIGN-SYSTEM §2). */
   .eyebrow {
     font-family: var(--font-brand-data), ui-monospace, monospace;
@@ -382,8 +493,8 @@
   .liftable {
     transition: translate var(--motion-press) var(--motion-ease-out);
   }
-  .liftable:hover {
-    translate: 0 -2px;
+  @media (hover: hover) and (pointer: fine) {
+    .liftable:hover { translate: 0 -2px; }
   }
   @media (prefers-reduced-motion: reduce) {
     .liftable:hover {
@@ -421,13 +532,13 @@
   .stagger-in > *:nth-child(2) { animation-delay: 30ms; }
   .stagger-in > *:nth-child(3) { animation-delay: 60ms; }
   .stagger-in > *:nth-child(4) { animation-delay: 90ms; }
-  .stagger-in > *:nth-child(5) { animation-delay: 120ms; }
-  .stagger-in > *:nth-child(6) { animation-delay: 150ms; }
-  .stagger-in > *:nth-child(7) { animation-delay: 180ms; }
-  .stagger-in > *:nth-child(8) { animation-delay: 210ms; }
+  .stagger-in > *:nth-child(5) { animation-delay: 100ms; }
+  .stagger-in > *:nth-child(6) { animation-delay: 100ms; }
+  .stagger-in > *:nth-child(7) { animation-delay: 100ms; }
+  .stagger-in > *:nth-child(8) { animation-delay: 100ms; }
   /* Past the eighth row the delay would out-run the reader; everything after
      arrives with the eighth. */
-  .stagger-in > *:nth-child(n + 9) { animation-delay: 210ms; }
+  .stagger-in > *:nth-child(n + 9) { animation-delay: 100ms; }
 
   /* M6 — the hero glow. One soft brand-tinted bloom behind the single most
      important element on a screen. Sits on ::before at -1 so it never intercepts
@@ -568,4 +679,9 @@
   textarea {
     font-size: 16px;
   }
+}
+
+@media print {
+  .workspace-shell { padding-left: 0 !important; background: white; }
+  .dashboard-hero::after, .hero-glow::before { display: none; }
 }

@@ -76,7 +76,7 @@ export function CareTeamSwitcherMenu({
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="menu"
         aria-expanded={open}
-        className="flex h-9 max-w-[8.5rem] items-center gap-1.5 rounded-full border border-input/60 bg-card px-3 text-xs font-semibold text-muted-foreground transition-colors duration-(--motion-press) hover:border-input hover:text-foreground aria-expanded:border-input aria-expanded:text-foreground sm:max-w-[13rem]"
+        className="flex h-9 max-w-[7rem] items-center gap-1.5 rounded-xl border border-border bg-card px-3 text-xs font-semibold text-muted-foreground transition-colors duration-(--motion-press) hover:border-input hover:text-foreground aria-expanded:border-input aria-expanded:text-foreground sm:max-w-[13rem]"
       >
         {onLensDesk ? <Eye className="size-3.5 shrink-0" aria-hidden /> : null}
         <span className="truncate">{active ? active.label : "Admin desk"}</span>
@@ -86,7 +86,7 @@ export function CareTeamSwitcherMenu({
       {open ? (
         <div
           role="menu"
-          className="absolute right-0 z-50 mt-2 max-h-[70vh] w-72 overflow-y-auto rounded-xl border bg-card p-1 shadow-pop origin-top-right animate-in fade-in-0 zoom-in-[0.97] slide-in-from-top-1 duration-(--motion-pop) ease-out"
+          className="fixed right-4 top-20 z-50 max-h-[70vh] w-72 max-w-[calc(100vw-2rem)] sm:absolute sm:top-auto sm:right-0 sm:mt-3 overflow-y-auto rounded-2xl border bg-card p-2 shadow-pop origin-top-right animate-in fade-in-0 zoom-in-[0.97] slide-in-from-top-1 duration-(--motion-pop) ease-out"
         >
           {Object.entries(groups).map(([group, items]) => (
             <div key={group}>

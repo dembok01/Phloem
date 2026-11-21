@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { MessageCircle, Phone } from "lucide-react";
+import { Brain, CalendarDays, Dumbbell, Leaf, MessageCircle, Phone, Stethoscope, UsersRound } from "lucide-react";
 import { CardSkeleton } from "@/components/ui/skeleton";
 import { SafetyDetailsCard } from "@/components/safety/safety-details-card";
 import { ActivationMoment } from "@/components/activation-moment";
@@ -44,6 +44,13 @@ const ROLE_LABEL: Record<CareRole, string> = {
   nutritionist: "Nutritionist",
   trainer: "Trainer",
   psychologist: "Psychologist",
+};
+
+const ROLE_PRESENTATION = {
+  doctor: { icon: Stethoscope, tone: "bg-role-doctor/10 text-role-doctor" },
+  nutritionist: { icon: Leaf, tone: "bg-role-nutritionist/10 text-role-nutritionist" },
+  trainer: { icon: Dumbbell, tone: "bg-role-trainer/10 text-role-trainer" },
+  psychologist: { icon: Brain, tone: "bg-role-psychologist/10 text-role-psychologist" },
 };
 
 const SELECT_CLASS =
@@ -261,7 +268,7 @@ export default async function CoordinatorMemberPage({
   const uploaderName = new Map((uploaderRows ?? []).map((p) => [p.id, p.full_name]));
 
   return (
-    <section className="mx-auto max-w-4xl space-y-6">
+    <section className="mx-auto max-w-5xl space-y-6">
       {ok === "activated" ? (
         <ActivationMoment
           memberName={member.full_name}
@@ -270,16 +277,17 @@ export default async function CoordinatorMemberPage({
         />
       ) : null}
       <PageHeader
+        className="dashboard-hero rounded-3xl border p-6 sm:p-8"
         crumbs={[{ label: "Pipeline", href: "/coordinator/pipeline" }, { label: member.full_name }]}
         title={
-          <span className="flex items-center gap-3">
-            <Monogram name={member.full_name} size="md" />
+          <span className="flex items-center gap-4">
+            <Monogram name={member.full_name} size="lg" ring />
             {member.full_name}
           </span>
         }
         description={[member.age ? `${member.age} yrs` : null, member.city].filter(Boolean).join(" · ")}
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Badge variant={memberStatusVariant(member.status as MemberStatus)}>
               {MEMBER_STATUS_LABEL[member.status as MemberStatus]}
             </Badge>
@@ -321,7 +329,7 @@ export default async function CoordinatorMemberPage({
       {/* Contacts (§3: coordinator sees member + caregiver contact identifiers) */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between gap-3">
-          <CardTitle>Contacts</CardTitle>
+          <CardTitle className="flex items-center gap-2.5"><Phone className="size-4 text-role-coordinator" aria-hidden /> Contacts</CardTitle>
           <EditRecordSheet
             group={MEMBER_CONTACTS}
             role="coordinator"
@@ -376,15 +384,18 @@ export default async function CoordinatorMemberPage({
       {/* Assign care team (§6 assign_care_team) */}
       <Card>
         <CardHeader>
-          <CardTitle>Care team</CardTitle>
+          <CardTitle className="flex items-center gap-2.5"><UsersRound className="size-5 text-role-coordinator" aria-hidden /> Care team</CardTitle>
+          <p className="text-sm text-muted-foreground">The people supporting {firstName}, together.</p>
         </CardHeader>
         <CardContent className="space-y-3">
           {CARE_ROLES.map((role) => {
             const options = prosByRole.get(role) ?? [];
             const assignedId = assignedByRole.get(role);
             const assigned = assignedId ? proById.get(assignedId) : undefined;
+            const { icon: RoleIcon, tone } = ROLE_PRESENTATION[role];
             return (
-              <div key={role} className="flex flex-wrap items-center gap-3 border-b pb-3 last:border-0 last:pb-0">
+              <div key={role} className="flex flex-wrap items-center gap-3 rounded-2xl border border-border/70 bg-background/40 p-4">
+                <span className={cn("icon-well", tone)}><RoleIcon className="size-4" aria-hidden /></span>
                 <div className="w-28 shrink-0">
                   <p className="text-sm font-medium">{ROLE_LABEL[role]}</p>
                 </div>
@@ -401,10 +412,10 @@ export default async function CoordinatorMemberPage({
                   )}
                 </div>
                 {options.length > 0 ? (
-                  <form action={assignCareTeam} className="flex items-center gap-2">
+                  <form action={assignCareTeam} className="flex min-w-0 items-center gap-2 max-sm:w-full">
                     <input type="hidden" name="member_id" value={member.id} />
                     <input type="hidden" name="role" value={role} />
-                    <select name="user_id" defaultValue="" required className={SELECT_CLASS} aria-label={`Assign ${role}`}>
+                    <select name="user_id" defaultValue="" required className={cn(SELECT_CLASS, "min-w-0 max-sm:flex-1")} aria-label={`Assign ${role}`}>
                       <option value="" disabled>
                         Select…
                       </option>
@@ -434,7 +445,7 @@ export default async function CoordinatorMemberPage({
       {/* Consultations (§10 dual chips + schedule + mark done) — initial + active cycle */}
       <Card>
         <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
-          <CardTitle>Consultations</CardTitle>
+          <CardTitle className="flex items-center gap-2.5"><CalendarDays className="size-5 text-role-coordinator" aria-hidden /> Consultations</CardTitle>
           {uploadTargets.length > 0 ? (
             <UploadReportSheet memberId={member.id} memberName={firstName} targets={uploadTargets} />
           ) : null}
@@ -446,7 +457,7 @@ export default async function CoordinatorMemberPage({
             </p>
           ) : (
             shownConsults.map((c) => (
-              <div key={c.id} className="rounded-lg border p-3">
+              <div key={c.id} className="rounded-2xl border border-border/80 bg-background/40 p-4 sm:p-5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="font-medium">
                     {ROLE_LABEL[c.type]}
@@ -464,10 +475,11 @@ export default async function CoordinatorMemberPage({
                 {c.meeting_status !== "done" && c.meeting_status !== "cancelled" ? (
                   <div className="mt-3 flex flex-wrap items-center gap-3">
                     <details className="group">
-                      <summary className="inline-flex cursor-pointer list-none items-center rounded-lg border border-input px-3 py-1.5 text-sm font-medium hover:bg-muted">
+                      <summary className="pressable inline-flex min-h-10 cursor-pointer list-none items-center gap-2 rounded-xl border border-input bg-card px-3 py-1.5 text-sm font-medium hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+                        <CalendarDays className="size-3.5 text-muted-foreground" aria-hidden />
                         {c.meeting_status === "scheduled" ? "Reschedule" : "Schedule"}
                       </summary>
-                      <form action={scheduleConsultation} className="mt-3 grid gap-2 sm:grid-cols-[auto_auto_1fr_auto] sm:items-end">
+                      <form action={scheduleConsultation} className="mt-3 grid gap-3 rounded-xl bg-muted/40 p-3 sm:grid-cols-2 xl:grid-cols-[auto_auto_1fr_auto] xl:items-end">
                         <input type="hidden" name="member_id" value={member.id} />
                         <input type="hidden" name="consultation_id" value={c.id} />
                         <label className="text-sm">
@@ -738,7 +750,7 @@ function ContactBlock({
   const wa = waMeLink(whatsapp ?? phone);
   const tel = telHref(phone ?? whatsapp);
   return (
-    <div className="space-y-1">
+    <div className="space-y-2 rounded-2xl border border-border/70 bg-background/40 p-4">
       <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
       <p className="font-medium">{name}</p>
       <div className="flex flex-wrap gap-2 pt-1">

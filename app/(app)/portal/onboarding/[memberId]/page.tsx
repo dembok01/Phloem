@@ -41,9 +41,11 @@ export default async function OnboardingPage({
 
   if (DONE_STATUSES.has(member.status)) {
     return (
-      <section className="mx-auto max-w-2xl space-y-4 text-center">
-        <CheckCircle2 className="mx-auto size-12 text-success" />
-        <h1 className="text-2xl font-semibold">Onboarding complete</h1>
+      <section className="dashboard-hero mx-auto max-w-2xl space-y-5 rounded-3xl border p-7 text-center shadow-card sm:p-10">
+        <span className="mx-auto flex size-16 items-center justify-center rounded-full border border-success/20 bg-success-tint">
+          <CheckCircle2 className="size-8 text-success" aria-hidden="true" />
+        </span>
+        <h1 className="font-display text-3xl font-semibold tracking-tight">Onboarding complete</h1>
         <p className="text-base text-muted-foreground">
           Thank you — {member.full_name}&apos;s onboarding is complete. Your care coordinator will
           review the answers and assign a care team.
@@ -127,8 +129,8 @@ export default async function OnboardingPage({
 
   return (
     <div className="space-y-6">
-      <div className="mx-auto max-w-2xl">
-        <p className="eyebrow">Onboarding</p>
+      <div className="mx-auto max-w-2xl space-y-2 border-b border-border/70 pb-5">
+        <p className="eyebrow text-primary">Onboarding</p>
         <h1 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">
           {member.full_name}
         </h1>

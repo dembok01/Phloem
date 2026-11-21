@@ -33,8 +33,8 @@ export function PageHeader({
   className?: string;
 }) {
   return (
-    <header className={cn("flex flex-wrap items-end justify-between gap-x-6 gap-y-3", className)}>
-      <div className="min-w-0 space-y-1">
+    <header className={cn("flex flex-wrap items-end justify-between gap-x-6 gap-y-5", className)}>
+      <div className="min-w-0 space-y-2.5">
         {crumbs && crumbs.length > 0 ? (
           <nav aria-label="Breadcrumb">
             <ol className="flex flex-wrap items-center gap-1 text-sm text-muted-foreground">
@@ -58,16 +58,16 @@ export function PageHeader({
             </ol>
           </nav>
         ) : null}
-        {eyebrow ? <p className="eyebrow">{eyebrow}</p> : null}
-        <h1 className="font-display text-3xl font-semibold tracking-tight text-balance text-foreground sm:text-4xl">
+        {eyebrow ? <p className="eyebrow page-eyebrow text-[10px] tracking-[0.14em]">{eyebrow}</p> : null}
+        <h1 className="page-heading font-display font-semibold text-balance text-foreground">
           {title}
         </h1>
         {description ? (
-          <p className="max-w-2xl text-[17px] text-muted-foreground">{description}</p>
+          <p className="max-w-2xl text-base leading-relaxed text-muted-foreground">{description}</p>
         ) : null}
         {stats ? <div className="pt-2">{stats}</div> : null}
       </div>
-      {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
+      {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
     </header>
   );
 }

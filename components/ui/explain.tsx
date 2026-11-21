@@ -22,14 +22,14 @@ import { cn } from "@/lib/utils";
 // Grows from the (i) it belongs to and fades out the same way: Base UI sets the
 // starting/ending attributes and the transform origin.
 const POPUP =
-  "max-w-72 origin-(--transform-origin) rounded-xl border bg-popover px-3 py-2.5 text-popover-foreground shadow-pop transition-[opacity,scale] duration-(--motion-pop) ease-out data-[ending-style]:scale-[0.97] data-[ending-style]:opacity-0 data-[starting-style]:scale-[0.97] data-[starting-style]:opacity-0";
+  "max-w-72 origin-(--transform-origin) rounded-xl border border-border/80 bg-popover px-3.5 py-3 text-popover-foreground shadow-pop transition-[opacity,scale] duration-(--motion-pop) ease-out data-[instant]:duration-0 data-[ending-style]:scale-[0.97] data-[ending-style]:opacity-0 data-[starting-style]:scale-[0.97] data-[starting-style]:opacity-0";
 
 function Body({ what, next }: { what: string; next?: string }) {
   return (
     <>
       <p className="text-xs leading-relaxed">{what}</p>
       {next ? (
-        <p className="mt-1.5 border-t pt-1.5 text-xs leading-relaxed text-muted-foreground">
+        <p className="mt-2 border-t border-border/70 pt-2 text-xs leading-relaxed text-muted-foreground">
           {next}
         </p>
       ) : null}

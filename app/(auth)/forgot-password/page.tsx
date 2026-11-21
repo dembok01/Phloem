@@ -24,7 +24,7 @@ export default async function ForgotPasswordPage({
       }
     >
       {sent ? (
-        <div className="space-y-4">
+        <div className="space-y-5">
           {/* Deliberately says "if an account exists" — confirming the address is
               registered would leak who is in a care programme. */}
           <AuthNotice tone="info">
@@ -39,7 +39,7 @@ export default async function ForgotPasswordPage({
           </Link>
         </div>
       ) : (
-        <form action={requestPasswordReset} className="space-y-4">
+        <form action={requestPasswordReset} className="space-y-5">
           {error ? <AuthNotice id="forgot-error">{error}</AuthNotice> : null}
           <div className="space-y-2">
             <Label htmlFor="email" className="text-base">
@@ -53,10 +53,10 @@ export default async function ForgotPasswordPage({
               required
               aria-describedby={error ? "forgot-error" : undefined}
               aria-invalid={error ? true : undefined}
-              className="h-11 text-base"
+              className="h-12 text-base"
             />
           </div>
-          <SubmitButton className="h-11 w-full text-base" pendingText="Sending…">
+          <SubmitButton className="h-12 w-full text-base" pendingText="Sending…">
             Send reset link
           </SubmitButton>
           <Link

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { UserPlus } from "lucide-react";
+import { CircleCheck, Sprout, UserPlus, UsersRound } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header";
 import { PipelineBoard, type PipelineCard } from "@/components/coordinator/pipeline-board";
@@ -124,8 +124,9 @@ export default async function CoordinatorPipelinePage() {
   ];
 
   return (
-    <section className="space-y-6">
+    <section className="space-y-8">
       <PageHeader
+        eyebrow="Care coordination"
         title="Pipeline"
         description="Every member by stage — drag a card forward, or open one to schedule, assign, or start."
         actions={
@@ -134,6 +135,19 @@ export default async function CoordinatorPipelinePage() {
           </Link>
         }
       />
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        {[
+          { label: "Members in your care", value: cards.length, icon: UsersRound, tone: "bg-role-coordinator/10 text-role-coordinator" },
+          { label: "Active programmes", value: cards.filter((c) => c.status === "active").length, icon: Sprout, tone: "bg-primary/10 text-primary" },
+          { label: "Ready to start", value: cards.filter((c) => c.status === "ready_to_start").length, icon: CircleCheck, tone: "bg-role-trainer/10 text-role-trainer" },
+        ].map(({ label, value, icon: Icon, tone }) => (
+          <div key={label} className="metric-tile flex items-center gap-4 p-5">
+            <span className={`icon-well ${tone}`}><Icon className="size-5" aria-hidden /></span>
+            <div><p className="font-display text-3xl font-semibold tracking-tight tabular-nums">{value}</p><p className="mt-1 text-xs text-muted-foreground">{label}</p></div>
+          </div>
+        ))}
+      </div>
 
       <PipelineBoard columns={PIPELINE_COLUMNS} cards={cards} />
 

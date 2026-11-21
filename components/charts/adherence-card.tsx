@@ -5,6 +5,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
 import { TrendLine, type TrendPoint } from "./trend-line";
+import { ChartNoAxesCombined } from "lucide-react";
 
 export async function AdherenceCard({ memberId }: { memberId: string }) {
   const supabase = await createClient();
@@ -36,7 +37,7 @@ export async function AdherenceCard({ memberId }: { memberId: string }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Plan adherence by cycle</CardTitle>
+        <CardTitle className="flex items-center gap-2.5"><ChartNoAxesCombined className="size-5 text-primary" aria-hidden /> Plan adherence by cycle</CardTitle>
       </CardHeader>
       <CardContent>
         <TrendLine

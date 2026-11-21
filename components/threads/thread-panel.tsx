@@ -107,7 +107,7 @@ export async function ThreadPanel({
     return (
       <Card>
         <CardHeader>
-          <CardTitle>{title}</CardTitle>
+          <CardTitle className="flex items-center gap-2.5"><MessageSquare className="size-5 text-primary" aria-hidden />{title}</CardTitle>
           {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
         </CardHeader>
         <CardContent className="space-y-4">
@@ -135,7 +135,7 @@ export async function ThreadPanel({
   return (
     <Card>
       <CardHeader className="gap-3">
-        <CardTitle>{title}</CardTitle>
+        <CardTitle className="flex items-center gap-2.5"><MessageSquare className="size-5 text-primary" aria-hidden />{title}<Badge variant="muted">{list.length}</Badge></CardTitle>
         {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
         {canCompose ? (
           <NewThread
@@ -160,14 +160,14 @@ export async function ThreadPanel({
             <article
               key={t.id}
               className={cn(
-                "rounded-xl border bg-card p-4 shadow-card",
-                unread > 0 && "border-primary/40",
+                "overflow-hidden rounded-2xl border bg-background/35 p-4 sm:p-5",
+                unread > 0 && "border-primary/30 bg-primary/[0.025] shadow-card",
                 resolved && "opacity-80",
               )}
             >
               <header className="flex flex-wrap items-center gap-2">
-                <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                <h3 className="font-medium">{t.subject}</h3>
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-card"><Icon className="size-4 text-primary" aria-hidden /></span>
+                <h3 className="min-w-0 break-words font-display text-lg font-semibold">{t.subject}</h3>
                 {unread > 0 ? (
                   <Badge variant="default">
                     {unread} new {unread === 1 ? "message" : "messages"}
@@ -179,14 +179,14 @@ export async function ThreadPanel({
                 </span>
               </header>
 
-              <p className="mt-0.5 text-xs text-muted-foreground">
+              <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
                 {meta.label} · {meta.note}
                 {t.audience && t.audience.length > 0
                   ? ` Addressed to the ${t.audience.join(", ")}.`
                   : ""}
               </p>
 
-              <ol className="mt-3 space-y-3">
+              <ol className="mt-5 space-y-5">
                 {msgs.map((m) => {
                   const author = Array.isArray(m.profiles) ? m.profiles[0] : m.profiles;
                   const mine = m.author_id === profile?.user.id;
@@ -211,10 +211,10 @@ export async function ThreadPanel({
                             reader already has from every other messaging app. */}
                         <p
                           className={cn(
-                            "mt-0.5 inline-block max-w-[46ch] rounded-2xl px-3.5 py-2 text-sm whitespace-pre-wrap",
+                            "mt-1.5 inline-block max-w-[46ch] rounded-2xl px-4 py-3 text-sm leading-relaxed break-words whitespace-pre-wrap",
                             mine
                               ? "rounded-tr-sm bg-secondary text-secondary-foreground"
-                              : "rounded-tl-sm bg-muted/60",
+                              : "rounded-tl-sm border border-border/50 bg-card shadow-xs",
                           )}
                         >
                           {m.body}
@@ -225,7 +225,7 @@ export async function ThreadPanel({
                 })}
               </ol>
 
-              <div className="mt-3 space-y-2 border-t pt-3">
+              <div className="mt-5 space-y-3 border-t border-border/70 pt-4">
                 <MessageComposer
                   threadId={t.id}
                   memberId={memberId}

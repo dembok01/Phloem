@@ -1,5 +1,3 @@
-import Image from "next/image";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ElderlyMode } from "@/components/elderly-mode";
 import { NotificationBell } from "@/components/notification-bell";
@@ -12,18 +10,7 @@ import { logEvent } from "@/lib/observe";
 import { getLens, viewRoleFor } from "@/lib/lens";
 import { CareTeamSwitcher, lensLabel } from "@/components/care-team-switcher";
 import { LensChrome } from "@/components/lens-chrome";
-import { type UserRole } from "@/lib/roles";
-
-const ROLE_HOME: Record<UserRole, string> = {
-  admin: "/admin",
-  coordinator: "/coordinator",
-  doctor: "/clinician/clients",
-  nutritionist: "/clinician/clients",
-  trainer: "/clinician/clients",
-  psychologist: "/clinician/clients",
-  caregiver: "/portal",
-  member: "/portal",
-};
+import { WorkspaceShell } from "@/components/workspace-shell";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const profile = await getSessionProfile();
@@ -55,45 +42,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           explanation is showing, the next opens without re-waiting. */}
       <Tooltip.Provider delay={250}>
       {profile.elderly ? <ElderlyMode /> : null}
-      <div className="flex min-h-screen flex-col bg-background">
-        <a
-          href="#main"
-          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-3 focus:z-50 focus:rounded-md focus:bg-card focus:px-3 focus:py-2 focus:shadow-pop"
-        >
-          Skip to content
-        </a>
-        <header className="sticky top-0 z-40 border-b bg-card/95 backdrop-blur print:hidden">
-          <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between gap-2 px-4 sm:gap-4 sm:px-6">
-            <Link
-              href={ROLE_HOME[role]}
-              className="flex h-10 shrink-0 items-center rounded-md"
-              aria-label="PHLOEM home"
-            >
-              <Image
-                src="/phloem-logo.png"
-                alt="PHLOEM"
-                width={120}
-                height={40}
-                className="h-7 w-auto sm:h-8"
-                priority
-              />
-            </Link>
-            <div className="flex min-w-0 items-center gap-1 sm:gap-3">
-              <CareTeamSwitcher />
-              <NotificationBell />
-              <AccountMenu name={profile.full_name} role={role} />
-            </div>
-          </div>
-          <LensChrome
-            role={role}
-            lensRole={lens ? viewRole : null}
-            lensName={lensName}
-          />
-        </header>
-        <main id="main" className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 sm:py-8">
-          {children}
-        </main>
-      </div>
+      <WorkspaceShell
+        role={role}
+        viewRole={viewRole}
+        switcher={<CareTeamSwitcher />}
+        notifications={<NotificationBell />}
+        account={<AccountMenu name={profile.full_name} role={role} />}
+        lensBanner={<LensChrome role={role} lensRole={lens ? viewRole : null} lensName={lensName} />}
+      >
+        {children}
+      </WorkspaceShell>
       </Tooltip.Provider>
     </ToastProvider>
   );

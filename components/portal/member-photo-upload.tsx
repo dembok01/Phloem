@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { ImagePlus } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/toast";
+import { Button } from "@/components/ui/button";
 import { setMemberPhotoAction } from "@/app/(app)/portal/actions";
 
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -60,26 +61,31 @@ export function MemberPhotoUpload({ memberId, hasPhoto }: { memberId: string; ha
   }
 
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex flex-wrap items-center gap-1 pt-1" aria-busy={busy || undefined}>
       <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={onPick} />
-      <button
+      <Button
         type="button"
+        variant="outline"
+        size="sm"
+        loading={busy}
         disabled={busy}
         onClick={() => inputRef.current?.click()}
-        className="link inline-flex items-center gap-1.5 text-sm disabled:opacity-60"
+        className="gap-1.5 bg-card/70 text-sm"
       >
-        <ImagePlus className="size-4" aria-hidden />
+        {!busy ? <ImagePlus className="size-4" aria-hidden /> : null}
         {hasPhoto ? "Change photo" : "Add a photo"}
-      </button>
+      </Button>
       {hasPhoto ? (
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="sm"
           disabled={busy}
           onClick={onRemove}
-          className="text-sm text-muted-foreground hover:text-foreground disabled:opacity-60"
+          className="text-sm text-muted-foreground"
         >
           Remove
-        </button>
+        </Button>
       ) : null}
     </div>
   );

@@ -44,10 +44,10 @@ export function Chip({
       data-slot="chip"
       aria-pressed={selected}
       className={cn(
-        "relative inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-sm font-medium whitespace-nowrap outline-none select-none",
-        "transition-[color,background-color,border-color,scale] duration-(--motion-press) ease-out",
+        "relative inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-sm font-medium whitespace-nowrap shadow-xs outline-none select-none",
+        "transition-[color,background-color,border-color,box-shadow,scale] duration-(--motion-press) ease-out",
         "active:scale-[0.97] motion-reduce:active:scale-100 elderly:active:scale-100",
-        "focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50",
+        "focus-visible:ring-3 focus-visible:ring-ring/25 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50",
         selected
           ? ON[tone]
           : "border-input/60 bg-card text-foreground hover:border-input hover:bg-[color-mix(in_oklab,var(--card),var(--foreground)_4%)]",
@@ -59,7 +59,16 @@ export function Chip({
         <Check className="mark-in size-3.5 shrink-0" strokeWidth={2.5} aria-hidden />
       ) : null}
       {children}
-      {count != null ? <span className="tabular-nums opacity-70">{count}</span> : null}
+      {count != null ? (
+        <span
+          className={cn(
+            "-mr-1 inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 font-data text-[11px] leading-none tabular-nums",
+            selected ? "bg-white/15" : "bg-muted text-muted-foreground",
+          )}
+        >
+          {count}
+        </span>
+      ) : null}
     </button>
   );
 }

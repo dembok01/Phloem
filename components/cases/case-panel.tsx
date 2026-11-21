@@ -8,7 +8,7 @@
 // RLS is the boundary: member_cases is invisible to the psychologist and the
 // coordinator, and a caregiver sees only cases the doctor shared. This component
 // just reads what the caller may read.
-import { Stethoscope } from "lucide-react";
+import { ChevronRight, Stethoscope } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -71,7 +71,7 @@ export async function CasePanel({
     return (
       <Card>
         <CardHeader>
-          <CardTitle>{title}</CardTitle>
+          <CardTitle className="flex items-center gap-2.5"><Stethoscope className="size-5 text-role-doctor" aria-hidden />{title}</CardTitle>
         </CardHeader>
         <CardContent>
           <EmptyState
@@ -95,7 +95,7 @@ export async function CasePanel({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{title}</CardTitle>
+        <CardTitle className="flex items-center gap-2.5"><Stethoscope className="size-5 text-role-doctor" aria-hidden />{title}<Badge variant="muted">{active.length} active</Badge></CardTitle>
         {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
       </CardHeader>
       <CardContent className="space-y-4">
@@ -110,8 +110,9 @@ export async function CasePanel({
         ))}
 
         {resolved.length > 0 ? (
-          <details className="rounded-xl border bg-muted/30 px-3 py-2">
-            <summary className="cursor-pointer text-sm font-medium">
+          <details className="group/resolved rounded-2xl border bg-muted/30 px-4 py-2">
+            <summary className="flex min-h-10 cursor-pointer list-none items-center gap-2 rounded-lg text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
+              <ChevronRight className="size-4 text-muted-foreground transition-transform duration-160 group-open/resolved:rotate-90" aria-hidden />
               {resolved.length} resolved{" "}
               {resolved.length === 1 ? "matter" : "matters"}
             </summary>
@@ -164,7 +165,7 @@ function CaseRow({
         // exactly the pattern that reads as generated. It appears for `high` and
         // `medium`; a low-severity or resolved case gets no rail, which is itself
         // the signal that nothing here is urgent.
-        "relative overflow-hidden rounded-xl border bg-card p-4 shadow-card",
+        "relative overflow-hidden rounded-2xl border bg-background/35 p-4 sm:p-5",
         !resolved &&
           (row.severity === "high" || row.severity === "medium") &&
           "pl-5 before:absolute before:inset-y-0 before:left-0 before:w-1 before:content-['']",
@@ -186,10 +187,10 @@ function CaseRow({
         </span>
       </header>
 
-      {row.detail ? <p className="mt-1 text-sm text-muted-foreground">{row.detail}</p> : null}
+      {row.detail ? <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{row.detail}</p> : null}
 
       {events.length > 0 ? (
-        <ol className="relative mt-3 space-y-2.5 pl-4 before:absolute before:inset-y-1 before:left-[3px] before:w-px before:bg-gradient-to-b before:from-transparent before:via-border before:to-transparent">
+        <ol className="relative mt-5 space-y-4 pl-5 before:absolute before:inset-y-1 before:left-[7px] before:w-px before:bg-border">
           {events.map((e) => (
             <li key={e.id} className="relative">
               <span

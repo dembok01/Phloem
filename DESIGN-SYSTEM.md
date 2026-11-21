@@ -19,7 +19,7 @@ Six named colors. Everything on screen derives from these plus white.
 | Name | Hex | Role |
 |---|---|---|
 | **Loam** | `#1F2A24` | Ink. All primary text and icons — a green-black like wet forest soil; warmer than #000, still 13:1 on Paper. |
-| **Paper** | `#F5F8F5` | App background — white with a breath of leaf; cards sit on it in pure white. Cool, not cream. |
+| **Paper** | `#F6F5F0` | Warm paper app background; white cards and a pale botanical tint (`#EEF2E8`) create the surface hierarchy. |
 | **Phloem** | `#1E6B4E` | The brand green. Primary actions, active states, links in portal, the growth ring's living arc. 6.4:1 with white text. |
 | **Moss** | `#5A6B60` | Muted ink — secondary text, labels, borders at 25% strength. ≥5:1 on white (fixes audit G-4). |
 | **Honey** | `#8A5A0B` | Warmth + caution. Amber family for red-flag banners (per §11), pending states, pause badges. Deep enough to be AA as text. |
@@ -187,3 +187,20 @@ Tokens live in `app/globals.css` as CSS variables mapped through Tailwind v4
 audit G-1 (the circular `--font-sans` reference that had the whole app in Times).
 Elderly mode = a `.elderly` root class that raises type/target/contrast tokens to
 AAA and zeroes motion. Dark tokens retuned to deep loam for parity.
+
+## Dashboard refresh · November 2026
+
+The shared workspace now uses a warm paper canvas, white panels and forest-green
+navigation (`--workspace-ink: #193E32`). The original role and safety colours stay
+semantic. Staff navigation is persistent on desktop and horizontally scrollable on
+phones; family and elderly screens retain their simpler header.
+
+Use `dashboard-hero` for the one lightly tinted focal surface on a page, with normal
+foreground text. `metric-tile` and `portal-tile` are interactive surfaces; their
+2px hover lift applies only to a fine pointer. `icon-well` gives role icons a stable
+rounded-square frame. Cards use 20px internal spacing (16px for small cards).
+
+Feedback uses the existing motion tokens: press 160ms, popover/state 200ms,
+content 220ms and sheets at most 280ms. Keyboard command search appears instantly.
+Reduced motion and elderly mode suppress motion; cards never animate numeric
+clinical values. Do not add repeating decorative motion to a work surface.

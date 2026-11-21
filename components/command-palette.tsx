@@ -9,6 +9,7 @@
 // is a feature almost nobody finds — the shortcut stays, the pill just tells
 // people it is there.
 import * as React from "react";
+import { Dialog } from "@base-ui/react/dialog";
 import { useRouter } from "next/navigation";
 import { CalendarDays, KanbanSquare, Loader2, Search, UserRound, UsersRound } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -25,6 +26,14 @@ type Item = {
 // Where each desk's search lands. Kept inside the client component so a layout
 // passes a plain string rather than a table of JSX across the boundary.
 const DESKS = {
+  admin: {
+    memberBase: "/admin/members",
+    pages: [
+      { id: "page-overview", label: "Overview", href: "/admin", icon: <CalendarDays className="size-4" /> },
+      { id: "page-members", label: "Members", href: "/admin/members", icon: <UsersRound className="size-4" /> },
+      { id: "page-team", label: "Care team", href: "/admin/care-team", icon: <UsersRound className="size-4" /> },
+    ] as Item[],
+  },
   coordinator: {
     memberBase: "/coordinator/members",
     pages: [
@@ -35,7 +44,7 @@ const DESKS = {
   clinician: {
     memberBase: "/clinician/clients",
     pages: [
-      { id: "page-clients", label: "My clients", href: "/clinician/clients", icon: <UsersRound className="size-4" /> },
+      { id: "page-clients", label: "My members", href: "/clinician/clients", icon: <UsersRound className="size-4" /> },
     ] as Item[],
   },
 };
@@ -51,6 +60,7 @@ export function CommandPalette({ desk = "coordinator" }: { desk?: keyof typeof D
   const [pending, startTransition] = React.useTransition();
   const [navHref, setNavHref] = React.useState<string | null>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
+  const triggerRef = React.useRef<HTMLButtonElement>(null);
   const listRef = React.useRef<HTMLUListElement>(null);
   // Resolved after mount so the server render and the first client render agree.
   const [modKey, setModKey] = React.useState("Ctrl");
@@ -138,27 +148,26 @@ export function CommandPalette({ desk = "coordinator" }: { desk?: keyof typeof D
   return (
     <>
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen(true)}
-        className="pressable inline-flex h-9 items-center gap-2 rounded-full border border-input/60 bg-card pl-3 pr-1.5 text-sm text-muted-foreground hover:border-input hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        aria-label="Search members and pages"
+        className="pressable inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-card px-3 text-sm text-muted-foreground shadow-xs hover:border-input hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
       >
         <Search className="size-4" aria-hidden />
-        <span>Search</span>
-        <kbd className="rounded border bg-muted px-1.5 py-0.5 font-data text-[11px]">{modKey}K</kbd>
+        <span className="hidden xl:inline">Search members…</span>
+        <kbd className="hidden rounded border bg-muted xl:inline px-1.5 py-0.5 font-data text-[11px]">{modKey}K</kbd>
       </button>
 
-      {!open ? null : (
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-foreground/20 p-4 pt-[12vh] backdrop-blur-[2px] animate-in fade-in-0 duration-(--motion-pop) ease-out"
-      onClick={() => setOpen(false)}
-      role="dialog"
-      aria-modal="true"
-      aria-label="Command palette"
-    >
-      <div
-        className="w-full max-w-lg overflow-hidden rounded-xl border bg-popover shadow-pop animate-in fade-in-0 zoom-in-[0.97] slide-in-from-top-2 duration-(--motion-pop) ease-out"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <Dialog.Root open={open} onOpenChange={setOpen}>
+        <Dialog.Portal>
+          <Dialog.Backdrop className="fixed inset-0 z-50 bg-foreground/25 backdrop-blur-[3px]" />
+          <Dialog.Popup
+            initialFocus={inputRef}
+            finalFocus={triggerRef}
+            className="fixed top-[12vh] left-1/2 z-50 w-[calc(100%_-_2rem)] max-w-lg -translate-x-1/2 overflow-hidden rounded-2xl border bg-popover shadow-pop outline-none"
+          >
+            <Dialog.Title className="sr-only">Search members and pages</Dialog.Title>
         <div className="flex items-center gap-2 border-b px-4">
           <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden />
           <input
@@ -173,7 +182,7 @@ export function CommandPalette({ desk = "coordinator" }: { desk?: keyof typeof D
             aria-label="Search members and pages"
             className="h-12 w-full bg-transparent text-base outline-none placeholder:text-muted-foreground"
           />
-          <kbd className="rounded border bg-muted px-1.5 font-data text-[11px] text-muted-foreground">esc</kbd>
+          <kbd className="hidden rounded border bg-muted xl:inline px-1.5 font-data text-[11px] text-muted-foreground">esc</kbd>
         </div>
         <ul ref={listRef} className="max-h-72 overflow-y-auto p-1.5" role="listbox">
           {results.length === 0 ? (
@@ -215,9 +224,9 @@ export function CommandPalette({ desk = "coordinator" }: { desk?: keyof typeof D
         <p className="border-t px-4 py-2 font-data text-[11px] text-muted-foreground">
           ↑↓ to choose · Enter to open · esc to close
         </p>
-      </div>
-    </div>
-      )}
+          </Dialog.Popup>
+        </Dialog.Portal>
+      </Dialog.Root>
     </>
   );
 }

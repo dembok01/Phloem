@@ -49,7 +49,7 @@ export function CaseControls({
   }
 
   return (
-    <div className="mt-3 space-y-2 border-t pt-3">
+    <div className="mt-4 space-y-3 border-t border-border/70 pt-4">
       <div className="flex flex-wrap items-center gap-2">
         {status === "resolved" ? (
           <Button
@@ -119,7 +119,7 @@ export function CaseControls({
               shared ? "Hidden from the family" : "Now visible to the family",
             )
           }
-          className="ml-auto inline-flex items-center gap-2 text-xs font-medium disabled:opacity-60"
+          className="ml-auto inline-flex min-h-10 items-center gap-2 rounded-lg px-1 text-xs font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-60"
         >
           <span
             className={cn(
@@ -151,7 +151,7 @@ export function CaseControls({
             onChange={(e) => setNote(e.target.value)}
             rows={2}
             placeholder="What changed, and what you did about it."
-            className="w-full rounded-lg border bg-card px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            className="w-full resize-y rounded-xl border border-input bg-card px-3 py-3 text-base outline-none transition-[border-color,box-shadow] duration-160 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/15"
           />
           <div className="flex gap-2">
             <Button

@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
 import { formatDateIST } from "@/lib/datetime";
 import { TrendLine, type TrendPoint } from "./trend-line";
+import { HeartPulse } from "lucide-react";
 
 const WHO5_KEYS = ["who5_1", "who5_2", "who5_3", "who5_4", "who5_5"] as const;
 
@@ -40,11 +41,11 @@ export async function Who5Card({ memberId }: { memberId: string }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>WHO-5 wellbeing</CardTitle>
+        <CardTitle className="flex items-center gap-2.5"><HeartPulse className="size-5 text-role-psychologist" aria-hidden /> WHO-5 wellbeing</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-2">
-        <p className="flex items-baseline gap-2">
-          <span className="font-display text-3xl font-semibold">{latest}</span>
+      <CardContent className="space-y-4">
+        <p className="flex flex-wrap items-baseline gap-3 rounded-2xl border border-role-psychologist/10 bg-role-psychologist/5 p-5">
+          <span className="font-display text-4xl font-semibold tracking-tight tabular-nums">{latest}</span>
           <span className="text-sm text-muted-foreground">of 100 at the last check-in</span>
         </p>
         {latest <= 50 ? (

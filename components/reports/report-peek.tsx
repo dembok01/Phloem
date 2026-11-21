@@ -77,7 +77,7 @@ export function ReportPeek({
 
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className={className}>
+      <button type="button" onClick={() => setOpen(true)} aria-haspopup="dialog" aria-expanded={open} className={className}>
         {children}
       </button>
 
@@ -114,7 +114,7 @@ export function ReportPeek({
               safe to inline, and the same sheet the full page uses so the
               document reads identically in both. */}
           <style dangerouslySetInnerHTML={{ __html: REPORT_CSS }} />
-          <div className="h-full overflow-y-auto border-t bg-muted/40 p-4 sm:p-6">
+          <div className="h-full overflow-y-auto border-t bg-background p-4 sm:p-6">
             {failed ? (
               <div className="flex h-full flex-col items-center justify-center gap-2 px-8 text-center">
                 <FileQuestion className="size-7 text-danger" aria-hidden />
@@ -124,8 +124,11 @@ export function ReportPeek({
                 </p>
               </div>
             ) : !report ? (
-              <div className="flex h-full items-center justify-center">
-                <Loader2 className="size-7 animate-spin text-muted-foreground" aria-hidden />
+              <div role="status" className="flex h-full flex-col items-center justify-center gap-4">
+                <span className="flex size-14 items-center justify-center rounded-2xl border bg-card shadow-card">
+                  <Loader2 className="size-6 animate-spin text-primary" aria-hidden />
+                </span>
+                <p className="text-sm text-muted-foreground">Opening report…</p>
               </div>
             ) : report.content.upload ? (
               // 0054: an uploaded report is the file the clinician sent — show that.
@@ -135,7 +138,7 @@ export function ReportPeek({
                 className="size-full rounded-xl border-0 bg-card"
               />
             ) : (
-              <article className="mx-auto max-w-2xl rounded-xl bg-card p-5 shadow-card ring-1 ring-foreground/10 sm:p-8">
+              <article className="mx-auto max-w-2xl rounded-2xl border border-border/70 bg-card p-5 shadow-card sm:p-8">
                 <ReportView content={report.content} />
               </article>
             )}

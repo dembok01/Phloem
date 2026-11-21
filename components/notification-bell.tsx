@@ -103,7 +103,7 @@ export function NotificationBell() {
           setOpen((o) => !o);
           if (!open) load();
         }}
-        className="relative inline-flex size-10 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+        className="pressable relative inline-flex size-10 items-center justify-center rounded-xl border border-transparent text-muted-foreground hover:bg-muted hover:text-foreground"
       >
         <Bell className="size-5" />
         {unread > 0 ? (
@@ -116,8 +116,8 @@ export function NotificationBell() {
       {open ? (
         <>
           <div className="fixed inset-0 z-30" aria-hidden onClick={() => setOpen(false)} />
-          <div className="absolute right-0 z-40 mt-2 w-80 overflow-hidden rounded-xl border bg-popover shadow-pop origin-top-right animate-in fade-in-0 zoom-in-[0.97] slide-in-from-top-1 duration-(--motion-pop) ease-out">
-            <div className="flex items-center justify-between border-b px-3 py-2">
+          <div className="fixed right-4 top-20 z-40 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border bg-popover shadow-pop sm:absolute sm:top-auto sm:right-0 sm:mt-3 origin-top-right animate-in fade-in-0 zoom-in-[0.97] slide-in-from-top-1 duration-(--motion-pop) ease-out">
+            <div className="flex items-center justify-between border-b bg-muted/35 px-4 py-3">
               <span className="text-sm font-semibold">Notifications</span>
               {unread > 0 ? (
                 <button type="button" onClick={markAll} className="link text-xs">
@@ -136,7 +136,7 @@ export function NotificationBell() {
                       onClick={() => openItem(n)}
                       disabled={pending}
                       aria-busy={pending && navId === n.id}
-                      className="flex w-full gap-2 px-3 py-2.5 text-left hover:bg-muted disabled:opacity-60"
+                      className="flex w-full gap-3 px-4 py-3 text-left transition-colors duration-(--motion-press) hover:bg-muted disabled:opacity-60"
                     >
                       <span aria-hidden className="mt-1.5 shrink-0">
                         {pending && navId === n.id ? (

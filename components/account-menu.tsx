@@ -7,10 +7,11 @@
 // popover pattern.
 import * as React from "react";
 import Link from "next/link";
-import { ChevronDown, UserRound } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { logout } from "@/app/(auth)/login/actions";
 import { ROLE_CHIP, ROLE_LABEL, type UserRole } from "@/lib/roles";
+import { Monogram, toneForRole } from "@/components/monogram";
 import { cn } from "@/lib/utils";
 
 export function AccountMenu({ name, role }: { name: string; role: UserRole }) {
@@ -41,27 +42,25 @@ export function AccountMenu({ name, role }: { name: string; role: UserRole }) {
         aria-expanded={open}
         aria-controls={open ? "account-menu" : undefined}
         aria-label={`Account — ${name}, ${ROLE_LABEL[role]}`}
-        className="pressable flex min-h-10 min-w-0 items-center gap-2 rounded-md px-2 py-1 hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        className="pressable flex min-h-10 min-w-0 items-center gap-2 rounded-xl px-1.5 py-1 hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
       >
-        <span className="hidden max-w-[10rem] truncate font-medium sm:inline">{name}</span>
-        {/* Phones get an icon: at 390px the role chip pushed the header off the
-            screen once the desk switcher and the bell sat beside it. */}
-        <UserRound className="size-5 text-muted-foreground sm:hidden" aria-hidden />
+        <Monogram name={name} size="sm" tone={toneForRole(role)} />
+        <span className="hidden max-w-[9rem] truncate font-bold md:inline">{name}</span>
         <span
           className={cn(
-            "hidden rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap sm:inline",
+            "hidden rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap 2xl:inline",
             ROLE_CHIP[role],
           )}
         >
           {ROLE_LABEL[role]}
         </span>
-        <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+        <ChevronDown className="hidden size-3.5 shrink-0 text-muted-foreground sm:block" aria-hidden />
       </button>
 
       {open ? (
         <div
           id="account-menu"
-          className="absolute right-0 z-50 mt-1 w-48 origin-top-right animate-in rounded-lg border bg-popover p-1 text-popover-foreground shadow-pop fade-in-0 zoom-in-[0.97] slide-in-from-top-1 duration-(--motion-pop)"
+          className="absolute right-0 z-50 mt-3 w-56 origin-top-right animate-in rounded-2xl border bg-popover p-2 text-popover-foreground shadow-pop fade-in-0 zoom-in-[0.97] slide-in-from-top-1 duration-(--motion-pop)"
         >
           <Link
             href="/account"

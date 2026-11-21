@@ -58,9 +58,13 @@ export function ScheduleSheet({
           </>
         }
       >
-        <form id={formId} action={scheduleConsultation} className="space-y-4">
+        <form id={formId} action={scheduleConsultation} className="space-y-5">
           <input type="hidden" name="member_id" value={memberId} />
           <input type="hidden" name="consultation_id" value={consultationId} />
+          <div className="flex items-center gap-3 rounded-2xl border border-role-coordinator/15 bg-role-coordinator/5 p-4">
+            <span className="icon-well bg-role-coordinator/10 text-role-coordinator"><CalendarPlus className="size-5" aria-hidden /></span>
+            <div><p className="font-medium">{memberName}</p><p className="text-sm capitalize text-muted-foreground">{role} consultation</p></div>
+          </div>
           <div className="space-y-2">
             <Label htmlFor={`${formId}-at`}>Date and time (IST)</Label>
             {/* Native datetime-local: the action already parses this exact format. */}
@@ -73,7 +77,7 @@ export function ScheduleSheet({
               name="mode"
               required
               defaultValue="video"
-              className="h-11 w-full rounded-lg border border-input bg-background px-3 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              className="h-11 w-full rounded-xl border border-input bg-card px-3 text-base outline-none transition-[border-color,box-shadow] duration-160 hover:border-primary/35 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/20"
             >
               <option value="video">Video call</option>
               <option value="phone">Phone call</option>

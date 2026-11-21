@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/page-header";
 import { Sparkline } from "@/components/charts/sparkline";
 import { StageFunnel, type Stage } from "@/components/charts/stage-funnel";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Ban, CalendarClock, CalendarHeart, ClipboardCheck, ListChecks, UserMinus } from "lucide-react";
+import { ArrowUpRight, Ban, CalendarClock, CalendarHeart, ClipboardCheck, FileClock, ListChecks, Plus, UsersRound, UserMinus } from "lucide-react";
 import { GrowthRings } from "@/components/growth-rings";
 import { TrendLine } from "@/components/charts/trend-line";
 import { createClient } from "@/lib/supabase/server";
@@ -261,18 +262,19 @@ export default async function AdminOverviewPage() {
   const hasThroughput = throughput.some((p) => p.Consultations > 0 || p.Reports > 0);
 
   return (
-    <section className="space-y-6">
+    <section className="space-y-7">
       <PageHeader
         eyebrow="Programme health"
         title="Overview"
-        description="Where every family is right now, and what moved in the last 12 weeks."
+        description="A clear view of your members, your team, and the care moving forward."
+        actions={<Link href="/admin/members/new" className={buttonVariants()}><Plus className="size-4" aria-hidden /> Add a member</Link>}
       />
 
       {/* M3 — the hero. The four equal tiles used to give the largest type on the
           page to four zeros; the answer to "how is the programme doing" is one
           number with a sentence, not a row of counters. */}
-      <Card variant="hero" className="hero-glow">
-        <CardContent className="flex flex-wrap items-center gap-x-12 gap-y-6">
+      <Card variant="hero" className="dashboard-hero">
+        <CardContent className="flex flex-wrap items-center gap-x-12 gap-y-6 py-3 sm:py-5">
           <div className="flex items-center gap-5">
             {a.active > 0 && a.ringCycles.length > 0 ? (
               <GrowthRings cycles={a.ringCycles} size={72} title="Programme cycles in flight" once />
@@ -286,14 +288,14 @@ export default async function AdminOverviewPage() {
                   next="This is the honest size of the programme. It is deliberately larger than 'Programmes running', which counts only the ones already started."
                 />
               </p>
-              <p className="stat-figure text-foreground">{a.inCare}</p>
+              <p className="mt-2 flex items-baseline gap-3"><span className="font-display text-6xl font-semibold tracking-[-0.06em] text-foreground tabular-nums">{a.inCare}</span><span className="font-display text-xl text-muted-foreground">{a.inCare === 1 ? "member" : "members"}</span></p>
               <p className="text-sm text-muted-foreground">
                 {a.active > 0 ? `${a.active} on an active programme` : "none started yet"}
               </p>
             </div>
           </div>
 
-          <p className="min-w-56 max-w-md flex-1 text-[17px] leading-relaxed text-muted-foreground">
+          <p className="min-w-0 max-w-md flex-1 border-l-2 border-primary/20 pl-5 text-[17px] leading-relaxed text-muted-foreground">
             {a.overdue > 0 ? (
               <>
                 <span className="font-medium text-warning">{a.overdue} report{a.overdue === 1 ? "" : "s"} overdue</span>
@@ -358,8 +360,8 @@ export default async function AdminOverviewPage() {
       {/* Secondary strip: the counters keep their trend but stop competing with
           the hero. A zero renders as an em-dash with a hint (M8) — a giant 0 in
           the display face reads as a broken page. */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {tiles.map((t) => (
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {tiles.map((t, index) => (
           // The tile is already a focusable link, so the explanation attaches to
           // it rather than adding a nested button — hover and keyboard focus both
           // reach it, and an anchor never ends up containing a button.
@@ -367,8 +369,8 @@ export default async function AdminOverviewPage() {
           <Link
             href={t.href}
             className={cn(
-              "pressable liftable group relative flex flex-col justify-between gap-2 overflow-hidden rounded-xl bg-card p-4 shadow-card ring-1 ring-foreground/10 hover:shadow-pop hover:ring-primary/30",
-              t.alert && "ring-warning/40",
+              "metric-tile group relative flex min-h-40 flex-col justify-between gap-4 overflow-hidden p-5",
+              t.alert && "border-warning/35 bg-warning-tint/25",
             )}
           >
             {/* the trend sits BEHIND the figure as texture, not beside it */}
@@ -386,11 +388,17 @@ export default async function AdminOverviewPage() {
                 />
               </span>
             ) : null}
-            <span className="eyebrow relative">{t.label}</span>
+            <span className="relative flex items-center justify-between gap-3">
+              <span className={cn("icon-well size-9 rounded-xl", t.alert && "bg-warning-tint text-warning")}>
+                {index === 0 ? <UsersRound className="size-[18px]" aria-hidden /> : index === 1 ? <ClipboardCheck className="size-[18px]" aria-hidden /> : index === 2 ? <FileClock className="size-[18px]" aria-hidden /> : <CalendarHeart className="size-[18px]" aria-hidden />}
+              </span>
+              <ArrowUpRight className="size-4 text-muted-foreground/60 transition-colors group-hover:text-primary" aria-hidden />
+            </span>
+            <span className="relative text-sm font-bold text-muted-foreground">{t.label}</span>
             <span className="relative flex items-baseline gap-2">
               <span
                 className={cn(
-                  "font-display text-3xl font-semibold tabular-nums",
+                  "font-display text-4xl font-semibold tracking-tight tabular-nums",
                   t.value === 0 && "text-muted-foreground/60",
                 )}
               >

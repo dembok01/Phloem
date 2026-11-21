@@ -41,7 +41,7 @@ export function List({
   return (
     <ul
       className={cn(
-        "divide-y divide-border/70 overflow-hidden rounded-xl bg-muted/35 ring-1 ring-foreground/[0.04]",
+        "divide-y divide-border/65 overflow-hidden rounded-xl bg-muted/35 ring-1 ring-border/70",
         stagger && "stagger-in",
         className,
       )}
@@ -96,12 +96,12 @@ export function ListRow({
       href={href!}
       // The ::after covers the whole row, so a click anywhere opens it; the
       // focus ring is drawn on that cover, not around the words.
-      className="block truncate font-medium text-foreground no-underline outline-none after:absolute after:inset-0 after:content-[''] focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-ring"
+      className="block truncate font-medium leading-snug text-foreground no-underline outline-none after:absolute after:inset-0 after:content-[''] focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-ring"
     >
       {title}
     </Link>
   ) : (
-    <span className="block truncate font-medium text-foreground">{title}</span>
+    <span className="block truncate font-medium leading-snug text-foreground">{title}</span>
   );
 
   const body = (
@@ -109,10 +109,10 @@ export function ListRow({
       {leading ? <span className="shrink-0">{leading}</span> : null}
 
       <span className="min-w-0 flex-1">
-        {eyebrow ? <span className="eyebrow block text-[10.5px] leading-tight">{eyebrow}</span> : null}
+        {eyebrow ? <span className="eyebrow mb-1 block text-[10.5px] leading-tight">{eyebrow}</span> : null}
         {titleNode}
         {detail ? (
-          <span className="block truncate text-sm text-muted-foreground">{detail}</span>
+          <span className="mt-0.5 block truncate text-sm text-muted-foreground">{detail}</span>
         ) : null}
         {chips ? <span className="mt-1.5 block">{chips}</span> : null}
       </span>
@@ -127,7 +127,7 @@ export function ListRow({
 
       {href ? (
         <ChevronRight
-          className="size-4 shrink-0 text-muted-foreground transition-[translate,color] duration-(--motion-press) ease-out group-hover/row:translate-x-0.5 group-hover/row:text-foreground"
+          className="size-4 shrink-0 text-muted-foreground/70 transition-[translate,color] duration-(--motion-press) ease-out group-hover/row:translate-x-0.5 group-hover/row:text-primary motion-reduce:group-hover/row:translate-x-0 elderly:group-hover/row:translate-x-0"
           aria-hidden
         />
       ) : null}
@@ -135,14 +135,14 @@ export function ListRow({
   );
 
   const shell = cn(
-    "group/row relative flex items-center gap-3 px-4 py-3 min-h-14",
+    "group/row relative flex min-h-16 items-center gap-3 px-4 py-3.5",
     // The rail replaces what used to be a whole extra bordered card.
     tone !== "none" &&
-      "before:absolute before:inset-y-0 before:left-0 before:w-[3px] before:content-['']",
+      "before:absolute before:inset-y-3 before:left-0 before:w-[3px] before:rounded-r-full before:content-['']",
     RAIL[tone],
     // `.pressable` owns the transition shorthand, so the stretched row (which
     // does not scale — its button presses on its own) declares its own.
-    href && !stretched && "pressable hover:bg-card focus-visible:bg-card",
+    href && !stretched && "pressable hover:bg-card focus-visible:bg-card focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring",
     stretched &&
       "transition-colors duration-(--motion-press) hover:bg-card has-[a:focus-visible]:bg-card",
     className,
@@ -181,7 +181,7 @@ export function ListSection({
   className?: string;
 }) {
   return (
-    <section className={cn("space-y-2", className)}>
+    <section className={cn("space-y-3", className)}>
       <h2 className="eyebrow flex items-center gap-2">
         {icon}
         {label}
@@ -198,7 +198,7 @@ export function ListSection({
             {count}
           </span>
         ) : null}
-        <span className="ml-1 h-px flex-1 bg-border" aria-hidden />
+        <span className="ml-1 h-px flex-1 bg-linear-to-r from-border to-border/20" aria-hidden />
       </h2>
       {children}
     </section>

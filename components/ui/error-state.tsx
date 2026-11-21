@@ -4,9 +4,8 @@ import { cn } from "@/lib/utils";
 /**
  * Designed failure state (DESIGN-SYSTEM §5: errors say what happened and how to
  * fix it). Sibling of `EmptyState` and deliberately the same shape, with two
- * differences: a solid border and card ground rather than the dashed "nothing
- * here yet" treatment, and a tinted mark so a failure never reads as an
- * invitation.
+ * differences: a plain card ground and a tinted mark so a failure never reads
+ * as an invitation.
  *
  * It never renders a stack trace, a Postgres message or an RLS policy name —
  * only the caller's plain-language copy plus Next's opaque `digest`, which is a
@@ -34,27 +33,27 @@ export function ErrorState({
   return (
     <div
       className={cn(
-        "flex flex-col items-center justify-center gap-2 rounded-xl border bg-card px-6 py-10 text-center shadow-card",
+        "flex flex-col items-center justify-center gap-2 rounded-2xl border border-border/80 bg-card px-6 py-12 text-center shadow-card",
         className,
       )}
     >
       <span
         className={cn(
-          "mb-1 inline-flex size-11 items-center justify-center rounded-full",
+          "mb-2 inline-flex size-14 items-center justify-center rounded-2xl ring-1 ring-inset ring-current/10",
           tone === "danger" ? "bg-danger-tint text-danger" : "bg-info-tint text-info",
         )}
       >
-        <Icon className="size-5" aria-hidden />
+        <Icon className="size-6" strokeWidth={1.6} aria-hidden />
       </span>
-      <p className="font-display text-lg font-semibold text-foreground">{title}</p>
+      <p className="max-w-md font-display text-xl font-semibold tracking-tight text-balance text-foreground">{title}</p>
       {description ? (
-        <p className="max-w-sm text-muted-foreground">{description}</p>
+        <p className="max-w-sm text-sm leading-relaxed text-pretty text-muted-foreground">{description}</p>
       ) : null}
       {action ? (
         <div className="mt-3 flex flex-wrap items-center justify-center gap-2">{action}</div>
       ) : null}
       {digest ? (
-        <p className="mt-2 font-data text-xs text-muted-foreground">Reference {digest}</p>
+        <p className="mt-3 rounded-md bg-muted/70 px-2 py-1 font-data text-xs text-muted-foreground">Reference {digest}</p>
       ) : null}
     </div>
   );

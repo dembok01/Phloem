@@ -53,10 +53,12 @@ export function RenewalCard({
 
   if (status === "interested") {
     return (
-      <Card>
-        <CardContent className="flex items-center gap-3 py-4">
-          <Check className="size-5 shrink-0 text-success" aria-hidden />
-          <p className="text-lg">
+      <Card className="border-success/25 bg-success-tint/40 py-0">
+        <CardContent className="flex items-center gap-4 py-5">
+          <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-success-tint">
+            <Check className="size-5 text-success" aria-hidden />
+          </span>
+          <p className="text-base leading-relaxed">
             You&apos;ve asked to continue {memberFirstName}&apos;s care. Your coordinator will call
             to arrange the next programme.
           </p>
@@ -67,10 +69,12 @@ export function RenewalCard({
 
   if (status === "declined") {
     return (
-      <Card>
-        <CardContent className="flex items-center gap-3 py-4">
-          <MessageCircle className="size-5 shrink-0 text-muted-foreground" aria-hidden />
-          <p className="text-lg text-muted-foreground">
+      <Card className="py-0">
+        <CardContent className="flex items-center gap-4 py-5">
+          <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-secondary">
+            <MessageCircle className="size-5 text-primary" aria-hidden />
+          </span>
+          <p className="text-base leading-relaxed text-muted-foreground">
             Your coordinator will call to talk through what happens next.
           </p>
         </CardContent>
@@ -81,18 +85,19 @@ export function RenewalCard({
   return (
     <Card
       variant="hero"
-      className="border-warning/30 bg-gradient-to-br from-warning-tint/70 via-card to-card"
+      className="overflow-hidden border-warning/30 bg-gradient-to-br from-warning-tint/70 via-card to-card py-0"
     >
-      <CardContent className="space-y-4 py-6">
-        <div className="flex items-start gap-3">
-          <span className="mt-0.5 inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-warning-tint text-warning">
-            <CalendarHeart className="size-5" aria-hidden />
+      <CardContent className="space-y-5 py-6 sm:p-7">
+        <div className="flex flex-col items-start gap-4 sm:flex-row">
+          <span className="mt-0.5 inline-flex size-12 shrink-0 items-center justify-center rounded-2xl border border-warning/15 bg-warning-tint text-warning">
+            <CalendarHeart className="size-6" aria-hidden />
           </span>
           <div>
-            <h2 className="font-display text-xl font-semibold">
+            <p className="eyebrow mb-2 text-warning">The next chapter</p>
+            <h2 className="font-display text-xl font-semibold sm:text-2xl">
               {memberFirstName}&apos;s programme is ending{endsOn ? ` on ${endsOn}` : " soon"}
             </h2>
-            <p className="mt-1 text-lg text-muted-foreground">
+            <p className="mt-2 max-w-3xl text-base leading-relaxed text-muted-foreground">
               Another {months} months keeps the same care team, the monthly consultations, and the
               plans that are working. Nothing is charged here — your coordinator will talk you
               through it.
@@ -100,7 +105,7 @@ export function RenewalCard({
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-3 border-t border-warning/15 pt-5">
           <Button size="lg" loading={pending} disabled={pending} onClick={() => answer("interested")}>
             I&apos;d like to continue
           </Button>

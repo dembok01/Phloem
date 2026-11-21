@@ -18,9 +18,11 @@ export function FamilySafetyCard({
 }) {
   if (!safety) {
     return (
-      <Card id="safety" className="scroll-mt-24 border-warning/45 bg-warning-tint">
+      <Card id="safety" className="scroll-mt-24 border-warning/45 bg-warning-tint py-0">
         <CardContent className="flex flex-col gap-4 py-5 sm:flex-row sm:items-center">
-          <ShieldCheck className="size-8 shrink-0 text-warning" aria-hidden />
+          <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl border border-warning/20 bg-card/60">
+            <ShieldCheck className="size-6 text-warning" aria-hidden />
+          </span>
           <div className="min-w-0 flex-1 space-y-1">
             <p className="text-lg font-semibold">Add emergency details for {firstName}</p>
             <p className="text-base text-muted-foreground">
@@ -44,10 +46,15 @@ export function FamilySafetyCard({
     ["BP machine or glucometer at home", safety.bp_or_glucometer ? "Yes" : "No"],
   ];
   return (
-    <Card id="safety" className="scroll-mt-24">
+    <Card id="safety" className="scroll-mt-24 py-0">
       <CardContent className="space-y-4 py-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-base font-semibold">Emergency &amp; safety</p>
+          <div className="flex items-center gap-3">
+            <span className="flex size-10 items-center justify-center rounded-xl bg-secondary text-primary">
+              <ShieldCheck className="size-5" aria-hidden="true" />
+            </span>
+            <h2 className="font-display text-xl font-semibold">Emergency &amp; safety</h2>
+          </div>
           <SafetyFormSheet memberId={memberId} mode="family" record={safety} triggerLabel="Edit" />
         </div>
         <p className="text-sm text-muted-foreground">
@@ -55,9 +62,9 @@ export function FamilySafetyCard({
         </p>
         <dl className="grid gap-2 sm:grid-cols-2">
           {rows.map(([label, value]) => (
-            <div key={label} className="flex items-center justify-between gap-3 rounded-lg border p-2.5 text-sm">
+            <div key={label} className="flex min-w-0 flex-col gap-1.5 rounded-xl border border-border/70 bg-muted/25 p-4 text-sm">
               <dt className="text-muted-foreground">{label}</dt>
-              <dd className="text-right font-medium">{value}</dd>
+              <dd className="break-words font-medium">{value}</dd>
             </div>
           ))}
         </dl>

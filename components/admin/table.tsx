@@ -29,13 +29,13 @@ export function AdminTable({
   className?: string;
 }) {
   return (
-    <div className={cn("overflow-x-auto rounded-xl border bg-card shadow-card", className)}>
+    <div className={cn("overflow-x-auto rounded-2xl border border-border/80 bg-card shadow-card", className)}>
       <table className="w-full text-sm" aria-label={label}>
         {/* top-0, never an offset: the overflow-x wrapper is the box sticky measures
             against, so `top-14` pushed the header 56px down onto row 1 and hid the
             first member — the only one, when a filter left a single match. */}
-        <thead className="sticky top-0 z-10 bg-card/95 backdrop-blur">
-          <tr className="border-b text-left text-muted-foreground">{head}</tr>
+        <thead className="sticky top-0 z-10 bg-muted/70 backdrop-blur">
+          <tr className="border-b text-left font-data text-[11px] tracking-wide text-muted-foreground uppercase">{head}</tr>
         </thead>
         <tbody>{children}</tbody>
       </table>
@@ -53,7 +53,7 @@ export function PhoneList({ label, children }: { label: string; children: React.
   return (
     <ul
       aria-label={label}
-      className="divide-y overflow-hidden rounded-xl border bg-card shadow-card md:hidden"
+      className="divide-y overflow-hidden rounded-2xl border bg-card shadow-card md:hidden"
     >
       {children}
     </ul>
@@ -95,7 +95,7 @@ export function Tr({
     <tr
       onClick={href ? open : undefined}
       className={cn(
-        "group/tr border-b transition-colors last:border-0 hover:bg-muted/50",
+        "group/tr border-b border-border/60 transition-colors duration-(--motion-press) last:border-0 hover:bg-muted/50",
         href && "cursor-pointer hover:bg-secondary/45",
         pending && "pointer-events-none opacity-50",
         className,
@@ -120,7 +120,7 @@ export function TdOpen() {
   return (
     <td className="w-10 pr-3 text-muted-foreground">
       <ChevronRight
-        className="size-4 transition-[translate,color] duration-(--motion-press) ease-out group-hover/tr:translate-x-0.5 group-hover/tr:text-foreground"
+        className="size-4 transition-[translate,color] duration-(--motion-press) ease-out [@media(hover:hover)_and_(pointer:fine)]:group-hover/tr:translate-x-0.5 motion-reduce:group-hover/tr:translate-x-0 elderly:group-hover/tr:translate-x-0 group-hover/tr:text-foreground"
         aria-hidden
       />
     </td>
@@ -137,7 +137,7 @@ export function Td({
   numeric?: boolean;
 }) {
   return (
-    <td className={cn("px-4 py-3", numeric && "tabular-nums", className)}>{children}</td>
+    <td className={cn("px-4 py-3.5", numeric && "font-data text-xs tabular-nums", className)}>{children}</td>
   );
 }
 

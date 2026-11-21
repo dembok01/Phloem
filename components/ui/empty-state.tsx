@@ -25,7 +25,7 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        "relative isolate flex flex-col items-center justify-center gap-2 overflow-hidden rounded-xl border border-dashed border-border bg-card/50 px-6 py-12 text-center",
+        "relative isolate flex flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl border border-border/80 bg-linear-to-br from-card via-card to-secondary/35 px-6 py-12 text-center shadow-[inset_0_1px_0_rgb(255_255_255/0.5)]",
         className,
       )}
     >
@@ -34,7 +34,7 @@ export function EmptyState({
       <svg
         aria-hidden
         viewBox="0 0 120 120"
-        className="pointer-events-none absolute -right-6 -bottom-8 -z-10 size-44 text-primary opacity-[0.06]"
+        className="pointer-events-none absolute -right-8 -bottom-10 -z-10 size-52 text-primary opacity-[0.05]"
       >
         <circle cx="60" cy="60" r="54" fill="none" stroke="currentColor" strokeWidth="6" />
         <circle cx="60" cy="60" r="38" fill="none" stroke="currentColor" strokeWidth="6" />
@@ -43,13 +43,13 @@ export function EmptyState({
       </svg>
 
       {Icon ? (
-        <span className="mb-1 inline-flex size-12 items-center justify-center rounded-full bg-secondary text-secondary-foreground">
-          <Icon className="size-5" aria-hidden />
+        <span className="mb-2 inline-flex size-14 items-center justify-center rounded-2xl border border-primary/10 bg-secondary/80 text-secondary-foreground shadow-[inset_0_1px_0_rgb(255_255_255/0.65)]">
+          <Icon className="size-6" strokeWidth={1.6} aria-hidden />
         </span>
       ) : null}
-      <p className="font-display text-lg font-semibold tracking-tight text-foreground">{title}</p>
+      <p className="max-w-md font-display text-xl font-semibold tracking-tight text-balance text-foreground">{title}</p>
       {description ? (
-        <p className="max-w-sm text-sm text-muted-foreground">{description}</p>
+        <p className="max-w-sm text-sm leading-relaxed text-pretty text-muted-foreground">{description}</p>
       ) : null}
       {action ? <div className="mt-3">{action}</div> : null}
     </div>

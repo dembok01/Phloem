@@ -1,9 +1,10 @@
-import { CalendarClock, Pause, Play, RotateCcw } from "lucide-react";
+import { CalendarClock, Pause, Play, RotateCcw, Sprout } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { GrowthRings } from "@/components/growth-rings";
 import { formatDateIST, istDaysSince } from "@/lib/datetime";
+import { cn } from "@/lib/utils";
 import {
   activateProgram,
   deactivateMember,
@@ -62,12 +63,12 @@ export function ProgramCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Program</CardTitle>
+        <CardTitle className="flex items-center gap-2.5"><Sprout className="size-5 text-primary" aria-hidden /> Program</CardTitle>
         <CardAction>
           <PackageBadge status={status} />
         </CardAction>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-5">
         {/* NOT STARTED — 0046: the doctor's initial report starts it; Start is the fallback */}
         {status === "not_started" ? (
           <div className="space-y-3">
@@ -101,14 +102,14 @@ export function ProgramCard({
         {/* ACTIVE / PAUSED / COMPLETED — status line + timeline */}
         {status !== "not_started" && pkg ? (
           <>
-            <div className="flex items-start gap-4">
+            <div className="flex items-start gap-5 rounded-2xl border border-primary/10 bg-primary/[0.035] p-4 sm:p-5">
               {cycles.length > 0 ? (
                 <GrowthRings
                   cycles={cycles}
                   dayOfActive={activeDay(cycles)}
                   paused={status === "paused"}
-                  size={64}
-                  className="mt-0.5"
+                  size={72}
+                  className="mt-0.5 shrink-0"
                 />
               ) : null}
               <dl className="grid flex-1 gap-1 text-sm sm:grid-cols-[minmax(120px,28%)_1fr]">
@@ -249,10 +250,10 @@ function activeDay(cycles: ProgramCycle[]): number | null {
 
 function CycleTimeline({ cycles }: { cycles: ProgramCycle[] }) {
   return (
-    <ol className="space-y-1.5">
+    <ol className="space-y-2">
       {cycles.map((c) => (
-        <li key={c.number} className="flex flex-wrap items-center gap-2 rounded-lg border p-2.5 text-sm">
-          <CalendarClock className="size-4 shrink-0 text-muted-foreground" />
+        <li key={c.number} className={cn("flex flex-wrap items-center gap-3 rounded-xl border p-3.5 text-sm", c.status === "active" ? "border-primary/25 bg-primary/[0.035]" : "border-border/70 bg-background/35")}>
+          <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-lg", c.status === "active" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")}><CalendarClock className="size-4" aria-hidden /></span>
           <span className="font-medium">{`Cycle ${c.number}`}</span>
           <span className="text-muted-foreground">
             {formatDateIST(c.start_date)} → {formatDateIST(c.end_date)}

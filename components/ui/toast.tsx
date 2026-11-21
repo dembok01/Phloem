@@ -96,7 +96,7 @@ function ToastItem({
       initial={calm ? false : { opacity: 0, transform: "translateY(100%)" }}
       animate={{ opacity: 1, transform: "translateY(0%)" }}
       exit={calm ? { opacity: 0 } : { opacity: 0, transform: "translateY(100%)" }}
-      transition={calm ? { duration: 0 } : { type: "spring", duration: 0.4, bounce: 0.1 }}
+      transition={calm ? { duration: 0 } : { type: "spring", duration: 0.2, bounce: 0.1 }}
       drag={calm ? false : "y"}
       dragConstraints={{ top: 0, bottom: 0 }}
       dragElastic={{ top: 0.02, bottom: 0.9 }}
@@ -106,13 +106,23 @@ function ToastItem({
       data-slot="toast"
       role={kind === "error" ? "alert" : "status"}
       className={cn(
-        "pointer-events-auto flex w-full max-w-sm touch-pan-x items-start gap-2.5 rounded-xl border bg-popover px-4 py-3 text-popover-foreground shadow-pop",
+        "pointer-events-auto flex w-full max-w-sm touch-pan-x items-start gap-3 rounded-2xl border border-border/80 bg-popover p-4 text-popover-foreground shadow-pop",
         !calm && "cursor-grab active:cursor-grabbing",
+        kind === "success" && "border-success/25",
         kind === "error" && "border-danger/30",
       )}
     >
-      {ICONS[kind]}
-      <p className="min-w-0 flex-1 pt-px text-sm leading-snug">{message}</p>
+      <span
+        className={cn(
+          "inline-flex size-8 shrink-0 items-center justify-center rounded-xl",
+          kind === "success" && "bg-success-tint",
+          kind === "error" && "bg-danger-tint",
+          kind === "info" && "bg-info-tint",
+        )}
+      >
+        {ICONS[kind]}
+      </span>
+      <p className="min-w-0 flex-1 pt-1 text-sm leading-relaxed">{message}</p>
       {action ? (
         <button
           type="button"
@@ -125,7 +135,7 @@ function ToastItem({
               onDismiss(id);
             }
           }}
-          className="pressable -my-1 shrink-0 rounded-lg border px-2.5 py-1.5 text-sm font-semibold hover:bg-muted disabled:opacity-60"
+          className="pressable shrink-0 rounded-lg border border-input/60 bg-card px-2.5 py-1.5 text-sm font-semibold shadow-xs hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-60"
         >
           {running ? "…" : action.label}
         </button>
@@ -134,7 +144,7 @@ function ToastItem({
         type="button"
         aria-label="Dismiss"
         onClick={() => onDismiss(id)}
-        className="-m-1 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+        className="pressable -mr-1 inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
       >
         <X className="size-4" aria-hidden />
       </button>
@@ -165,7 +175,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       <div
         aria-live="polite"
         aria-label="Notifications"
-        className="pointer-events-none fixed inset-x-4 bottom-4 z-50 flex flex-col items-center gap-2 sm:inset-x-auto sm:right-6 sm:bottom-6 sm:items-end"
+        className="pointer-events-none fixed inset-x-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-50 flex flex-col items-center gap-3 sm:inset-x-auto sm:right-6 sm:bottom-6 sm:items-end"
       >
         <AnimatePresence initial={false}>
           {toasts.map((t) => (

@@ -5,10 +5,8 @@
 // scroll locking and swipe-to-dismiss; hand-rolling that with a gesture library
 // would be more code and worse a11y.
 //
-// Presents as a centred modal: Base UI positions the popup itself, so the
-// drag-to-dismiss handle was dropped rather than shipped as an affordance that
-// promises a gesture it never performs. Escape, the close button and the backdrop
-// all dismiss, and focus is trapped inside — verified in-browser.
+// Bottom-aligned on phones, centred on larger screens. Base UI keeps focus and
+// dismissal behavior consistent across both presentations.
 import * as React from "react";
 import { Drawer } from "@base-ui/react/drawer";
 import { X } from "lucide-react";
@@ -19,7 +17,7 @@ import { cn } from "@/lib/utils";
  * the only place it belongs, and three viewers were about to declare it locally.
  */
 export const sheetAction =
-  "pressable inline-flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
+  "pressable inline-flex size-11 items-center justify-center rounded-xl border border-transparent text-muted-foreground hover:border-border hover:bg-card hover:text-foreground disabled:pointer-events-none disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:size-9";
 
 export function Sheet({
   open,
@@ -50,21 +48,21 @@ export function Sheet({
   return (
     <Drawer.Root open={open} onOpenChange={onOpenChange}>
       <Drawer.Portal>
-        <Drawer.Backdrop className="fixed inset-0 z-50 bg-foreground/25 backdrop-blur-[2px] transition-opacity duration-200 data-[ending-style]:opacity-0 data-[starting-style]:opacity-0" />
-        <Drawer.Viewport className="fixed inset-0 z-50 flex items-end justify-center">
+        <Drawer.Backdrop className="fixed inset-0 z-50 bg-foreground/30 backdrop-blur-[3px] transition-opacity duration-(--motion-pop) ease-out data-[ending-style]:opacity-0 data-[starting-style]:opacity-0" />
+        <Drawer.Viewport className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-6">
           <Drawer.Popup
             finalFocus={finalFocus}
             className={cn(
-              "flex max-h-[88svh] w-full max-w-xl flex-col rounded-2xl border bg-popover text-popover-foreground shadow-pop",
-              "transition-transform duration-300 ease-drawer data-[ending-style]:translate-y-full data-[starting-style]:translate-y-full",
+              "flex max-h-[90svh] w-full max-w-xl flex-col overflow-hidden rounded-t-3xl border border-border/80 bg-popover text-popover-foreground shadow-pop outline-none sm:rounded-3xl",
+              "transition-[opacity,translate,scale] duration-(--motion-pop) ease-drawer data-[ending-style]:translate-y-full data-[starting-style]:translate-y-full sm:data-[ending-style]:translate-y-2 sm:data-[starting-style]:translate-y-2 sm:data-[ending-style]:scale-[0.98] sm:data-[starting-style]:scale-[0.98] sm:data-[ending-style]:opacity-0 sm:data-[starting-style]:opacity-0",
               className,
             )}
           >
-          <div className="flex items-start justify-between gap-4 px-6 pt-5 pb-3">
+          <div className="flex items-start justify-between gap-4 border-b border-border/65 bg-muted/25 px-6 py-5">
             <div className="min-w-0 space-y-1">
-              <Drawer.Title className="font-display text-lg font-semibold">{title}</Drawer.Title>
+              <Drawer.Title className="font-display text-xl font-semibold tracking-tight text-balance">{title}</Drawer.Title>
               {description ? (
-                <Drawer.Description className="text-sm text-muted-foreground">
+                <Drawer.Description className="text-sm leading-relaxed text-pretty text-muted-foreground">
                   {description}
                 </Drawer.Description>
               ) : null}
@@ -73,19 +71,19 @@ export function Sheet({
               {headerActions}
               <Drawer.Close
                 aria-label="Close"
-                className="-m-2 rounded-md p-3 text-muted-foreground hover:bg-muted hover:text-foreground"
+                className={sheetAction}
               >
                 <X className="size-4" aria-hidden />
               </Drawer.Close>
             </div>
           </div>
 
-          <div className={cn("min-h-0 flex-1 overflow-y-auto px-6 pb-6", bodyClassName)}>
+          <div className={cn("min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-5", bodyClassName)}>
             {children}
           </div>
 
           {footer ? (
-            <div className="flex items-center justify-end gap-2 border-t bg-muted/40 px-6 py-4">
+            <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border/65 bg-muted/30 px-6 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
               {footer}
             </div>
           ) : null}

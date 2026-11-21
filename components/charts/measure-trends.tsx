@@ -68,7 +68,7 @@ export async function MeasureTrends({
     return (
       <Card>
         <CardHeader>
-          <CardTitle>{title}</CardTitle>
+          <CardTitle className="flex items-center gap-2.5"><LineChart className="size-5 text-primary" aria-hidden />{title}</CardTitle>
         </CardHeader>
         <CardContent>
           <EmptyState
@@ -94,14 +94,14 @@ export async function MeasureTrends({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{title}</CardTitle>
+        <CardTitle className="flex items-center gap-2.5"><LineChart className="size-5 text-primary" aria-hidden />{title}</CardTitle>
         {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
       </CardHeader>
       <CardContent className="space-y-6">
         {domains.map((d) => (
           <div key={d} className="space-y-2">
             {domains.length > 1 ? <h3 className="eyebrow">{DOMAIN_LABEL[d] ?? d}</h3> : null}
-            <ul className="grid gap-2 sm:grid-cols-2">
+            <ul className="grid gap-3 sm:grid-cols-2">
               {byDomain.get(d)!.map((s) => (
                 <MeasureRow key={s.key} series={s} />
               ))}
@@ -131,16 +131,16 @@ function MeasureRow({ series: s }: { series: MeasureSeries }) {
   return (
     <li
       className={cn(
-        "rounded-xl border p-3.5 shadow-card transition-colors",
+        "rounded-2xl border p-4 sm:p-5",
         s.direction === "improved" && "border-success/25 bg-success-tint/40",
         s.direction === "declined" && "border-warning/30 bg-warning-tint/40",
         (s.direction === "neutral" || s.direction === "unchanged" || s.direction === "baseline") &&
           "border-border bg-card",
       )}
     >
-      <div className="flex items-baseline gap-2">
-        <span className="eyebrow">{s.label}</span>
-        <span className="ml-auto font-data text-2xl font-semibold tabular-nums text-foreground">
+      <div className="flex flex-wrap items-baseline gap-2">
+        <span className="text-xs font-medium text-muted-foreground">{s.label}</span>
+        <span className="ml-auto font-data text-2xl font-semibold tracking-tight tabular-nums text-foreground">
           {formatValue(s.latest, s.unit)}
         </span>
       </div>

@@ -37,6 +37,7 @@ export function NavTabs({ items }: { items: NavItem[] }) {
     // A tab's spinner or a late web font changes widths under the pill.
     const ro = new ResizeObserver(measure);
     ro.observe(track);
+    for (const child of track.querySelectorAll("a")) ro.observe(child);
     const raf = requestAnimationFrame(() => setGlide(true));
     return () => {
       ro.disconnect();
@@ -53,15 +54,17 @@ export function NavTabs({ items }: { items: NavItem[] }) {
     <nav
       className="-mx-4 overflow-x-auto px-4 sm:-mx-6 sm:px-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       aria-label="Section"
+      onKeyDown={() => setGlide(false)}
+      onPointerDown={() => setGlide(true)}
     >
-      <div ref={trackRef} className={cn("relative flex w-max gap-1 rounded-full", TAB_TRACK)}>
+      <div ref={trackRef} className={cn("relative flex w-max gap-1 rounded-xl", TAB_TRACK)}>
         {pill ? (
           <span
             aria-hidden
             className={cn(
-              "pointer-events-none absolute top-0 left-0 rounded-full",
+              "pointer-events-none absolute top-0 left-0 rounded-xl",
               TAB_FACE,
-              glide && "transition-[translate,width] duration-(--motion-pop) ease-in-out",
+              glide && "transition-[translate] duration-(--motion-pop) ease-in-out",
             )}
             style={{ width: pill.w, height: pill.h, translate: `${pill.x}px ${pill.y}px` }}
           />

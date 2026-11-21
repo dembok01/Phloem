@@ -42,7 +42,7 @@ export default async function ResetPasswordPage({
           </AuthNotice>
           <Link
             href="/forgot-password"
-            className={cn(buttonVariants({ variant: "outline" }), "h-11 w-full text-base")}
+            className={cn(buttonVariants({ variant: "outline" }), "h-12 w-full text-base")}
           >
             Send a new link
           </Link>
@@ -60,7 +60,7 @@ export default async function ResetPasswordPage({
       subtitle={`Setting a new password for ${user.email ?? "your account"}.`}
     >
       {message ? <AuthNotice id={errorId}>{message}</AuthNotice> : null}
-      <form action={updatePassword} className="space-y-4">
+      <form action={updatePassword} className="space-y-5">
         <div className="space-y-2">
           <Label htmlFor="password" className="text-base">
             New password
@@ -75,7 +75,7 @@ export default async function ResetPasswordPage({
             maxLength={72}
             aria-describedby={`password-hint${errorId ? ` ${errorId}` : ""}`}
             aria-invalid={errorId ? true : undefined}
-            className="h-11 text-base"
+            className="h-12 text-base"
           />
           <p id="password-hint" className="text-sm text-muted-foreground">
             At least 8 characters.
@@ -95,10 +95,10 @@ export default async function ResetPasswordPage({
             maxLength={72}
             aria-describedby={errorId}
             aria-invalid={errorId ? true : undefined}
-            className="h-11 text-base"
+            className="h-12 text-base"
           />
         </div>
-        <SubmitButton className="h-11 w-full text-base" pendingText="Saving…">
+        <SubmitButton className="h-12 w-full text-base" pendingText="Saving…">
           Save new password
         </SubmitButton>
         {/* Say what comes after the button, so signing out again isn't a surprise. */}

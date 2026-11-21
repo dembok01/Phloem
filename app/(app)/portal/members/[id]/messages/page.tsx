@@ -24,7 +24,7 @@ export default async function PortalMessagesPage({ params }: { params: Promise<{
   const firstName = member.full_name.split(" ")[0];
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="mx-auto max-w-4xl space-y-7">
       <PageHeader
         crumbs={[{ label: "Home", href: "/portal" }, { label: "Messages" }]}
         title="Messages"

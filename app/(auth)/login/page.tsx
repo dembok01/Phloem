@@ -33,7 +33,7 @@ export default async function LoginPage({
     <AuthShell title="Sign in" subtitle="Your family's care, in one place.">
       {notice ? <AuthNotice tone="info">{notice}</AuthNotice> : null}
       {message ? <AuthNotice id={errorId}>{message}</AuthNotice> : null}
-      <form action={login} className="space-y-4">
+      <form action={login} className="space-y-5">
         <div className="space-y-2">
           <Label htmlFor="email" className="text-base">
             Email
@@ -46,7 +46,7 @@ export default async function LoginPage({
             required
             aria-describedby={errorId}
             aria-invalid={message ? true : undefined}
-            className="h-11 text-base"
+            className="h-12 text-base"
           />
         </div>
         <div className="space-y-2">
@@ -71,10 +71,10 @@ export default async function LoginPage({
             required
             aria-describedby={errorId}
             aria-invalid={message ? true : undefined}
-            className="h-11 text-base"
+            className="h-12 text-base"
           />
         </div>
-        <SubmitButton className="h-11 w-full text-base" pendingText="Signing in…">
+        <SubmitButton className="h-12 w-full text-base" pendingText="Signing in…">
           Sign in
         </SubmitButton>
       </form>

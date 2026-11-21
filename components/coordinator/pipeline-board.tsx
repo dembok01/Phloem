@@ -89,8 +89,12 @@ export function PipelineBoard({
   }
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/70 bg-card/70 p-3 sm:p-4">
+        <div>
+          <h2 className="font-display text-lg font-semibold tracking-tight">The care journey</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">From a first welcome to lasting progress.</p>
+        </div>
         <label className="relative block w-full sm:w-72">
           <span className="sr-only">Search members</span>
           <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
@@ -99,7 +103,7 @@ export function PipelineBoard({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search members…"
-            className="h-10 w-full rounded-lg border border-input bg-card pr-3 pl-9 text-sm outline-none transition-colors duration-(--motion-press) hover:border-foreground/60 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+            className="h-11 w-full rounded-xl border border-input bg-background/70 pr-3 pl-9 text-sm outline-none transition-[border-color,box-shadow] duration-(--motion-press) hover:border-primary/40 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/20"
           />
         </label>
         {q ? (
@@ -152,7 +156,7 @@ export function PipelineBoard({
                   {...dropProps}
                   title={isActiveTarget ? "Drop to start the program" : `${col.label} — no one here right now`}
                   className={cn(
-                    "flex h-full min-h-40 flex-col items-center gap-3 rounded-xl border bg-sidebar/60 py-3 transition-colors",
+                    "flex h-full min-h-40 flex-col items-center gap-3 rounded-2xl border border-dashed border-border/80 bg-muted/35 py-4 transition-colors duration-160",
                     isOver && "border-primary/50 bg-secondary/40",
                     isActiveTarget && "border-success/60 bg-success-tint",
                   )}
@@ -177,15 +181,16 @@ export function PipelineBoard({
               <div
                 {...dropProps}
                 className={cn(
-                  "flex h-full flex-col rounded-xl border bg-sidebar/60 p-2 transition-colors md:min-h-40",
+                  "flex h-full flex-col rounded-2xl border border-border/70 bg-muted/45 p-2.5 transition-colors duration-160 md:min-h-40",
+                  col.key === "active" && "bg-primary/[0.035]",
                   hot && "border-warning/40",
                   isOver && "border-primary/50 bg-secondary/40",
                   isActiveTarget && "border-success/60 bg-success-tint",
                 )}
               >
-                <div className="mb-2 flex items-center justify-between px-1.5 pt-1">
-                  <h2 className="eyebrow">{col.label}</h2>
-                  <span className="inline-flex min-w-6 items-center justify-center rounded-full bg-secondary px-1.5 font-data text-xs text-secondary-foreground">
+                <div className="mb-3 flex items-center justify-between gap-2 px-1.5 pt-1.5">
+                  <h3 className="flex items-center gap-2 text-xs font-semibold tracking-wide"><span className={cn("size-1.5 shrink-0 rounded-full", hot ? "bg-warning" : col.key === "active" ? "bg-primary" : "bg-muted-foreground/45")} aria-hidden />{col.label}</h3>
+                  <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-lg border border-border/50 bg-card px-1.5 font-data text-xs text-muted-foreground">
                     {q ? `${colCards.length}/${total}` : total}
                   </span>
                 </div>
@@ -194,7 +199,7 @@ export function PipelineBoard({
                     No match here
                   </p>
                 ) : (
-                  <div className="grid grid-cols-[repeat(auto-fill,minmax(12rem,1fr))] gap-2">
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,12rem),1fr))] gap-2">
                     {colCards.map((m) => (
                       <Link
                         key={m.id}
@@ -211,7 +216,7 @@ export function PipelineBoard({
                         }}
                         aria-disabled={pending}
                         className={cn(
-                          "group relative block cursor-grab rounded-lg border border-input/50 bg-card p-2.5 shadow-card transition-[translate,box-shadow,border-color] duration-(--motion-press) ease-out hover:-translate-y-px hover:border-primary/60 hover:shadow-pop active:cursor-grabbing",
+                          "group relative block cursor-grab rounded-xl border border-border/75 bg-card p-3.5 shadow-card transition-[translate,box-shadow,border-color] duration-(--motion-press) ease-out motion-safe:hover:-translate-y-0.5 elderly:hover:translate-y-0 hover:border-primary/40 hover:shadow-pop focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:cursor-grabbing motion-safe:active:translate-y-0",
                           dragId === m.id && "opacity-50",
                         )}
                       >
@@ -265,7 +270,7 @@ export function PipelineBoard({
 function ProgressLine({ progress: p }: { progress: ActiveProgress }) {
   const soon = p.daysLeft !== null && p.daysLeft <= ENDING_SOON;
   return (
-    <span className="mt-2 block space-y-0.5 text-xs text-muted-foreground">
+    <span className="mt-3 block space-y-2 border-t border-border/50 pt-3 text-xs text-muted-foreground">
       <span className="flex items-center gap-2 tabular-nums">
         <span className="shrink-0">
           Cycle {p.cycle} of {p.cycles}

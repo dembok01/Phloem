@@ -3,12 +3,12 @@ import { cn } from "@/lib/utils";
 // §11 loading skeletons — pulse placeholders shaped like the layouts they
 // stand in for (C1), so nothing jumps when data lands.
 export function Skeleton({ className }: { className?: string }) {
-  return <div className={cn("animate-pulse rounded-md bg-muted", className)} />;
+  return <div aria-hidden className={cn("animate-pulse rounded-md bg-muted motion-reduce:animate-none elderly:animate-none", className)} />;
 }
 
 export function CardSkeleton() {
   return (
-    <div className="space-y-3 rounded-xl bg-card p-6 ring-1 ring-foreground/10">
+    <div className="space-y-3 rounded-2xl bg-card p-6 shadow-card ring-1 ring-border/80">
       <Skeleton className="h-5 w-1/3" />
       <Skeleton className="h-4 w-2/3" />
       <Skeleton className="h-4 w-1/2" />
@@ -19,7 +19,7 @@ export function CardSkeleton() {
 /** A list row: leading circle, two lines of text, trailing chip. */
 export function RowSkeleton() {
   return (
-    <div className="flex items-center gap-3 rounded-xl bg-card px-4 py-3 ring-1 ring-foreground/10">
+    <div className="flex min-h-16 items-center gap-3 rounded-xl bg-card px-4 py-3.5 ring-1 ring-border/70">
       <Skeleton className="size-9 shrink-0 rounded-full" />
       <div className="min-w-0 flex-1 space-y-1.5">
         <Skeleton className="h-4 w-2/5" />
@@ -33,7 +33,7 @@ export function RowSkeleton() {
 /** A stat tile: label line over a large number. */
 export function TileSkeleton() {
   return (
-    <div className="space-y-2 rounded-xl bg-card p-5 ring-1 ring-foreground/10">
+    <div className="space-y-3 rounded-2xl bg-card p-5 shadow-card ring-1 ring-border/80">
       <Skeleton className="h-3.5 w-24" />
       <Skeleton className="h-8 w-14" />
     </div>
@@ -56,7 +56,7 @@ export function HeaderSkeleton({ crumbs = false }: { crumbs?: boolean } = {}) {
 /** A document sheet: the shape a rendered report/plan occupies. */
 export function SheetSkeleton() {
   return (
-    <div className="space-y-4 rounded-xl bg-card p-6 shadow-card ring-1 ring-foreground/10 sm:p-8">
+    <div className="space-y-4 rounded-2xl bg-card p-6 shadow-card ring-1 ring-border/80 sm:p-8">
       <Skeleton className="h-3 w-24" />
       <Skeleton className="h-7 w-2/3" />
       <div className="space-y-2 pt-2">

@@ -34,7 +34,7 @@ export default async function PortalDocumentsPage({ params }: { params: Promise<
   const canWrite = profile?.role !== "member";
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="mx-auto max-w-4xl space-y-7">
       <PageHeader
         title="Documents"
         description={
@@ -47,8 +47,8 @@ export default async function PortalDocumentsPage({ params }: { params: Promise<
 
       {canWrite ? <DocumentUploader memberId={member.id} /> : null}
 
-      <div>
-        <h2 className="mb-3 text-base font-semibold">
+      <div className="rounded-2xl border bg-card p-5 shadow-card sm:p-6">
+        <h2 className="mb-5 font-display text-xl font-semibold">
           {canWrite ? "Uploaded documents" : "Your documents"}
         </h2>
         <DocumentList

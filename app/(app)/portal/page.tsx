@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { CalendarDays, ClipboardList, FileText, FolderOpen, MessageSquare, Users, Video, Phone, MapPin } from "lucide-react";
+import { ArrowRight, ArrowUpRight, CalendarDays, ChevronDown, ClipboardList, FileText, FolderOpen, HeartHandshake, MessageSquare, Users, Video, Phone, MapPin } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
@@ -111,15 +111,22 @@ export default async function PortalHomePage({
   const firstName = (profile.full_name ?? "").split(" ")[0];
 
   return (
-    <section className="mx-auto max-w-3xl space-y-6">
-      <div className="space-y-1">
-        <h1 className="font-display text-3xl font-semibold tracking-tight">
-          {greetingIST()}
-          {firstName ? `, ${firstName}` : ""}
-        </h1>
-        <p className="text-lg text-muted-foreground">
-          {selected ? `Here's how ${selected.full_name.split(" ")[0]}'s care is going.` : "Your family's care, in one place."}
-        </p>
+    <section className="mx-auto max-w-6xl space-y-7">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="space-y-2">
+          <p className="eyebrow text-primary">Your family&apos;s care</p>
+          <h1 className="font-display text-3xl font-semibold tracking-tight sm:text-4xl">
+            {greetingIST()}
+            {firstName ? `, ${firstName}` : ""}
+          </h1>
+          <p className="text-lg text-muted-foreground">
+            {selected ? `Here's how ${selected.full_name.split(" ")[0]}'s care is going.` : "Your family's care, in one place."}
+          </p>
+        </div>
+        <span className="inline-flex items-center gap-2 rounded-full border bg-card px-4 py-2 text-sm text-muted-foreground">
+          <CalendarDays className="size-4 text-primary" aria-hidden="true" />
+          {formatDateIST(new Date().toISOString())}
+        </span>
       </div>
 
       {onboarded ? (
@@ -150,7 +157,7 @@ export default async function PortalHomePage({
                   href={`/portal?member=${m.id}`}
                   aria-current={m.id === selected!.id ? "true" : undefined}
                   className={cn(
-                    "inline-flex min-h-10 items-center rounded-full border px-4 text-sm font-medium",
+                    "pressable inline-flex min-h-11 items-center rounded-full border px-5 text-sm font-medium",
                     m.id === selected!.id
                       ? "border-primary bg-secondary text-secondary-foreground"
                       : "bg-card hover:bg-muted",
@@ -264,10 +271,19 @@ async function CaregiverMember({
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-7">
       {/* The care story card — identity, plain-language status, growth rings. */}
-      <Card variant="hero" className="hero-glow">
-        <CardContent className="py-7">
+      <Card variant="hero" className="dashboard-hero hero-glow overflow-hidden py-0">
+        <CardContent className="relative py-7 sm:p-8">
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+            <span className="eyebrow inline-flex items-center gap-2 text-primary">
+              <HeartHandshake className="size-4" aria-hidden="true" />
+              Care overview
+            </span>
+            <Badge variant={paused ? "warning" : statusVariant(member.status)}>
+              {paused ? "Paused" : STATUS_LABEL[member.status]}
+            </Badge>
+          </div>
           <div className="flex flex-col items-start gap-6 sm:flex-row sm:items-center">
             {cycleList.length > 0 ? (
               <div className="relative">
@@ -293,13 +309,8 @@ async function CaregiverMember({
               {member.relationship_to_caregiver ? (
                 <p className="eyebrow">Your {member.relationship_to_caregiver}</p>
               ) : null}
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                <p className="font-display text-2xl font-semibold">{member.full_name}</p>
-                <Badge variant={paused ? "warning" : statusVariant(member.status)}>
-                  {paused ? "Paused" : STATUS_LABEL[member.status]}
-                </Badge>
-              </div>
-              <p className="text-base text-muted-foreground">{story}</p>
+              <h2 className="font-display text-3xl font-semibold tracking-tight">{member.full_name}</h2>
+              <p className="max-w-2xl text-base leading-relaxed text-muted-foreground">{story}</p>
               {active ? (
                 <p className="font-data text-xs text-muted-foreground">
                   {formatDateIST(cycleList[0]!.start_date)} → {formatDateIST(cycleList[cycleList.length - 1]!.end_date)}
@@ -308,12 +319,29 @@ async function CaregiverMember({
               {needsOnboarding ? (
                 <Link href={`/portal/onboarding/${member.id}`} className={cn(buttonVariants({ size: "lg" }), "mt-1")}>
                   {member.status === "onboarding" ? "Continue onboarding" : "Start onboarding"}
+                  <ArrowRight className="size-4" aria-hidden="true" />
                 </Link>
               ) : null}
               {/* P-3: caregiver adds/updates the parent's photo. */}
               <MemberPhotoUpload memberId={member.id} hasPhoto={!!member.photo_path} />
             </div>
           </div>
+          {active || team.length > 0 ? (
+            <div className="mt-6 flex flex-wrap gap-x-6 gap-y-3 border-t border-primary/10 pt-5 text-sm text-muted-foreground">
+              {active ? (
+                <span className="inline-flex items-center gap-2">
+                  <span className="size-2 rounded-full bg-primary" aria-hidden="true" />
+                  <span>Cycle <strong className="font-medium text-foreground">{active.number} of {cycleList.length}</strong></span>
+                </span>
+              ) : null}
+              {team.length > 0 ? (
+                <span className="inline-flex items-center gap-2">
+                  <Users className="size-4 text-primary" aria-hidden="true" />
+                  <span><strong className="font-medium text-foreground">{team.length}</strong> care team {team.length === 1 ? "member" : "members"}</span>
+                </span>
+              ) : null}
+            </div>
+          ) : null}
         </CardContent>
       </Card>
 
@@ -331,80 +359,96 @@ async function CaregiverMember({
         />
       ) : null}
 
-      <div className="stagger-in grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        <PortalLink
-          href={`/portal/members/${member.id}/plans`}
-          icon={<ClipboardList className="size-5 text-role-nutritionist" />}
-          label="Plans"
-          hint="Nutrition & training guidance"
-        />
-        <PortalLink
-          href={`/portal/members/${member.id}/reports`}
-          icon={<FileText className="size-5 text-role-doctor" />}
-          label="Reports"
-          hint="Everything shared with you"
-        />
-        <PortalLink
-          href={`/portal/members/${member.id}/documents`}
-          icon={<FolderOpen className="size-5 text-role-trainer" />}
-          label="Documents"
-          hint="Upload blood work & reports"
-        />
-        <PortalLink
-          href={`/portal/members/${member.id}/schedule`}
-          icon={<CalendarDays className="size-5 text-role-coordinator" />}
-          label="Schedule"
-          hint="Upcoming consultations"
-        />
-        <PortalLink
-          href={`/portal/members/${member.id}/messages`}
-          icon={<MessageSquare className="size-5 text-role-psychologist" />}
-          label="Messages"
-          hint="Ask the care team"
-        />
+      <div className="space-y-3">
+        <h2 className="eyebrow">Everything you need</h2>
+        <div className="stagger-in grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          <PortalLink
+            href={`/portal/members/${member.id}/plans`}
+            icon={<ClipboardList className="size-5 text-role-nutritionist" />}
+            label="Plans"
+            hint="Nutrition & training guidance"
+          />
+          <PortalLink
+            href={`/portal/members/${member.id}/reports`}
+            icon={<FileText className="size-5 text-role-doctor" />}
+            label="Reports"
+            hint="Everything shared with you"
+          />
+          <PortalLink
+            href={`/portal/members/${member.id}/documents`}
+            icon={<FolderOpen className="size-5 text-role-trainer" />}
+            label="Documents"
+            hint="Upload blood work & reports"
+          />
+          <PortalLink
+            href={`/portal/members/${member.id}/schedule`}
+            icon={<CalendarDays className="size-5 text-role-coordinator" />}
+            label="Schedule"
+            hint="Upcoming consultations"
+          />
+          <PortalLink
+            href={`/portal/members/${member.id}/messages`}
+            icon={<MessageSquare className="size-5 text-role-psychologist" />}
+            label="Messages"
+            hint="Ask the care team"
+          />
+        </div>
       </div>
 
-      <Card>
-        <CardContent className="py-5">
-          <p className="mb-3 text-base font-semibold">Next consultations</p>
-          {(nextConsults ?? []).length === 0 ? (
-            /* "Nothing scheduled" is true but was unexplained (UIUX-REVIEW §5).
-               Cycle reviews are booked near the end of a cycle, so when one is
-               running we say when to expect the next call rather than leaving the
-               family to wonder whether something has been forgotten. */
-            <div className="space-y-2 text-muted-foreground">
-              <p>
-                Nothing scheduled right now. Your coordinator arranges each consultation and it will
-                appear here — you&apos;ll also get a notification.
-              </p>
-              {active ? (
-                <p>
-                  This cycle&apos;s reviews are usually booked in its final week, around{" "}
-                  <span className="font-medium text-foreground">
-                    {formatDateIST(active.end_date)}
-                  </span>
-                  .
-                </p>
-              ) : null}
+      <div className="grid items-start gap-6 lg:grid-cols-[1.2fr_1fr]">
+        <Card className="py-0">
+          <CardContent className="py-6">
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <span className="icon-well flex size-10 items-center justify-center rounded-xl bg-secondary text-primary">
+                  <CalendarDays className="size-5" aria-hidden="true" />
+                </span>
+                <h2 className="font-display text-xl font-semibold">Next consultations</h2>
+              </div>
+              <Link href={`/portal/members/${member.id}/schedule`} className="link inline-flex min-h-10 items-center gap-1 text-sm font-medium">
+                View schedule <ArrowUpRight className="size-4" aria-hidden="true" />
+              </Link>
             </div>
-          ) : (
-            <ul className="space-y-2">
-              {(nextConsults ?? []).map((c, i) => (
-                <li key={i} className="flex items-center gap-3 rounded-xl border bg-background/60 px-4 py-3">
-                  <ModeIcon mode={c.mode} />
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium capitalize">{c.type} consultation</p>
-                    <p className="text-sm text-muted-foreground">
-                      {formatDateTimeIST(c.scheduled_at)}
-                      {c.mode ? ` · ${MODE_LABEL[c.mode] ?? c.mode}` : ""}
-                    </p>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
+            {(nextConsults ?? []).length === 0 ? (
+              /* "Nothing scheduled" is true but was unexplained (UIUX-REVIEW §5).
+                 Cycle reviews are booked near the end of a cycle, so when one is
+                 running we say when to expect the next call rather than leaving the
+                 family to wonder whether something has been forgotten. */
+              <div className="space-y-3 rounded-2xl border border-dashed bg-muted/30 p-5 text-sm leading-relaxed text-muted-foreground">
+                <p>
+                  Nothing scheduled right now. Your coordinator arranges each consultation and it will
+                  appear here — you&apos;ll also get a notification.
+                </p>
+                {active ? (
+                  <p>
+                    This cycle&apos;s reviews are usually booked in its final week, around{" "}
+                    <span className="font-medium text-foreground">
+                      {formatDateIST(active.end_date)}
+                    </span>
+                    .
+                  </p>
+                ) : null}
+              </div>
+            ) : (
+              <ul className="space-y-2">
+                {(nextConsults ?? []).map((c, i) => (
+                  <li key={i} className="flex items-center gap-3 rounded-xl border bg-background/60 px-4 py-4">
+                    <ModeIcon mode={c.mode} />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium capitalize">{c.type} consultation</p>
+                      <p className="text-sm text-muted-foreground">
+                        {formatDateTimeIST(c.scheduled_at)}
+                        {c.mode ? ` · ${MODE_LABEL[c.mode] ?? c.mode}` : ""}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+        <CareTeamCard team={team} />
+      </div>
 
       {/* P-6: per-cycle adherence trend, from the monthly feedback scores the
           caregiver may already read (fr_cg). Self-hides until a cycle is scored. */}
@@ -424,10 +468,10 @@ async function CaregiverMember({
           and gender render disabled with their reason rather than being hidden —
           a screen that silently omits the member's age reads as a bug and
           generates the call this card exists to prevent. */}
-      <Card>
+      <Card className="py-0">
         <CardContent className="space-y-4 py-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-base font-semibold">Their details</p>
+            <h2 className="font-display text-xl font-semibold">Their details</h2>
             <EditRecordSheet
               group={MEMBER_DEMOGRAPHICS}
               role="caregiver"
@@ -440,9 +484,9 @@ async function CaregiverMember({
           </div>
           <dl className="grid gap-2 sm:grid-cols-2">
             {MEMBER_DEMOGRAPHICS.fields.map((f) => (
-              <div key={f.key} className="flex items-center justify-between gap-3 rounded-lg border p-2.5 text-sm">
+              <div key={f.key} className="flex min-w-0 flex-col gap-1 rounded-xl border border-border/70 bg-muted/25 p-4 text-sm">
                 <dt className="text-muted-foreground">{f.label}</dt>
-                <dd className="truncate font-medium">
+                <dd className="break-words font-medium">
                   {(member as Record<string, unknown>)[f.key]?.toString() ?? "—"}
                 </dd>
               </div>
@@ -450,7 +494,7 @@ async function CaregiverMember({
           </dl>
 
           <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
-            <p className="text-base font-semibold">How we reach you</p>
+            <h2 className="font-display text-xl font-semibold">How we reach you</h2>
             <EditRecordSheet
               group={MEMBER_CONTACTS}
               role="caregiver"
@@ -463,9 +507,9 @@ async function CaregiverMember({
           </div>
           <dl className="grid gap-2 sm:grid-cols-2">
             {MEMBER_CONTACTS.fields.map((f) => (
-              <div key={f.key} className="flex items-center justify-between gap-3 rounded-lg border p-2.5 text-sm">
+              <div key={f.key} className="flex min-w-0 flex-col gap-1 rounded-xl border border-border/70 bg-muted/25 p-4 text-sm">
                 <dt className="text-muted-foreground">{f.label}</dt>
-                <dd className="truncate font-medium">
+                <dd className="break-words font-medium">
                   {(contacts as Record<string, string | null> | null)?.[f.key] ?? "—"}
                 </dd>
               </div>
@@ -477,8 +521,6 @@ async function CaregiverMember({
       {safetyHere && safety ? (
         <FamilySafetyCard memberId={member.id} firstName={member.full_name.split(" ")[0]} safety={safety} />
       ) : null}
-
-      <CareTeamCard team={team} />
     </div>
   );
 }
@@ -494,7 +536,7 @@ function ModeIcon({ mode }: { mode: string | null }) {
   const icon =
     mode === "phone" ? <Phone className={cls} /> : mode === "in_person" ? <MapPin className={cls} /> : <Video className={cls} />;
   return (
-    <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-secondary text-secondary-foreground">
+    <span aria-hidden="true" className="inline-flex size-11 shrink-0 items-center justify-center rounded-xl bg-secondary text-secondary-foreground">
       {icon}
     </span>
   );
@@ -557,7 +599,7 @@ async function ElderlyHome({
 
   return (
     <section className="mx-auto max-w-xl space-y-8">
-      <div className="flex items-center gap-4">
+      <div className="dashboard-hero flex flex-col items-start gap-5 rounded-3xl border p-6 sm:flex-row sm:items-center">
         {cycleList.length > 0 ? (
           <div className="relative shrink-0">
             {/* Motion is forced off in elderly mode, so this renders its final
@@ -608,12 +650,13 @@ async function ElderlyHome({
           icon={<FolderOpen className="size-7" />}
           label="My Documents"
         />
-        <details className="rounded-2xl border bg-card shadow-card">
+        <details className="group rounded-2xl border bg-card shadow-card">
           <summary className="flex min-h-14 cursor-pointer list-none items-center gap-4 rounded-2xl p-6 font-display text-2xl font-semibold hover:bg-muted">
             <span className="inline-flex size-12 shrink-0 items-center justify-center rounded-full bg-secondary text-primary">
               <Users className="size-7" />
             </span>
-            My Care Team
+            <span className="flex-1">My Care Team</span>
+            <ChevronDown className="size-6 shrink-0 group-open:rotate-180" aria-hidden="true" />
           </summary>
           <div className="px-6 pb-6">
             {team.length === 0 ? (
@@ -649,15 +692,16 @@ function PortalLink({
   return (
     <Link
       href={href}
-      className="pressable group flex items-center gap-3 rounded-xl border bg-card p-4 shadow-card hover:border-primary/40 hover:bg-secondary/40"
+      className="portal-tile pressable group relative flex items-center gap-4 rounded-2xl border bg-card p-5 shadow-card hover:border-primary/30 sm:flex-col sm:items-start"
     >
-      <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-secondary text-primary">
+      <span aria-hidden="true" className="icon-well inline-flex size-11 shrink-0 items-center justify-center rounded-xl bg-secondary text-primary">
         {icon}
       </span>
       <span className="min-w-0">
-        <span className="block font-semibold">{label}</span>
-        <span className="block truncate text-sm text-muted-foreground">{hint}</span>
+        <span className="block font-display text-lg font-semibold">{label}</span>
+        <span className="mt-1 block text-sm leading-relaxed text-muted-foreground">{hint}</span>
       </span>
+      <ArrowUpRight className="ml-auto size-4 shrink-0 text-muted-foreground group-hover:text-primary sm:absolute sm:top-5 sm:right-5" aria-hidden="true" />
     </Link>
   );
 }
@@ -666,12 +710,13 @@ function BigLink({ href, icon, label }: { href: string; icon: React.ReactNode; l
   return (
     <Link
       href={href}
-      className="pressable flex min-h-14 items-center gap-4 rounded-2xl border bg-card p-6 font-display text-2xl font-semibold shadow-card hover:bg-muted active:bg-muted"
+      className="portal-tile pressable flex min-h-14 items-center gap-4 rounded-2xl border bg-card p-6 font-display text-2xl font-semibold shadow-card hover:bg-muted active:bg-muted"
     >
       <span className="inline-flex size-12 shrink-0 items-center justify-center rounded-full bg-secondary text-primary">
         {icon}
       </span>
-      {label}
+      <span className="flex-1">{label}</span>
+      <ArrowRight className="size-6 shrink-0 text-muted-foreground" aria-hidden="true" />
     </Link>
   );
 }

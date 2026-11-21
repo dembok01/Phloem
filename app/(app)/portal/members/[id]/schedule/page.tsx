@@ -38,7 +38,7 @@ export default async function PortalSchedulePage({ params }: { params: Promise<{
     .reverse();
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="mx-auto max-w-4xl space-y-7">
       <PageHeader
         title="Schedule"
         description={`${member.full_name.split(" ")[0]}'s consultations — your coordinator arranges each one.`}
@@ -55,8 +55,12 @@ type Row = { id: string; type: string; scheduled_at: string | null; meeting_stat
 
 function Section({ title, rows, muted = false }: { title: string; rows: Row[]; muted?: boolean }) {
   return (
-    <div className="space-y-3">
-      <h2 className="eyebrow">{title}</h2>
+    <section className="space-y-4">
+      <div className="flex items-center gap-3">
+        <h2 className="font-display text-xl font-semibold">{title}</h2>
+        <span className="rounded-full border bg-card px-2.5 py-0.5 font-data text-xs text-muted-foreground">{rows.length}</span>
+        <span className="h-px flex-1 bg-border" aria-hidden="true" />
+      </div>
       {rows.length === 0 ? (
         <EmptyState
           icon={CalendarDays}
@@ -64,16 +68,16 @@ function Section({ title, rows, muted = false }: { title: string; rows: Row[]; m
           description="When your coordinator books a consultation it appears here, and you'll get a notification too."
         />
       ) : (
-        <ul className="space-y-2">
+        <ul className="space-y-3">
           {rows.map((c) => (
             <li
               key={c.id}
-              className={`flex flex-wrap items-center gap-3 rounded-xl border bg-card p-4 shadow-card ${muted ? "opacity-75" : ""}`}
+              className={`flex flex-wrap items-center gap-4 rounded-2xl border p-5 ${muted ? "bg-muted/35" : "bg-card shadow-card"}`}
             >
               <ModeIcon mode={c.mode} />
               <div className="min-w-0 flex-1">
-                <p className="text-base font-medium capitalize">{c.type} consultation</p>
-                <p className="text-sm text-muted-foreground">
+                <p className="font-display text-lg font-semibold capitalize">{c.type} consultation</p>
+                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
                   {formatDateTimeIST(c.scheduled_at)}
                   {c.mode ? ` · ${MODE_LABEL[c.mode] ?? c.mode}` : ""}
                 </p>
@@ -83,7 +87,7 @@ function Section({ title, rows, muted = false }: { title: string; rows: Row[]; m
           ))}
         </ul>
       )}
-    </div>
+    </section>
   );
 }
 
@@ -92,7 +96,7 @@ function ModeIcon({ mode }: { mode: string | null }) {
   const icon =
     mode === "phone" ? <Phone className={cls} /> : mode === "in_person" ? <MapPin className={cls} /> : <Video className={cls} />;
   return (
-    <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-secondary text-secondary-foreground">
+    <span aria-hidden="true" className="icon-well inline-flex size-12 shrink-0 items-center justify-center rounded-xl bg-secondary text-secondary-foreground">
       {icon}
     </span>
   );

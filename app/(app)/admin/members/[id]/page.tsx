@@ -185,8 +185,9 @@ export default async function AdminMemberPage({
   });
 
   return (
-    <section className="mx-auto max-w-4xl space-y-6">
+    <section className="mx-auto max-w-5xl space-y-7">
       <PageHeader
+        className="dashboard-hero p-5 sm:p-7"
         crumbs={[{ label: "Members", href: "/admin/members" }, { label: member.full_name }]}
         title={
           <span className="flex items-center gap-3">

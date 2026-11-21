@@ -9,7 +9,7 @@ const buttonVariants = cva(
   // convention for every Button, so `.pressable` is never added on top of it.
   // `relative` anchors the 44px touch hit area (globals.css, pointer: coarse).
   // Reduced motion and elderly mode keep the colour change and drop the movement.
-  "group/button relative inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-[color,background-color,border-color,box-shadow,scale,translate] duration-(--motion-press) ease-out outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:scale-[0.97] motion-reduce:active:scale-100 elderly:active:scale-100 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "group/button relative inline-flex shrink-0 items-center justify-center rounded-xl border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-[color,background-color,border-color,box-shadow,scale,translate] duration-(--motion-press) ease-out outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/25 focus-visible:ring-offset-2 focus-visible:ring-offset-background active:not-aria-[haspopup]:scale-[0.97] motion-reduce:active:scale-100 elderly:active:scale-100 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
@@ -17,17 +17,17 @@ const buttonVariants = cva(
         // The 1px lift is the one place a Button moves on hover: it marks the
         // primary action as the thing to press.
         default:
-          "bg-primary text-primary-foreground shadow-card hover:bg-primary-hover hover:-translate-y-px motion-reduce:hover:translate-y-0 elderly:hover:translate-y-0",
+          "border-primary/15 bg-primary text-primary-foreground shadow-[0_1px_2px_rgb(0_0_0/0.08),inset_0_1px_0_rgb(255_255_255/0.12)] hover:bg-primary-hover hover:-translate-y-px active:translate-y-0 motion-reduce:hover:translate-y-0 elderly:hover:translate-y-0",
         // Raised, not drawn: a white face, an edge at ~2:1 and the card shadow, so
         // it reads as a button on white cards AND on the recessed list ground
         // (it used to be a 1.2:1 hairline there — the least visible thing in the row).
         outline:
-          "border-input/60 bg-card shadow-xs hover:border-input hover:bg-[color-mix(in_oklab,var(--card),var(--foreground)_4%)] aria-expanded:border-input aria-expanded:bg-muted dark:bg-input/20 dark:hover:bg-input/35",
+          "border-input/60 bg-card text-foreground shadow-xs hover:border-input hover:bg-[color-mix(in_oklab,var(--card),var(--foreground)_4%)] active:bg-muted aria-expanded:border-input aria-expanded:bg-muted dark:bg-input/20 dark:hover:bg-input/35",
         // Tonal: the row-level primary action (Schedule, Create a link). A Phloem
         // tint with an inset edge, so it outranks outline without shouting like
         // the solid primary.
         secondary:
-          "bg-secondary text-secondary-foreground ring-1 ring-primary/20 ring-inset hover:bg-[color-mix(in_oklab,var(--secondary),var(--primary)_14%)] hover:ring-primary/35 aria-expanded:bg-[color-mix(in_oklab,var(--secondary),var(--primary)_14%)]",
+          "bg-secondary text-secondary-foreground ring-1 ring-primary/15 ring-inset hover:bg-[color-mix(in_oklab,var(--secondary),var(--primary)_14%)] hover:ring-primary/30 aria-expanded:bg-[color-mix(in_oklab,var(--secondary),var(--primary)_14%)]",
         ghost:
           "hover:bg-foreground/[0.07] hover:text-foreground aria-expanded:bg-foreground/[0.07] aria-expanded:text-foreground",
         destructive:
@@ -39,7 +39,7 @@ const buttonVariants = cva(
            portal & elderly surfaces (rem-based, so elderly mode scales further).
            sm is 36px (was 32); on touch every size reaches 44px via the hit area. */
         default:
-          "h-10 gap-1.5 px-4 text-base has-data-[icon=inline-end]:pr-3 has-data-[icon=inline-start]:pl-3",
+          "h-10 gap-2 px-4 text-base has-data-[icon=inline-end]:pr-3 has-data-[icon=inline-start]:pl-3",
         xs: "h-7 gap-1 rounded-[min(var(--radius-md),10px)] px-2 text-xs in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3",
         sm: "h-9 gap-1 rounded-[min(var(--radius-md),12px)] px-3 in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2 [&_svg:not([class*='size-'])]:size-3.5",
         lg: "h-12 gap-2 px-5 text-base has-data-[icon=inline-end]:pr-4 has-data-[icon=inline-start]:pl-4",

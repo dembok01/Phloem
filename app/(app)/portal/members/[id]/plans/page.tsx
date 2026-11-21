@@ -45,7 +45,7 @@ export default async function PortalPlansPage({ params }: { params: Promise<{ id
   ].filter(Boolean) as ((NonNullable<typeof nutrition>) & { anchor: string; label: string })[];
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="mx-auto max-w-4xl space-y-7">
       <style dangerouslySetInnerHTML={{ __html: REPORT_CSS + PRINT_CSS }} />
       <div className="print-hidden">
         <PageHeader
@@ -57,12 +57,12 @@ export default async function PortalPlansPage({ params }: { params: Promise<{ id
       </div>
 
       {plans.length > 1 ? (
-        <nav aria-label="Jump to plan" className="print-hidden flex gap-2">
+        <nav aria-label="Jump to plan" className="print-hidden flex flex-wrap gap-3">
           {plans.map((p) => (
             <a
               key={p.anchor}
               href={`#${p.anchor}`}
-              className="inline-flex min-h-9 items-center rounded-full border bg-card px-4 text-sm font-medium hover:bg-muted"
+              className="pressable inline-flex min-h-11 items-center rounded-full border bg-card px-5 text-sm font-medium shadow-xs hover:border-primary/30 hover:bg-secondary"
             >
               {p.label}
             </a>
@@ -79,11 +79,11 @@ export default async function PortalPlansPage({ params }: { params: Promise<{ id
       ) : (
         plans.map((r) => (
           <section key={r.id} id={r.anchor} className="scroll-mt-20">
-            <p className="print-hidden mb-2 flex items-baseline justify-between gap-2">
+            <p className="print-hidden mb-3 flex flex-wrap items-baseline justify-between gap-2">
               <span className="eyebrow">{r.label}</span>
               <span className="font-data text-xs text-muted-foreground">Updated {formatDateIST(r.created_at)}</span>
             </p>
-            <div className="plan-sheet rounded-xl bg-card p-6 shadow-card ring-1 ring-foreground/10 sm:p-8">
+            <div className="plan-sheet rounded-2xl border border-border/70 bg-card p-6 shadow-card sm:p-9">
               <ReportView content={parseReportContent(r.content)} />
               {/* 0054: a plan the coordinator uploaded is the file itself. */}
               {parseReportContent(r.content).upload ? (

@@ -82,9 +82,9 @@ export function FilterBar({
   const filtered = query.trim() !== "" || active !== null;
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 rounded-2xl border border-border/80 bg-card p-4 shadow-card">
       <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-56 flex-1">
+        <div className="relative min-w-0 basis-60 flex-1">
           <Search
             className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
             aria-hidden
@@ -96,7 +96,7 @@ export function FilterBar({
             onChange={(e) => onQuery(e.target.value)}
             placeholder={placeholder}
             aria-label={placeholder}
-            className="h-10 w-full rounded-lg border border-input bg-card pl-9 pr-9 text-sm outline-none transition-colors hover:border-foreground/60 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-search-cancel-button]:hidden"
+            className="h-11 w-full rounded-xl border border-input bg-background/50 pl-9 pr-9 text-sm outline-none transition-colors hover:border-foreground/60 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/15 [&::-webkit-search-cancel-button]:hidden"
           />
           {query ? (
             <button
@@ -121,7 +121,7 @@ export function FilterBar({
           NavTabs, so a chip cut off at the edge says "swipe". The shown/total line
           goes to screen readers only there; the chips already carry every count. */}
       {/* py-1.5 on phones: room for each chip's 44px touch area inside the scroller. */}
-      <div className="-mx-4 flex items-center gap-1.5 overflow-x-auto px-4 max-md:py-1.5 [scrollbar-width:none] sm:-mx-6 sm:px-6 md:mx-0 md:flex-wrap md:overflow-visible md:px-0 [&::-webkit-scrollbar]:hidden">
+      <div className="-mx-4 flex items-center gap-1.5 overflow-x-auto px-4 max-md:py-1.5 [scrollbar-width:none] sm:-mx-4 sm:px-4 md:mx-0 md:flex-wrap md:overflow-visible md:px-0 [&::-webkit-scrollbar]:hidden">
         <ToggleChip selected={active === null} onClick={() => onSelect(null)} count={total}>
           All
         </ToggleChip>

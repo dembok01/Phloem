@@ -46,7 +46,7 @@ export default async function PortalReportsPage({ params }: { params: Promise<{ 
   const list = (reports ?? []).filter((r) => !replaced.has(r.id));
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="mx-auto max-w-4xl space-y-7">
       <PageHeader
         title="Reports"
         description={`Documents from ${member.full_name.split(" ")[0]}'s care team, shared with your family.`}
@@ -60,28 +60,29 @@ export default async function PortalReportsPage({ params }: { params: Promise<{ 
           description="The onboarding summary, plans, and cycle reviews are added here as the care team writes them."
         />
       ) : (
-        <ul className="space-y-2">
+        <ul className="space-y-3">
           {list.map((r) => (
             <li key={r.id}>
               <ReportPeek
                 reportId={r.id}
-                className="pressable flex w-full items-center gap-3 rounded-xl border bg-card p-4 text-left shadow-card hover:border-primary/40 hover:bg-secondary/40"
+                className="portal-tile pressable group flex w-full items-center gap-4 rounded-2xl border bg-card p-5 text-left shadow-card hover:border-primary/30"
               >
-                <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-secondary text-primary">
-                  <FileText className="size-4" />
+                <span className="icon-well inline-flex size-12 shrink-0 items-center justify-center rounded-xl bg-secondary text-primary">
+                  <FileText className="size-5" aria-hidden="true" />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-base font-medium">{humanize(r.type)}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {REPORT_HINT[r.type] ?? "From the care team"} · {formatDateIST(r.created_at)}
+                  <p className="font-display text-lg font-semibold">{humanize(r.type)}</p>
+                  <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                    {REPORT_HINT[r.type] ?? "From the care team"}
                   </p>
+                  <p className="mt-2 font-data text-xs text-muted-foreground">{formatDateIST(r.created_at)}</p>
                   {SHARED_BY_TEAM.has(r.type) ? (
                     <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
                       Shared by your care team
                     </p>
                   ) : null}
                 </div>
-                <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+                <ChevronRight className="size-5 shrink-0 text-muted-foreground group-hover:text-primary" aria-hidden="true" />
               </ReportPeek>
             </li>
           ))}

@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils"
 // (components/ui/chip.tsx) is a bordered pill. Before 2026-10-07 both were pills,
 // and "Active" (a status) and "Active 19" (a filter) were the same object.
 const badgeVariants = cva(
-  "inline-flex items-center gap-1 rounded-sm border border-transparent px-1.5 py-0.5 text-xs font-medium whitespace-nowrap",
+  "inline-flex items-center gap-1 rounded-sm border border-transparent px-2 py-0.5 text-xs leading-4 font-medium whitespace-nowrap [&_svg]:size-3 [&_svg]:shrink-0",
   {
     variants: {
       variant: {

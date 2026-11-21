@@ -1,6 +1,11 @@
 import Link from "next/link";
 import {
+  ArrowUpRight,
+  Brain,
+  CalendarDays,
+  Dumbbell,
   FileWarning,
+  Leaf,
   ShieldAlert,
   Stethoscope,
   UsersRound,
@@ -20,6 +25,13 @@ import { resolveClearance } from "@/lib/clearance";
 import { computeIssues, worstSeverity, type Issue } from "@/lib/issues";
 import { getSessionProfile } from "@/lib/auth";
 import { getLens, viewRoleFor } from "@/lib/lens";
+
+const DESK_META = {
+  doctor: { label: "Clinical care", icon: Stethoscope, tone: "bg-role-doctor/10 text-role-doctor", note: "A clear view of the people who need you." },
+  nutritionist: { label: "Nutrition care", icon: Leaf, tone: "bg-role-nutritionist/10 text-role-nutritionist", note: "Small changes. Stronger everyday habits." },
+  trainer: { label: "Movement & strength", icon: Dumbbell, tone: "bg-role-trainer/10 text-role-trainer", note: "Supporting confidence in every movement." },
+  psychologist: { label: "Wellbeing care", icon: Brain, tone: "bg-role-psychologist/10 text-role-psychologist", note: "Space for thoughtful, connected care." },
+};
 
 // §10 clinician list — assigned members only (mem_clinician RLS).
 //
@@ -60,6 +72,8 @@ export default async function ClinicianClientsPage() {
 
   const viewRole = viewRoleFor(profile?.role ?? "doctor", lens);
   const isDoctor = viewRole === "doctor";
+  const desk = DESK_META[viewRole as keyof typeof DESK_META] ?? DESK_META.doctor;
+  const DeskIcon = desk.icon;
 
   // RLS hands an admin every member and every consultation, so the desk's own
   // caseload has to be reconstructed here — the same set `mem_clinician` and
@@ -256,9 +270,9 @@ export default async function ClinicianClientsPage() {
       })();
 
   return (
-    <section className="mx-auto max-w-3xl space-y-6">
+    <section className="mx-auto max-w-5xl space-y-8">
       <PageHeader
-        eyebrow={isDoctor ? "Clinical" : undefined}
+        eyebrow={desk.label}
         title={isDoctor ? "Your day" : "My members"}
         description={
           isDoctor
@@ -270,63 +284,73 @@ export default async function ClinicianClientsPage() {
       {/* M3 — the hero: the next consultation, or the state of the queue when the
           calendar is clear. A doctor opening this asks "who am I seeing, and what
           is on fire" — both answers now outrank everything else on the page. */}
-      {isDoctor && rows.length > 0 ? (
-        <Card variant="hero" className="hero-glow">
-          <CardContent className="flex flex-wrap items-center gap-x-10 gap-y-5">
-            {todayConsults[0] && byId.get(todayConsults[0].memberId) ? (
-              <>
-                <Monogram
-                  name={byId.get(todayConsults[0].memberId)!.m.full_name}
-                  size="lg"
-                  tone="doctor"
-                  ring
-                />
-                <div className="min-w-0">
-                  <p className="eyebrow">Next consultation</p>
-                  <Link
-                    href={`/clinician/clients/${todayConsults[0].memberId}`}
-                    className="font-display text-2xl font-semibold tracking-tight hover:underline"
-                  >
-                    {byId.get(todayConsults[0].memberId)!.m.full_name}
-                  </Link>
-                  <p className="font-data text-sm text-muted-foreground">
-                    {formatDateTimeIST(todayConsults[0].at)}
-                    {todayConsults[0].mode ? ` · ${todayConsults[0].mode.replace("_", " ")}` : ""}
-                  </p>
+      {rows.length > 0 ? (
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_17rem]">
+          <Card variant="hero" className="dashboard-hero h-full py-0">
+            <CardContent className="flex h-full flex-col gap-6 p-6 sm:p-8">
+              <div className="flex items-center gap-3">
+                <span className={`icon-well ${desk.tone}`}><DeskIcon className="size-5" aria-hidden /></span>
+                <div>
+                  <p className="eyebrow">Your care, at a glance</p>
+                  <p className="mt-1 text-sm text-muted-foreground">{desk.note}</p>
                 </div>
-                {todayConsults[0].link ? (
-                  <a
-                    href={todayConsults[0].link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="pressable inline-flex h-11 shrink-0 items-center gap-2 rounded-lg bg-primary px-5 font-medium text-primary-foreground hover:bg-primary/85"
-                  >
-                    <Video className="size-4" aria-hidden /> Join
-                  </a>
-                ) : null}
-              </>
-            ) : (
-              <div>
-                <p className="eyebrow">Your calendar</p>
-                <p className="stat-figure text-foreground">Clear</p>
-                <p className="text-sm text-muted-foreground">No consultations booked for today.</p>
               </div>
-            )}
-
-            <div className="ml-auto flex gap-8">
-              <div>
-                <p className="eyebrow">Needs you</p>
-                <p className="font-display text-2xl font-semibold tabular-nums">
-                  {rows.filter((r) => r.worst === "danger" || r.worst === "warning").length}
-                </p>
+              {todayConsults[0] && byId.get(todayConsults[0].memberId) ? (
+                <div className="flex flex-wrap items-center gap-4">
+                  <Monogram
+                    name={byId.get(todayConsults[0].memberId)!.m.full_name}
+                    size="lg"
+                    tone={toneForRole(viewRole)}
+                    ring
+                  />
+                  <div className="min-w-0">
+                    <p className="eyebrow mb-1.5">Next consultation</p>
+                    <Link
+                      href={`/clinician/clients/${todayConsults[0].memberId}`}
+                      className="group inline-flex items-center gap-2 rounded-md font-display text-2xl font-semibold tracking-tight hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring sm:text-3xl"
+                    >
+                      {byId.get(todayConsults[0].memberId)!.m.full_name}
+                      <ArrowUpRight className="size-5 text-primary/60 transition-transform duration-160 motion-safe:group-hover:-translate-y-0.5 motion-safe:group-hover:translate-x-0.5 elderly:group-hover:translate-x-0 elderly:group-hover:translate-y-0" aria-hidden />
+                    </Link>
+                    <p className="mt-1 font-data text-sm text-muted-foreground">
+                      {formatDateTimeIST(todayConsults[0].at)}
+                      {todayConsults[0].mode ? ` · ${todayConsults[0].mode.replace("_", " ")}` : ""}
+                    </p>
+                  </div>
+                  {todayConsults[0].link ? (
+                    <a
+                      href={todayConsults[0].link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="pressable inline-flex h-11 shrink-0 items-center gap-2 rounded-xl bg-primary px-5 font-medium text-primary-foreground shadow-sm hover:bg-primary-hover focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring sm:ml-auto"
+                    >
+                      <Video className="size-4" aria-hidden /> Join
+                    </a>
+                  ) : null}
+                </div>
+              ) : (
+                <div className="mt-auto">
+                  <p className="eyebrow mb-2">Your calendar</p>
+                  <p className="font-display text-3xl font-semibold tracking-tight">Room to focus.</p>
+                  <p className="mt-2 text-sm text-muted-foreground">No consultations booked for today. Your member queue is below.</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+          <div className="grid grid-cols-3 gap-3 lg:grid-cols-1">
+            {[
+              { label: isDoctor ? "Needs you" : "Forms due", value: isDoctor ? rows.filter((r) => r.worst === "danger" || r.worst === "warning").length : rows.filter((r) => r.due).length, icon: FileWarning },
+              { label: "Today’s consults", value: todayConsults.length, icon: CalendarDays },
+              { label: "Your members", value: rows.length, icon: UsersRound },
+            ].map(({ label, value, icon: Icon }) => (
+              <div key={label} className="metric-tile flex flex-col gap-3 p-4 lg:flex-row lg:items-center">
+                <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                <p className="text-xs text-muted-foreground lg:flex-1">{label}</p>
+                <p className="font-display text-2xl font-semibold tabular-nums">{value}</p>
               </div>
-              <div>
-                <p className="eyebrow">Your members</p>
-                <p className="font-display text-2xl font-semibold tabular-nums">{rows.length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            ))}
+          </div>
+        </div>
       ) : null}
 
       {rows.length === 0 ? (
@@ -367,7 +391,7 @@ export default async function ClinicianClientsPage() {
                     tone={worst ?? (due ? "warning" : "none")}
                     leading={
                       <span className="relative">
-                        <Monogram name={m.full_name} size="sm" tone={toneForRole(profile?.role)} />
+                        <Monogram name={m.full_name} size="sm" tone={toneForRole(viewRole)} />
                         {high ? (
                           <span
                             className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full bg-danger ring-2 ring-card"

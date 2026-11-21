@@ -80,7 +80,7 @@ export function NewThread({
   }
 
   return (
-    <div className="space-y-3 rounded-xl border bg-card p-4 shadow-card">
+    <div className="space-y-4 rounded-2xl border border-primary/20 bg-primary/[0.025] p-4 shadow-card sm:p-5">
       <div>
         <h3 className="font-display text-lg font-semibold">
           {isFamily ? "Ask your care team" : "Start an internal note"}
@@ -102,7 +102,7 @@ export function NewThread({
           onChange={(e) => setSubject(e.target.value)}
           maxLength={200}
           placeholder={isFamily ? "e.g. Trouble with the new diet" : "e.g. Adherence dropping this cycle"}
-          className="w-full rounded-lg border bg-card px-3 py-2 text-base focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          className="h-11 w-full rounded-xl border border-input bg-card px-3 py-2 text-base outline-none transition-[border-color,box-shadow] duration-160 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/15"
         />
       </div>
 
@@ -144,7 +144,7 @@ export function NewThread({
               ? "Tell them what's happening, and what you'd like help with."
               : "What the team needs to know."
           }
-          className="w-full rounded-lg border bg-card px-3 py-2 text-base focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          className="w-full resize-y rounded-xl border border-input bg-card px-3 py-3 text-base outline-none transition-[border-color,box-shadow] duration-160 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/15"
         />
       </div>
 

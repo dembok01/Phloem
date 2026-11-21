@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import { CheckCircle2, ChevronLeft, Eye, FileCheck2, FilePlus2, Lock, Pencil, ShieldAlert } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CardSkeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
+import { MEMBER_STATUS_LABEL, memberStatusVariant, type MemberStatus } from "@/lib/member-status";
 import { EmergencyCard } from "@/components/safety/emergency-card";
 import { Who5Card } from "@/components/charts/who5-card";
 import { Monogram, toneForRole } from "@/components/monogram";
@@ -145,7 +147,7 @@ export default async function ClinicianClientPage({
   const flags = parseRedFlags(member.red_flags);
 
   return (
-    <section className="mx-auto max-w-3xl space-y-6">
+    <section className="mx-auto max-w-4xl space-y-6">
       <PageHeader
         crumbs={[{ label: "My members", href: "/clinician/clients" }, { label: member.full_name }]}
         title={member.full_name}
@@ -155,29 +157,30 @@ export default async function ClinicianClientPage({
       {/* V3/M3 — the identity band. A clinician arriving here needs to know WHO,
           how old, where in the programme, and whether anything is flagged, before
           they read a single tab. That used to be a 24px title and a grey line. */}
-      <Card variant="hero" className="hero-glow">
-        <CardContent className="flex flex-wrap items-center gap-x-6 gap-y-4">
+      <Card variant="hero" className="dashboard-hero py-0">
+        <CardContent className="flex flex-wrap items-center gap-x-6 gap-y-5 p-6 sm:p-8">
           <Monogram name={member.full_name} size="xl" tone={toneForRole(role)} ring />
           <div className="min-w-0 flex-1">
             <p className="eyebrow">
               <Link
                 href="/clinician/clients"
-                className="-my-2 inline-flex items-center gap-0.5 py-2 hover:text-foreground hover:underline"
+                className="-my-2 inline-flex min-h-10 items-center gap-0.5 rounded-md py-2 hover:text-foreground hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
               >
                 <ChevronLeft className="size-3.5" aria-hidden />
                 My members
               </Link>
             </p>
-            <h1 className="font-display text-3xl font-semibold tracking-tight text-balance">
+            <h1 className="mt-1 font-display text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
               {member.full_name}
             </h1>
-            <p className="text-[15px] text-muted-foreground">
+            <p className="mt-2 text-[15px] text-muted-foreground">
               {[member.age ? `${member.age} yrs` : null, member.gender, member.city]
                 .filter(Boolean)
                 .join(" · ")}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <Badge variant={memberStatusVariant(member.status as MemberStatus)}>{MEMBER_STATUS_LABEL[member.status as MemberStatus]}</Badge>
             {hasHighFlag(flags) ? (
               <span
                 className="inline-flex items-center gap-1.5 rounded-full bg-danger-tint px-3 py-1.5 text-sm font-semibold text-danger"

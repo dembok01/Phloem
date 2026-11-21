@@ -36,7 +36,7 @@ export function Callout({
     return (
       <div
         className={cn(
-          "flex items-center gap-3 rounded-xl bg-muted/60 px-4 py-3 text-sm text-muted-foreground",
+          "flex items-center gap-3 rounded-xl border border-border/50 bg-muted/50 px-4 py-3 text-sm leading-relaxed text-muted-foreground",
           className,
         )}
       >
@@ -53,22 +53,22 @@ export function Callout({
     <Link
       href={action.href}
       className={cn(
-        "group/callout flex items-center gap-3 rounded-xl border p-4 font-medium no-underline transition-colors duration-(--motion-press)",
+        "group/callout flex flex-wrap items-center gap-3 rounded-2xl border p-4 font-medium no-underline shadow-xs transition-[background-color,border-color] duration-(--motion-press) ease-out focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:flex-nowrap",
         t.card,
         className,
       )}
     >
       {Icon ? <Icon className={cn("size-5 shrink-0", t.icon)} aria-hidden /> : null}
-      <div className="min-w-0 flex-1 text-foreground">{children}</div>
+      <div className="min-w-0 flex-1 text-sm leading-relaxed text-foreground">{children}</div>
       <span
         className={cn(
           buttonVariants({ size: "sm" }),
-          "pointer-events-none shrink-0 group-hover/callout:bg-primary-hover",
+          "pointer-events-none ml-auto shrink-0 group-hover/callout:bg-primary-hover",
         )}
       >
         {action.label}
         <ArrowRight
-          className="transition-[translate] duration-(--motion-press) ease-out group-hover/callout:translate-x-0.5"
+          className="transition-[translate] duration-(--motion-press) ease-out group-hover/callout:translate-x-0.5 motion-reduce:group-hover/callout:translate-x-0 elderly:group-hover/callout:translate-x-0"
           aria-hidden
         />
       </span>

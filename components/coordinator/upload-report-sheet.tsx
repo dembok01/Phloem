@@ -225,7 +225,7 @@ export function UploadReportSheet({
               value={targetId}
               onChange={(e) => setTargetId(e.target.value)}
               disabled={busy}
-              className="h-11 w-full rounded-lg border border-input bg-background px-3 text-base outline-none hover:border-foreground/60 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              className="h-11 w-full rounded-xl border border-input bg-card px-3 text-base outline-none transition-[border-color,box-shadow] duration-160 hover:border-primary/35 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/20"
             >
               {target ? null : <option value="">Choose a report…</option>}
               {targets.map((t) => (
@@ -245,7 +245,7 @@ export function UploadReportSheet({
                 value={clearance ?? "choose"}
                 onChange={(e) => setClearance(e.target.value as Clearance | "")}
                 disabled={busy}
-                className="h-11 w-full rounded-lg border border-input bg-background px-3 text-base outline-none hover:border-foreground/60 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                className="h-11 w-full rounded-xl border border-input bg-card px-3 text-base outline-none transition-[border-color,box-shadow] duration-160 hover:border-primary/35 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/20"
               >
                 {clearance === null ? <option value="choose">Choose what the report says…</option> : null}
                 {CLEARANCE_OPTIONS.map(([v, l]) => (
@@ -281,7 +281,7 @@ export function UploadReportSheet({
             </div>
           ) : null}
 
-          <div className="space-y-2">
+          <div className="space-y-3 rounded-2xl border border-dashed border-primary/25 bg-primary/[0.025] p-4">
             <Label htmlFor={`${id}-file`}>The file</Label>
             <Input
               id={`${id}-file`}
@@ -293,7 +293,7 @@ export function UploadReportSheet({
             />
             <p className="text-xs text-muted-foreground">PDF, JPG or PNG, up to 15 MB.</p>
             {file ? (
-              <div className="flex items-center gap-3 rounded-lg border bg-muted/40 p-3">
+              <div className="flex items-center gap-3 rounded-xl border border-primary/15 bg-card p-3 shadow-xs">
                 {preview ? (
                   // eslint-disable-next-line @next/next/no-img-element -- a local blob preview, not a page asset
                   <img src={preview} alt="" className="size-16 shrink-0 rounded-md object-cover" />

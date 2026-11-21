@@ -48,7 +48,7 @@ export function MessageComposer({
 
   if (disabled) {
     return (
-      <p className="rounded-lg border border-dashed bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+      <p className="rounded-xl border border-dashed bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
         {disabledReason ?? "This conversation is closed."}
       </p>
     );
@@ -72,9 +72,9 @@ export function MessageComposer({
         rows={3}
         placeholder={placeholder}
         disabled={pending}
-        className="w-full rounded-lg border bg-card px-3 py-2 text-base focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-60"
+        className="min-h-24 w-full resize-y rounded-xl border border-input bg-card px-4 py-3 text-base shadow-xs outline-none transition-[border-color,box-shadow] duration-160 placeholder:text-muted-foreground/70 hover:border-primary/35 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/15 disabled:opacity-60"
       />
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-xs text-muted-foreground">
           Enter sends · Shift + Enter for a new line
         </p>

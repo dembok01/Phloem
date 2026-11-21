@@ -1,6 +1,7 @@
 import Link from "next/link";
 import {
   AlarmClockOff,
+  ArrowUpRight,
   CalendarClock,
   CalendarPlus,
   CheckCheck,
@@ -10,6 +11,7 @@ import {
   ShieldAlert,
   Sunrise,
   UserPlus,
+  UsersRound,
 } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Card, CardContent } from "@/components/ui/card";
@@ -23,6 +25,7 @@ import type { CareRole } from "@/lib/member-status";
 import { actionsFor, nextActions, type ActionKind, type NextAction } from "@/lib/next-actions";
 import { Explain } from "@/components/ui/explain";
 import { ScheduleSheet } from "@/components/coordinator/schedule-sheet";
+import { buttonVariants } from "@/components/ui/button";
 
 // §10 Today queue — every row is one clear action on one member (C3).
 const ROLE_NAME: Record<CareRole, string> = {
@@ -111,46 +114,64 @@ export default async function CoordinatorTodayPage() {
         eyebrow="Care coordination"
         title="Today"
         description="Your queue across all members — each row is one action."
+        actions={
+          <Link href="/coordinator/members/new" className={buttonVariants({ size: "sm" })}>
+            <UserPlus aria-hidden /> Enrol a member
+          </Link>
+        }
       />
 
       {/* M3 — the one hero on this screen. A coordinator's first question is "how
           much is on me today, and is any of it late", and that used to require
           counting rows. */}
-      {tasks.length > 0 ? (
-        <Card variant="hero" className="hero-glow">
-          <CardContent className="flex flex-wrap items-end gap-x-10 gap-y-4">
-            <div>
-              <p className="eyebrow flex items-center gap-1.5">
-                On your plate
-                <Explain
-                  label="on your plate"
-                  what="Everything overdue or due today, across every member — one count for the whole desk."
-                  next="Work top-down: the Overdue group blocks other people's work, since a meeting that is never marked done keeps the clinician's form locked."
-                />
-              </p>
-              <p className="stat-figure text-foreground">{todayCount + overdueCount}</p>
-              <p className="text-sm text-muted-foreground">
-                {overdueCount > 0 ? (
-                  <span className="font-medium text-danger">{overdueCount} overdue</span>
-                ) : (
-                  "nothing overdue"
-                )}
-                {" · "}
-                {tasks.filter((t) => t.bucket === "week").length} later this week
-              </p>
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
+        <Card variant="hero" className="dashboard-hero py-0">
+          <CardContent className="flex h-full flex-col gap-5 p-6 sm:p-8">
+            <div className="flex items-center gap-3">
+              <span className="icon-well bg-role-coordinator/10 text-role-coordinator"><Sunrise className="size-5" aria-hidden /></span>
+              <div>
+                <p className="eyebrow">The rhythm of care</p>
+                <p className="mt-1 text-sm text-muted-foreground">Every next step, thoughtfully connected.</p>
+              </div>
             </div>
-            <div className="min-w-40 flex-1">
-              <p className="eyebrow mb-1.5">Across</p>
-              <p className="font-display text-lg font-semibold">
-                {new Set(tasks.map((t) => t.memberId)).size} members
-              </p>
-              <p className="text-sm text-muted-foreground">
-                {(members ?? []).length} in the programme
-              </p>
+            <div className="flex flex-wrap items-end justify-between gap-4">
+              <div className="space-y-2">
+                <p className="eyebrow flex items-center gap-1.5">
+                  On your plate
+                  <Explain
+                    label="on your plate"
+                    what="Everything overdue or due today, across every member — one count for the whole desk."
+                    next="Work top-down: the Overdue group blocks other people's work, since a meeting that is never marked done keeps the clinician's form locked."
+                  />
+                </p>
+                <p className="flex items-baseline gap-3"><span className="stat-figure text-foreground">{todayCount + overdueCount}</span><span className="text-sm text-muted-foreground">actions for today</span></p>
+                <p className="text-sm text-muted-foreground">
+                  {overdueCount > 0 ? (
+                    <span className="font-medium text-danger">{overdueCount} overdue</span>
+                  ) : (
+                    "nothing overdue"
+                  )}
+                  {" · "}
+                  {tasks.filter((t) => t.bucket === "week").length} later this week
+                </p>
+              </div>
+              <Link href="/coordinator/pipeline" className="group inline-flex min-h-10 items-center gap-2 rounded-lg text-sm font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring">
+                View the pipeline <ArrowUpRight className="size-4 transition-transform duration-160 motion-safe:group-hover:-translate-y-0.5 motion-safe:group-hover:translate-x-0.5 elderly:group-hover:translate-x-0 elderly:group-hover:translate-y-0" aria-hidden />
+              </Link>
             </div>
           </CardContent>
         </Card>
-      ) : null}
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-1">
+          <div className="metric-tile flex flex-col items-start gap-3 p-5 sm:flex-row sm:items-center sm:gap-4">
+            <span className="icon-well bg-role-coordinator/10 text-role-coordinator"><UsersRound className="size-5" aria-hidden /></span>
+            <div><p className="font-display text-2xl font-semibold tabular-nums">{new Set(tasks.map((t) => t.memberId)).size}</p><p className="text-xs text-muted-foreground">members in your queue</p></div>
+          </div>
+          <div className="metric-tile flex flex-col items-start gap-3 p-5 sm:flex-row sm:items-center sm:gap-4">
+            <span className="icon-well bg-primary/10 text-primary"><CalendarClock className="size-5" aria-hidden /></span>
+            <div><p className="font-display text-2xl font-semibold tabular-nums">{(members ?? []).length}</p><p className="text-xs text-muted-foreground">in the programme</p></div>
+          </div>
+        </div>
+      </div>
 
       {heldSince.size > 0 ? (
         <ListSection
@@ -221,7 +242,7 @@ export default async function CoordinatorTodayPage() {
                           {rows.length} actions
                         </span>
                         <ChevronRight
-                          className="size-4 text-muted-foreground transition-[translate,color] duration-(--motion-press) ease-out group-hover/row:translate-x-0.5 group-hover/row:text-primary"
+                          className="size-4 text-muted-foreground transition-[translate,color] duration-(--motion-press) ease-out motion-safe:group-hover/row:translate-x-0.5 elderly:group-hover/row:translate-x-0 group-hover/row:text-primary"
                           aria-hidden
                         />
                       </Link>
