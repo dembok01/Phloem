@@ -16,7 +16,15 @@ export function SubmitButton({ children, pendingText, disabled, ...props }: Subm
   const { pending } = useFormStatus();
   return (
     <Button type="submit" loading={pending} disabled={disabled} {...props}>
-      {pending && pendingText ? pendingText : children}
+      {pendingText ? (
+        // "Save" → "Saving…" is one label changing its mind, not two labels
+        // swapping: a 200ms crossfade with a 2px blur (globals.css .fade-swap).
+        <span key={pending ? "pending" : "idle"} className="fade-swap inline-block">
+          {pending ? pendingText : children}
+        </span>
+      ) : (
+        children
+      )}
     </Button>
   );
 }

@@ -33,7 +33,9 @@ export function TrendLine({
 }) {
   return (
     <div>
-      <div style={{ height }} aria-hidden>
+      {/* First look: the chart is revealed left to right, the way a line is
+          drawn. A clip, not a re-plot — no value is ever shown wrong. */}
+      <div style={{ height }} aria-hidden className="fl-reveal-x">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: -18 }}>
             <CartesianGrid stroke="var(--border)" strokeDasharray="0" vertical={false} />

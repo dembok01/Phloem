@@ -35,14 +35,15 @@ export function List({
 }: {
   children: React.ReactNode;
   className?: string;
-  /** entrance for the rows; off for lists that re-render often */
+  /** rows rise in one after another on the page's FIRST look this session
+   * (globals.css .fl-stagger); every later visit they are simply there. */
   stagger?: boolean;
 }) {
   return (
     <ul
       className={cn(
         "divide-y divide-border/70 overflow-hidden rounded-xl bg-muted/35 ring-1 ring-foreground/[0.04]",
-        stagger && "stagger-in",
+        stagger && "fl-stagger",
         className,
       )}
     >

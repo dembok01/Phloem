@@ -149,11 +149,15 @@ function MeasureRow({ series: s }: { series: MeasureSeries }) {
         <>
           {/* the journey, as a track */}
           <div className="relative mt-3 h-1.5 rounded-full bg-foreground/[0.07]">
+            {/* First look: the track grows FROM the intake reading toward the
+                latest, so the direction of travel is the thing you see move. The
+                figures above never animate — only the drawing does. */}
             <span
-              className={cn("absolute inset-y-0 rounded-full", tone.track)}
+              className={cn("fl-grow-x absolute inset-y-0 rounded-full", tone.track)}
               style={{
                 left: `${Math.min(pct(s.baseline), pct(s.latest))}%`,
                 width: `${Math.abs(pct(s.latest) - pct(s.baseline))}%`,
+                transformOrigin: s.latest >= s.baseline ? "left center" : "right center",
               }}
             />
             <span
@@ -163,10 +167,10 @@ function MeasureRow({ series: s }: { series: MeasureSeries }) {
             />
             <span
               className={cn(
-                "absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 ring-card",
+                "fl-fade absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 ring-card",
                 tone.dot,
               )}
-              style={{ left: `${pct(s.latest)}%` }}
+              style={{ left: `${pct(s.latest)}%`, animationDelay: "560ms" }}
               title={`Latest: ${formatValue(s.latest, s.unit)}`}
             />
           </div>

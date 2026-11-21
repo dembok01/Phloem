@@ -62,10 +62,15 @@ export function Sparkline({
               <stop offset="100%" stopColor={stroke} stopOpacity="0" />
             </linearGradient>
           </defs>
-          <polygon points={areaPath} fill={`url(#${gradId})`} />
+          <polygon className="fl-fade" points={areaPath} fill={`url(#${gradId})`} />
         </>
       ) : null}
+      {/* On a page's first look the line draws itself (globals.css .fl-draw);
+          pathLength 1 + a dash of 1 is a solid line at rest. */}
       <polyline
+        className="fl-draw"
+        pathLength={1}
+        strokeDasharray={1}
         points={points}
         fill="none"
         stroke={stroke}
@@ -75,7 +80,16 @@ export function Sparkline({
         opacity={0.9}
       />
       {/* 2px surface ring so the endpoint reads against the line beneath it. */}
-      <circle cx={lastX} cy={lastY} r={3} fill={stroke} stroke={ringColor} strokeWidth={2} />
+      <circle
+        className="fl-fade"
+        style={{ animationDelay: "640ms" }}
+        cx={lastX}
+        cy={lastY}
+        r={3}
+        fill={stroke}
+        stroke={ringColor}
+        strokeWidth={2}
+      />
     </svg>
   );
 }

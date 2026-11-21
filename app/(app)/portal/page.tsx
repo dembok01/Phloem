@@ -331,7 +331,7 @@ async function CaregiverMember({
         />
       ) : null}
 
-      <div className="stagger-in grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="fl-stagger grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <PortalLink
           href={`/portal/members/${member.id}/plans`}
           icon={<ClipboardList className="size-5 text-role-nutritionist" />}

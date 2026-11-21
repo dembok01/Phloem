@@ -17,9 +17,12 @@ const RAMP = [
   "color-mix(in oklch, var(--primary) 42%, var(--card))",
   "color-mix(in oklch, var(--primary) 55%, var(--card))",
   "color-mix(in oklch, var(--primary) 68%, var(--card))",
-  "color-mix(in oklch, var(--primary) 82%, var(--card))",
+  "color-mix(in oklch, var(--primary) 90%, var(--card))",
   "var(--primary)",
 ];
+/** From this step the segment is too deep for ink: its count turns white
+ * (measured: ink 5.7:1 up to the 68% step, white 4.7:1 from the 90% step). */
+const LIGHT_LABEL_FROM = 5;
 
 export function StageFunnel({ stages, className }: { stages: Stage[]; className?: string }) {
   const total = stages.reduce((n, s) => n + s.count, 0);
@@ -33,7 +36,8 @@ export function StageFunnel({ stages, className }: { stages: Stage[]; className?
 
   return (
     <div className={cn("space-y-3", className)}>
-      <div className="flex h-9 w-full gap-0.5 overflow-hidden rounded-lg" role="list">
+      {/* First look: the bar grows from its left edge, the start of the journey. */}
+      <div className="fl-grow-x flex h-9 w-full gap-0.5 overflow-hidden rounded-lg" role="list">
         {stages.map((s, i) =>
           s.count === 0 ? null : (
             <Link
@@ -48,7 +52,12 @@ export function StageFunnel({ stages, className }: { stages: Stage[]; className?
               // min-w-6: a stage of one was a 16px sliver — too thin to tap on a phone.
               className="pressable group relative grid min-w-6 place-items-center first:rounded-l-lg last:rounded-r-lg hover:brightness-95"
             >
-              <span className="font-data text-xs font-medium text-foreground/80 tabular-nums">
+              <span
+                className={cn(
+                  "font-data text-xs font-medium tabular-nums",
+                  i >= LIGHT_LABEL_FROM ? "text-white" : "text-foreground",
+                )}
+              >
                 {s.count}
               </span>
             </Link>

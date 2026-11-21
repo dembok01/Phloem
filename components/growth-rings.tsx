@@ -1,9 +1,10 @@
 "use client";
 
 // The PHLOEM signature mark (DESIGN-SYSTEM §4): one concentric ring per 30-day
-// cycle, like a tree recording seasons. Closed cycles are solid rings; the
-// active cycle is an arc swept to today's day-count; upcoming cycles are faint;
-// a paused program renders the arc in Honey. The arc draws in once on first
+// cycle, like a tree recording seasons. Closed cycles are solid rings in the
+// success green (done); the active cycle is an arc swept to today's day-count in
+// the logo's blue→leaf blend (growing); upcoming cycles are faint; a paused or
+// ending program renders the arc in the warning amber. The arc draws in once on first
 // paint — global reduced-motion/elderly CSS collapses that to an instant render.
 import * as React from "react";
 import { cn } from "@/lib/utils";
@@ -53,6 +54,9 @@ export function GrowthRings({
   // `once` ring that has already been seen can snap to its final offset with no
   // transition to animate.
   const [animated, setAnimated] = React.useState(false);
+  // One gradient per instance — several rings can share a page. useId's
+  // punctuation is not safe inside url(#…), so keep only word characters.
+  const gradientId = "ring-" + React.useId().replace(/[^a-zA-Z0-9_-]/g, "");
 
   React.useEffect(() => {
     if (once) {
@@ -106,6 +110,12 @@ export function GrowthRings({
       className={cn("shrink-0", className)}
     >
       <title>{label}</title>
+      <defs>
+        <linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="var(--primary)" />
+          <stop offset="1" stopColor="var(--leaf)" />
+        </linearGradient>
+      </defs>
       {cycles.map((cy, i) => {
         // Innermost ring = cycle 1; rings grow outward like a trunk.
         const r = outerR - (n - 1 - i) * (stroke + gap);
@@ -120,9 +130,9 @@ export function GrowthRings({
               cy={c}
               r={r}
               fill="none"
-              stroke="var(--primary)"
+              stroke="var(--success)"
               strokeWidth={stroke}
-              opacity={0.85}
+              opacity={0.9}
             />
           );
         }
@@ -142,7 +152,7 @@ export function GrowthRings({
                 cy={c}
                 r={r}
                 fill="none"
-                stroke={paused || ending ? "var(--warning)" : "var(--primary)"}
+                stroke={paused || ending ? "var(--warning)" : `url(#${gradientId})`}
                 strokeWidth={stroke}
                 strokeLinecap="round"
                 strokeDasharray={circumference}

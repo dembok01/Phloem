@@ -15,9 +15,10 @@ const buttonVariants = cva(
       variant: {
         // Hover DARKENS. It used to fade to 80%, which reads as "going disabled".
         // The 1px lift is the one place a Button moves on hover: it marks the
-        // primary action as the thing to press.
+        // primary action as the thing to press. Its shadow is its own blue light
+        // (--shadow-primary), so the primary reads as lit, not merely filled.
         default:
-          "bg-primary text-primary-foreground shadow-card hover:bg-primary-hover hover:-translate-y-px motion-reduce:hover:translate-y-0 elderly:hover:translate-y-0",
+          "bg-primary text-primary-foreground shadow-primary hover:bg-primary-hover hover:-translate-y-px active:translate-y-0 motion-reduce:hover:translate-y-0 elderly:hover:translate-y-0",
         // Raised, not drawn: a white face, an edge at ~2:1 and the card shadow, so
         // it reads as a button on white cards AND on the recessed list ground
         // (it used to be a 1.2:1 hairline there — the least visible thing in the row).
@@ -75,7 +76,13 @@ function Button({
       aria-busy={loading || undefined}
       {...props}
     >
-      {loading ? <Loader2 className="animate-spin" aria-hidden /> : null}
+      {/* The spinner grows in rather than blinking on (the span carries the
+          entrance; the icon keeps its spin — two animations, two elements). */}
+      {loading ? (
+        <span className="mark-in inline-flex">
+          <Loader2 className="animate-spin" aria-hidden />
+        </span>
+      ) : null}
       {children}
     </ButtonPrimitive>
   )

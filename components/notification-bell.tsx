@@ -26,6 +26,9 @@ export function NotificationBell() {
   const [open, setOpen] = React.useState(false);
   const [pending, startTransition] = React.useTransition();
   const [navId, setNavId] = React.useState<string | null>(null);
+  // Rows that arrived live while the list was open — only these slide in; the
+  // rest arrive with the dropdown itself.
+  const [fresh, setFresh] = React.useState<ReadonlySet<string>>(new Set());
 
   const load = React.useCallback(async () => {
     const { data } = await supabase
@@ -55,6 +58,7 @@ export function NotificationBell() {
           (payload) => {
             const n = payload.new as Notif;
             setItems((prev) => (prev.some((i) => i.id === n.id) ? prev : [n, ...prev].slice(0, 15)));
+            setFresh((prev) => new Set(prev).add(n.id));
           },
         )
         .subscribe();
@@ -66,6 +70,14 @@ export function NotificationBell() {
   }, [load, supabase]);
 
   const unread = items.filter((i) => !i.read_at).length;
+  // The count pops (a small overshoot, once) only when it RISES — something new
+  // arrived. Reading things down just changes the number.
+  const prevUnread = React.useRef(0);
+  const [bump, setBump] = React.useState(0);
+  React.useEffect(() => {
+    if (unread > prevUnread.current) setBump((b) => b + 1);
+    prevUnread.current = unread;
+  }, [unread]);
   const now = () => new Date().toISOString();
 
   async function markRead(id: string) {
@@ -99,15 +111,20 @@ export function NotificationBell() {
       <button
         type="button"
         aria-label={`Notifications${unread ? ` (${unread} unread)` : ""}`}
+        aria-expanded={open}
         onClick={() => {
           setOpen((o) => !o);
           if (!open) load();
+          else setFresh(new Set());
         }}
-        className="relative inline-flex size-10 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+        className="pressable relative inline-flex size-10 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground"
       >
         <Bell className="size-5" />
         {unread > 0 ? (
-          <span className="absolute right-0.5 top-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 font-data text-[10px] font-medium leading-none text-white ring-2 ring-card">
+          <span
+            key={bump}
+            className="pop-in absolute right-0.5 top-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 font-data text-[10px] font-medium leading-none text-white ring-2 ring-card"
+          >
             {unread > 9 ? "9+" : unread}
           </span>
         ) : null}
@@ -115,7 +132,14 @@ export function NotificationBell() {
 
       {open ? (
         <>
-          <div className="fixed inset-0 z-30" aria-hidden onClick={() => setOpen(false)} />
+          <div
+            className="fixed inset-0 z-30"
+            aria-hidden
+            onClick={() => {
+              setOpen(false);
+              setFresh(new Set());
+            }}
+          />
           <div className="absolute right-0 z-40 mt-2 w-80 overflow-hidden rounded-xl border bg-popover shadow-pop origin-top-right animate-in fade-in-0 zoom-in-[0.97] slide-in-from-top-1 duration-(--motion-pop) ease-out">
             <div className="flex items-center justify-between border-b px-3 py-2">
               <span className="text-sm font-semibold">Notifications</span>
@@ -130,20 +154,21 @@ export function NotificationBell() {
                 <li className="px-3 py-6 text-center text-sm text-muted-foreground">You&apos;re all caught up.</li>
               ) : (
                 items.map((n) => (
-                  <li key={n.id} className="border-b last:border-0">
+                  <li key={n.id} className={`border-b last:border-0 ${fresh.has(n.id) ? "arrive" : ""}`}>
                     <button
                       type="button"
                       onClick={() => openItem(n)}
                       disabled={pending}
                       aria-busy={pending && navId === n.id}
-                      className="flex w-full gap-2 px-3 py-2.5 text-left hover:bg-muted disabled:opacity-60"
+                      className="flex w-full gap-2 px-3 py-2.5 text-left transition-colors duration-(--motion-hover) hover:bg-muted disabled:opacity-60"
                     >
                       <span aria-hidden className="mt-1.5 shrink-0">
                         {pending && navId === n.id ? (
                           <Loader2 className="size-3.5 animate-spin text-primary" />
                         ) : (
+                          // A read lands at once: the dot shrinks away instead of blinking out.
                           <span
-                            className={`block size-2 rounded-full ${n.read_at ? "bg-transparent" : "bg-primary"}`}
+                            className={`block size-2 rounded-full bg-primary transition-[scale,opacity] duration-(--motion-pop) ease-out ${n.read_at ? "scale-0 opacity-0" : ""}`}
                           />
                         )}
                       </span>

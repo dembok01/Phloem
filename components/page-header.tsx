@@ -33,7 +33,7 @@ export function PageHeader({
   className?: string;
 }) {
   return (
-    <header className={cn("flex flex-wrap items-end justify-between gap-x-6 gap-y-3", className)}>
+    <header className={cn("fl-rise flex flex-wrap items-end justify-between gap-x-6 gap-y-3", className)}>
       <div className="min-w-0 space-y-1">
         {crumbs && crumbs.length > 0 ? (
           <nav aria-label="Breadcrumb">

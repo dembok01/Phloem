@@ -1,9 +1,11 @@
 import { cn } from "@/lib/utils";
 
-// §11 loading skeletons — pulse placeholders shaped like the layouts they
-// stand in for (C1), so nothing jumps when data lands.
+// §11 loading skeletons — placeholders shaped like the layouts they stand in
+// for (C1), so nothing jumps when data lands. A soft band sweeps across them
+// (globals.css .shimmer): a wait that moves reads as "loading", a flat grey
+// block reads as "broken". Reduced motion and elderly mode park the band.
 export function Skeleton({ className }: { className?: string }) {
-  return <div className={cn("animate-pulse rounded-md bg-muted", className)} />;
+  return <div aria-hidden className={cn("shimmer rounded-md bg-muted", className)} />;
 }
 
 export function CardSkeleton() {

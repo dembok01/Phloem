@@ -38,14 +38,16 @@ export function ActivationMoment({
         className="flex w-full max-w-sm animate-in fade-in zoom-in-95 flex-col items-center gap-4 rounded-2xl border bg-popover p-8 text-center shadow-pop duration-200 ease-out"
         onClick={(e) => e.stopPropagation()}
       >
+        <div className="hero-glow">
         <GrowthRings
           cycles={Array.from({ length: cycles }, (_, i) => ({
             number: i + 1,
             status: i === 0 ? "active" : "upcoming",
           }))}
           dayOfActive={2}
-          size={88}
+          size={104}
         />
+        </div>
         <div className="space-y-1">
           <p className="font-display text-xl font-semibold">The program is live</p>
           <p className="text-sm text-muted-foreground">
