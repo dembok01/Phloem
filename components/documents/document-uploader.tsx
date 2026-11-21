@@ -162,7 +162,7 @@ export function DocumentUploader({
           type="button"
           disabled={busy}
           onClick={() => inputRef.current?.click()}
-          className="inline-flex h-12 items-center justify-center gap-2 rounded-lg bg-primary px-5 text-base font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
+          className="pressable inline-flex h-12 items-center justify-center gap-2 rounded-lg bg-primary px-5 text-base font-medium text-primary-foreground shadow-primary hover:bg-primary-hover disabled:opacity-60"
         >
           {busy ? (
             <Loader2 className="size-5 animate-spin" aria-hidden />

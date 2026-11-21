@@ -34,7 +34,7 @@ import { IssueChips } from "@/components/issue-chips";
 import { computeIssues, type Issue } from "@/lib/issues";
 import type { FormValues } from "@/components/forms/types";
 import { parseFormTemplate } from "@/components/forms/schema";
-import { TAB_TRACK, tabClass } from "@/components/tab-styles";
+import { NavTabs } from "@/components/nav-tabs";
 import { Callout } from "@/components/ui/callout";
 import { UploadReportSheet } from "@/components/coordinator/upload-report-sheet";
 import { DietReviewsCard } from "@/components/reports/diet-reviews-card";
@@ -205,27 +205,23 @@ export default async function ClinicianClientPage({
 
       {/* Phones: the tabs wrap onto rows. As one sideways rail, Consult form and
           Reports — a doctor's two main destinations — started off-screen. */}
-      <nav
-        className="sm:-mx-6 sm:overflow-x-auto sm:px-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-        aria-label="Member sections"
-      >
-        <div className={cn("flex flex-wrap gap-1 rounded-2xl sm:w-max sm:flex-nowrap sm:rounded-full", TAB_TRACK)}>
-          {tabs.map(([key, label]) => (
-            <Link
-              key={key}
-              href={`/clinician/clients/${id}?tab=${key}`}
-              aria-current={key === activeTab ? "page" : undefined}
-              className={tabClass(key === activeTab, "max-sm:px-3 max-sm:py-2")}
-            >
-              {label}
-            </Link>
-          ))}
-        </div>
-      </nav>
+      {/* The shared rail: one raised pill that GLIDES to the chosen section (the
+          server decides which is current — these tabs live in the query string). */}
+      <NavTabs
+        items={tabs.map(([key, label]) => ({ href: `/clinician/clients/${id}?tab=${key}`, label }))}
+        current={`/clinician/clients/${id}?tab=${activeTab}`}
+        label="Member sections"
+        className="mx-0 overflow-visible px-0 sm:-mx-6 sm:overflow-x-auto sm:px-6"
+        trackClassName="w-auto flex-wrap rounded-2xl sm:w-max sm:flex-nowrap sm:rounded-full"
+        itemClassName="max-sm:px-3 max-sm:py-2"
+      />
 
       {/* Panel-level streaming (T2.2): the header + tab rail paint immediately;
           the active panel's queries stream in behind a skeleton. Exactly one panel
           is non-null per request, so one Suspense boundary is active. */}
+      {/* A new section fades in (keyed, so it replays per tab): the rail moved,
+          and the panel below answers it. Opacity only — tabs are switched often. */}
+      <div key={activeTab} className="tab-in">
       <Suspense key={activeTab} fallback={<CardSkeleton />}>
         {activeTab === "overview" || activeTab === "context" ? (
           <OverviewPanel
@@ -325,6 +321,7 @@ export default async function ClinicianClientPage({
           </div>
         ) : null}
       </Suspense>
+      </div>
     </section>
   );
 }
@@ -894,7 +891,7 @@ async function FormPanel({
                 </p>
                 <Link
                   href={`/clinician/clients/${memberId}?tab=form&followup=1`}
-                  className="inline-flex min-h-10 items-center gap-2 rounded-full bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                  className="pressable inline-flex min-h-10 items-center gap-2 rounded-full bg-primary px-4 text-sm font-medium text-primary-foreground shadow-primary hover:bg-primary-hover"
                 >
                   <FilePlus2 className="size-4" aria-hidden />
                   Add a follow-up report

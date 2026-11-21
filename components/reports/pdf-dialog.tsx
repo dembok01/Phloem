@@ -31,7 +31,7 @@ export function PdfDialog({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="pressable inline-flex h-10 items-center justify-center gap-1.5 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        className="pressable inline-flex h-10 items-center justify-center gap-1.5 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground shadow-primary hover:bg-primary-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
       >
         <ExternalLink className="size-4" aria-hidden /> {uploaded ? "Open the report" : "View PDF"}
       </button>

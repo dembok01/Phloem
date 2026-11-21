@@ -84,9 +84,10 @@ export function FilterBar({
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-56 flex-1">
+        <div className="group/search relative min-w-56 flex-1">
+          {/* The glass turns blue while the field has focus: "you are searching". */}
           <Search
-            className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+            className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground transition-colors duration-(--motion-press) group-focus-within/search:text-primary"
             aria-hidden
           />
           <input
@@ -96,7 +97,7 @@ export function FilterBar({
             onChange={(e) => onQuery(e.target.value)}
             placeholder={placeholder}
             aria-label={placeholder}
-            className="h-10 w-full rounded-lg border border-input bg-card pl-9 pr-9 text-sm outline-none transition-colors hover:border-foreground/60 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-search-cancel-button]:hidden"
+            className="h-10 w-full rounded-lg border border-input bg-card pl-9 pr-9 text-sm outline-none transition-[color,background-color,border-color,box-shadow] duration-(--motion-press) ease-out hover:border-foreground/60 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-search-cancel-button]:hidden"
           />
           {query ? (
             <button
@@ -105,7 +106,7 @@ export function FilterBar({
               aria-label="Clear search"
               className="pressable absolute top-1/2 right-2 -translate-y-1/2 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
             >
-              <X className="size-4" aria-hidden />
+              <X className="mark-in size-4" aria-hidden />
             </button>
           ) : (
             <kbd className="pointer-events-none absolute top-1/2 right-3 hidden -translate-y-1/2 rounded border px-1.5 font-mono text-[0.7rem] text-muted-foreground sm:block">

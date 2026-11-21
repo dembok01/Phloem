@@ -318,6 +318,18 @@
   [aria-disabled="true"] {
     cursor: not-allowed;
   }
+  /* Every link and button eases its colour into a hover instead of snapping —
+     the smallest micro-interaction in the product, and the most frequent.
+     `:where()` keeps it at zero specificity, so any component or utility that
+     declares its own transition (.pressable, transition-*, Button) still wins.
+     Not inside a listbox or menu: options there are moved through with the
+     arrow keys, where even 120ms reads as lag. */
+  :where(a, button, summary, [role="button"], [role="tab"]):not(:where([role="listbox"], [role="menu"]) *) {
+    transition-property: color, background-color, border-color, text-decoration-color, fill, stroke,
+      box-shadow, opacity;
+    transition-duration: var(--motion-hover);
+    transition-timing-function: ease;
+  }
 }
 
 @layer components {
@@ -726,6 +738,12 @@
      slides in at the top so the eye catches what changed. */
   .arrive {
     animation: fl-rise var(--motion-card) var(--motion-ease-out) backwards;
+  }
+
+  /* A tab's panel arriving (keyed per tab, so it replays). Opacity only, 160ms —
+     tabs are the frequent tier; movement here would read as lag. */
+  .tab-in {
+    animation: fl-fade 160ms var(--motion-ease-out) backwards;
   }
 
   /* A number that changed in place rolls in from above instead of blinking. */

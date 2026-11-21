@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { ArrowDown, ArrowUp, ChevronRight, ChevronsUpDown } from "lucide-react";
+import { ArrowUp, ChevronRight, ChevronsUpDown } from "lucide-react";
 import type { SortDir } from "@/lib/admin-filters";
 import { cn } from "@/lib/utils";
 
@@ -37,7 +37,8 @@ export function AdminTable({
         <thead className="sticky top-0 z-10 bg-card/95 backdrop-blur">
           <tr className="border-b text-left text-muted-foreground">{head}</tr>
         </thead>
-        <tbody>{children}</tbody>
+        {/* First look: rows rise in one after another (globals.css .fl-stagger). */}
+        <tbody className="fl-stagger">{children}</tbody>
       </table>
     </div>
   );
@@ -53,7 +54,7 @@ export function PhoneList({ label, children }: { label: string; children: React.
   return (
     <ul
       aria-label={label}
-      className="divide-y overflow-hidden rounded-xl border bg-card shadow-card md:hidden"
+      className="fl-stagger divide-y overflow-hidden rounded-xl border bg-card shadow-card md:hidden"
     >
       {children}
     </ul>
@@ -170,7 +171,6 @@ export function SortTh<K extends string>({
   className?: string;
 }) {
   const active = sort.key === id;
-  const Icon = !active ? ChevronsUpDown : sort.dir === "asc" ? ArrowUp : ArrowDown;
   return (
     <th className={cn("p-0 font-medium", className)}>
       <button
@@ -183,7 +183,19 @@ export function SortTh<K extends string>({
         )}
       >
         {label}
-        <Icon className={cn("size-3.5 transition-opacity", active ? "opacity-100" : "opacity-40")} aria-hidden />
+        {/* One arrow that TURNS when the direction flips, rather than two icons
+            swapping — the change is something you watch happen. */}
+        {active ? (
+          <ArrowUp
+            className={cn(
+              "mark-in size-3.5 transition-[rotate] duration-(--motion-pop) ease-out",
+              sort.dir === "desc" && "rotate-180",
+            )}
+            aria-hidden
+          />
+        ) : (
+          <ChevronsUpDown className="size-3.5 opacity-40" aria-hidden />
+        )}
       </button>
     </th>
   );

@@ -14,7 +14,23 @@ type Pill = { x: number; y: number; w: number; h: number };
 /** Horizontal section sub-nav with active-link highlighting (§10 shells).
  * `exact` items (typically the index tab) match only their own path, not children.
  * Segmented-control look; scrolls horizontally on small screens instead of wrapping. */
-export function NavTabs({ items }: { items: NavItem[] }) {
+export function NavTabs({
+  items,
+  current,
+  label = "Section",
+  className,
+  trackClassName,
+  itemClassName,
+}: {
+  items: NavItem[];
+  /** The active item's href when the SERVER decides it — query-string tabs
+   * (`?tab=form`), where the pathname never changes. Otherwise matched from the path. */
+  current?: string;
+  label?: string;
+  className?: string;
+  trackClassName?: string;
+  itemClassName?: string;
+}) {
   const pathname = usePathname();
   const trackRef = React.useRef<HTMLDivElement>(null);
   const activeRef = React.useRef<HTMLAnchorElement>(null);
@@ -42,19 +58,22 @@ export function NavTabs({ items }: { items: NavItem[] }) {
       ro.disconnect();
       cancelAnimationFrame(raf);
     };
-  }, [pathname]);
+  }, [pathname, current]);
 
   // On a phone the rail scrolls sideways; land with the current tab in view.
   React.useEffect(() => {
     activeRef.current?.scrollIntoView({ block: "nearest", inline: "nearest" });
-  }, [pathname]);
+  }, [pathname, current]);
 
   return (
     <nav
-      className="-mx-4 overflow-x-auto px-4 sm:-mx-6 sm:px-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-      aria-label="Section"
+      className={cn(
+        "-mx-4 overflow-x-auto px-4 sm:-mx-6 sm:px-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+        className,
+      )}
+      aria-label={label}
     >
-      <div ref={trackRef} className={cn("relative flex w-max gap-1 rounded-full", TAB_TRACK)}>
+      <div ref={trackRef} className={cn("relative flex w-max gap-1 rounded-full", TAB_TRACK, trackClassName)}>
         {pill ? (
           <span
             aria-hidden
@@ -68,16 +87,18 @@ export function NavTabs({ items }: { items: NavItem[] }) {
         ) : null}
         {items.map((item) => {
           const active =
-            pathname === item.href ||
-            pathname.startsWith(item.href + "?") ||
-            (!item.exact && pathname.startsWith(item.href + "/"));
+            current !== undefined
+              ? item.href === current
+              : pathname === item.href ||
+                pathname.startsWith(item.href + "?") ||
+                (!item.exact && pathname.startsWith(item.href + "/"));
           return (
             <Link
               key={item.href}
               ref={active ? activeRef : undefined}
               href={item.href}
               aria-current={active ? "page" : undefined}
-              className={tabClass(active, undefined, { face: !pill })}
+              className={tabClass(active, itemClassName, { face: !pill })}
             >
               <TabLabel label={item.label} />
             </Link>
