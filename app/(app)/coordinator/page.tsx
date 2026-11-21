@@ -16,6 +16,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { List, ListRow, ListSection } from "@/components/ui/list";
 import { Monogram, toneForRole } from "@/components/monogram";
 import { PageHeader } from "@/components/page-header";
+import { CountUp } from "@/components/first-look";
 import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 import { formatDateIST, formatDateTimeIST } from "@/lib/datetime";
@@ -106,7 +107,7 @@ export default async function CoordinatorTodayPage() {
   const todayCount = tasks.filter((t) => t.bucket === "today").length;
 
   return (
-    <section className="space-y-8">
+    <section className="fl-stagger space-y-8">
       <PageHeader
         eyebrow="Care coordination"
         title="Today"
@@ -128,7 +129,9 @@ export default async function CoordinatorTodayPage() {
                   next="Work top-down: the Overdue group blocks other people's work, since a meeting that is never marked done keeps the clinician's form locked."
                 />
               </p>
-              <p className="stat-figure text-foreground">{todayCount + overdueCount}</p>
+              <p className="stat-figure brand-text">
+                <CountUp value={todayCount + overdueCount} />
+              </p>
               <p className="text-sm text-muted-foreground">
                 {overdueCount > 0 ? (
                   <span className="font-medium text-danger">{overdueCount} overdue</span>

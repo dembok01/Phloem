@@ -8,6 +8,9 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { buttonVariants } from "@/components/ui/button";
+import { CountUp } from "@/components/first-look";
+import { cn } from "@/lib/utils";
 import { List, ListRow, ListSection } from "@/components/ui/list";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Monogram, toneForRole } from "@/components/monogram";
@@ -256,7 +259,7 @@ export default async function ClinicianClientsPage() {
       })();
 
   return (
-    <section className="mx-auto max-w-3xl space-y-6">
+    <section className="fl-stagger mx-auto max-w-3xl space-y-6">
       <PageHeader
         eyebrow={isDoctor ? "Clinical" : undefined}
         title={isDoctor ? "Your day" : "My members"}
@@ -299,7 +302,9 @@ export default async function ClinicianClientsPage() {
                     href={todayConsults[0].link}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="pressable inline-flex h-11 shrink-0 items-center gap-2 rounded-lg bg-primary px-5 font-medium text-primary-foreground hover:bg-primary/85"
+                    // The shared primary button: hover darkens (it used to fade to
+                    // 85%, which reads as "going disabled") and carries its own light.
+                    className={cn(buttonVariants({ size: "lg" }), "shrink-0")}
                   >
                     <Video className="size-4" aria-hidden /> Join
                   </a>
@@ -317,12 +322,14 @@ export default async function ClinicianClientsPage() {
               <div>
                 <p className="eyebrow">Needs you</p>
                 <p className="font-display text-2xl font-semibold tabular-nums">
-                  {rows.filter((r) => r.worst === "danger" || r.worst === "warning").length}
+                  <CountUp value={rows.filter((r) => r.worst === "danger" || r.worst === "warning").length} />
                 </p>
               </div>
               <div>
                 <p className="eyebrow">Your members</p>
-                <p className="font-display text-2xl font-semibold tabular-nums">{rows.length}</p>
+                <p className="font-display text-2xl font-semibold tabular-nums">
+                  <CountUp value={rows.length} />
+                </p>
               </div>
             </div>
           </CardContent>

@@ -5,7 +5,8 @@ import { PageHeader } from "@/components/page-header";
 import { Sparkline } from "@/components/charts/sparkline";
 import { StageFunnel, type Stage } from "@/components/charts/stage-funnel";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Ban, CalendarClock, CalendarHeart, ClipboardCheck, ListChecks, UserMinus } from "lucide-react";
+import { ArrowUpRight, Ban, CalendarClock, CalendarHeart, ClipboardCheck, ListChecks, UserMinus } from "lucide-react";
+import { CountUp } from "@/components/first-look";
 import { GrowthRings } from "@/components/growth-rings";
 import { TrendLine } from "@/components/charts/trend-line";
 import { createClient } from "@/lib/supabase/server";
@@ -261,7 +262,8 @@ export default async function AdminOverviewPage() {
   const hasThroughput = throughput.some((p) => p.Consultations > 0 || p.Reports > 0);
 
   return (
-    <section className="space-y-6">
+    // First look: the page's blocks arrive in reading order, 40ms apart.
+    <section className="fl-stagger space-y-6">
       <PageHeader
         eyebrow="Programme health"
         title="Overview"
@@ -286,7 +288,12 @@ export default async function AdminOverviewPage() {
                   next="This is the honest size of the programme. It is deliberately larger than 'Programmes running', which counts only the ones already started."
                 />
               </p>
-              <p className="stat-figure text-foreground">{a.inCare}</p>
+              {/* The one figure on this screen set in the brand blend; it counts
+                  up on the page's first look (an operational count, never a
+                  clinical value). */}
+              <p className="stat-figure brand-text">
+                <CountUp value={a.inCare} />
+              </p>
               <p className="text-sm text-muted-foreground">
                 {a.active > 0 ? `${a.active} on an active programme` : "none started yet"}
               </p>
@@ -386,7 +393,14 @@ export default async function AdminOverviewPage() {
                 />
               </span>
             ) : null}
-            <span className="eyebrow relative">{t.label}</span>
+            <span className="relative flex items-start justify-between gap-2">
+              <span className="eyebrow">{t.label}</span>
+              {/* The tile is a door: the arrow says so, and leans toward where it goes. */}
+              <ArrowUpRight
+                className="size-4 shrink-0 text-muted-foreground/60 transition-[translate,color] duration-(--motion-press) ease-out group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-primary"
+                aria-hidden
+              />
+            </span>
             <span className="relative flex items-baseline gap-2">
               <span
                 className={cn(
@@ -394,7 +408,7 @@ export default async function AdminOverviewPage() {
                   t.value === 0 && "text-muted-foreground/60",
                 )}
               >
-                {t.value}
+                <CountUp value={t.value} />
               </span>
               {/* An explanatory hint always wins over the trend-shape argument:
                   "0 · 3 awaiting initial reports" answers the question a bare

@@ -411,8 +411,12 @@
   .liftable {
     transition: translate var(--motion-press) var(--motion-ease-out);
   }
-  .liftable:hover {
-    translate: 0 -2px;
+  /* Fine pointers only: on a phone a tap leaves a "sticky" hover, and the tile
+     would stay lifted after the finger has gone. */
+  @media (hover: hover) and (pointer: fine) {
+    .liftable:hover {
+      translate: 0 -2px;
+    }
   }
   @media (prefers-reduced-motion: reduce) {
     .liftable:hover {
@@ -421,6 +425,18 @@
   }
   .elderly .liftable:hover {
     translate: none;
+  }
+  /* Both at once (the dashboard and portal tiles): `.pressable` and `.liftable`
+     each declare a whole `transition`, so whichever came later silently dropped
+     the other — the press-scale snapped instead of easing. One rule owning both. */
+  .pressable.liftable {
+    transition:
+      transform var(--motion-press) var(--motion-ease-out),
+      translate var(--motion-press) var(--motion-ease-out),
+      background-color var(--motion-press) var(--motion-ease-out),
+      border-color var(--motion-press) var(--motion-ease-out),
+      box-shadow var(--motion-press) var(--motion-ease-out),
+      color var(--motion-press) var(--motion-ease-out);
   }
 
   /* Group entrance for the portal's tile row. CSS-only, no JS, no hydration cost,

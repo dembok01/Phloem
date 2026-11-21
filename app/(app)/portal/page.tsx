@@ -264,7 +264,7 @@ async function CaregiverMember({
   });
 
   return (
-    <div className="space-y-6">
+    <div className="fl-stagger space-y-6">
       {/* The care story card — identity, plain-language status, growth rings. */}
       <Card variant="hero" className="hero-glow">
         <CardContent className="py-7">
@@ -649,9 +649,11 @@ function PortalLink({
   return (
     <Link
       href={href}
-      className="pressable group flex items-center gap-3 rounded-xl border bg-card p-4 shadow-card hover:border-primary/40 hover:bg-secondary/40"
+      className="pressable liftable group flex items-center gap-3 rounded-xl border bg-card p-4 shadow-card hover:border-primary/40 hover:shadow-pop"
     >
-      <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-secondary text-primary">
+      {/* The well swells a touch toward the pointer — the tile answers before
+          the click does. Neutral ground, so each section's own hue carries. */}
+      <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-muted transition-[scale] duration-(--motion-press) ease-out group-hover:scale-[1.08] motion-reduce:group-hover:scale-100 elderly:group-hover:scale-100">
         {icon}
       </span>
       <span className="min-w-0">
