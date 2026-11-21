@@ -186,7 +186,7 @@ export async function ThreadPanel({
                   : ""}
               </p>
 
-              <ol className="mt-3 space-y-3">
+              <ol className="fl-stagger mt-3 space-y-3">
                 {msgs.map((m) => {
                   const author = Array.isArray(m.profiles) ? m.profiles[0] : m.profiles;
                   const mine = m.author_id === profile?.user.id;
@@ -206,14 +206,15 @@ export async function ThreadPanel({
                             {formatDateTimeIST(m.created_at)}
                           </span>
                         </p>
-                        {/* V3 — a message reads as a message. Own messages sit on the
-                            brand tint and align right, which is the convention every
-                            reader already has from every other messaging app. */}
+                        {/* V3 — a message reads as a message. Own messages are solid
+                            brand blue and align right, the convention every reader
+                            already has from every other messaging app (white on the
+                            blue is 5.9:1). */}
                         <p
                           className={cn(
                             "mt-0.5 inline-block max-w-[46ch] rounded-2xl px-3.5 py-2 text-sm whitespace-pre-wrap",
                             mine
-                              ? "rounded-tr-sm bg-secondary text-secondary-foreground"
+                              ? "rounded-tr-sm bg-primary text-primary-foreground"
                               : "rounded-tl-sm bg-muted/60",
                           )}
                         >

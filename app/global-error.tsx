@@ -13,15 +13,15 @@ import * as React from "react";
 
 const CSS = `
 .ge-root {
-  --ge-bg: #F5F8F5; --ge-card: #FFFFFF; --ge-ink: #1F2A24; --ge-muted: #5A6B60;
-  --ge-danger: #A63A24; --ge-danger-tint: #F9ECE8; --ge-border: #DCE5DD;
-  --ge-primary: #1E6B4E; --ge-on-primary: #FFFFFF;
+  --ge-bg: #F4F7FB; --ge-card: #FFFFFF; --ge-ink: #0F1B2D; --ge-muted: #526175;
+  --ge-danger: #C0352B; --ge-danger-tint: #FCEDEB; --ge-border: #DDE3EC;
+  --ge-primary: #0052F7; --ge-on-primary: #FFFFFF;
 }
 @media (prefers-color-scheme: dark) {
   .ge-root {
-    --ge-bg: #141C17; --ge-card: #1B2620; --ge-ink: #E8EEE9; --ge-muted: #9FB0A6;
-    --ge-danger: #D9765F; --ge-danger-tint: #33201A; --ge-border: #2C3A31;
-    --ge-primary: #6FBF9A; --ge-on-primary: #10241B;
+    --ge-bg: #0A1120; --ge-card: #111A2C; --ge-ink: #E6ECF5; --ge-muted: #9AA8BD;
+    --ge-danger: #FF8A7A; --ge-danger-tint: #33191A; --ge-border: #22304A;
+    --ge-primary: #5B93FF; --ge-on-primary: #0A1120;
   }
 }
 .ge-root {

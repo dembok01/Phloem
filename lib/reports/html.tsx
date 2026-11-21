@@ -30,7 +30,7 @@ export async function reportHtml(content: ReportContent): Promise<string> {
   const logo = await logoDataUri();
   const brand = logo
     ? `<img src="${logo}" alt="PHLOEM" />`
-    : `<strong style="font-size:20px;color:#0f766e;">PHLOEM</strong>`;
+    : `<strong style="font-size:20px;color:#0052f7;">PHLOEM</strong>`;
   const header = `<div class="pdf-header">${brand}<span class="pdf-brand">Chronic-Care Program</span></div>`;
   return `<!doctype html><html lang="en"><head><meta charset="utf-8" /><style>${REPORT_CSS}${PDF_CSS}</style></head><body>${header}${body}</body></html>`;
 }

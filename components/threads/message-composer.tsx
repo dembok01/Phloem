@@ -72,14 +72,21 @@ export function MessageComposer({
         rows={3}
         placeholder={placeholder}
         disabled={pending}
-        className="w-full rounded-lg border bg-card px-3 py-2 text-base focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-60"
+        // A control edge (--input), not the quiet structural border, so the box is
+        // findable on a white card; it grows with what you write (field-sizing),
+        // from three lines up to a scroll.
+        className="max-h-60 min-h-20 w-full rounded-lg border border-input bg-card px-3 py-2 text-base outline-none [field-sizing:content] hover:border-foreground/60 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-60"
       />
       <div className="flex items-center justify-between gap-3">
         <p className="text-xs text-muted-foreground">
           Enter sends · Shift + Enter for a new line
         </p>
         <Button size="sm" loading={pending} disabled={pending || body.trim() === ""} onClick={send}>
-          <SendHorizontal className="size-3.5" aria-hidden /> Send
+          <SendHorizontal
+            className="size-3.5 transition-[translate] duration-(--motion-press) ease-out group-hover/button:translate-x-0.5"
+            aria-hidden
+          />{" "}
+          Send
         </Button>
       </div>
     </div>

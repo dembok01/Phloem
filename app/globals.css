@@ -764,6 +764,31 @@
     animation: disclose-in var(--motion-pop) var(--motion-ease-out) backwards;
   }
 
+  /* A high-severity dot asking to be seen: a ring expands out of it twice on the
+     page's first look, then stops. Never infinite — a looping alarm on a work
+     surface trains people to ignore it. */
+  @keyframes ping-once {
+    from {
+      opacity: 0.55;
+      transform: scale(1);
+    }
+    to {
+      opacity: 0;
+      transform: scale(2.6);
+    }
+  }
+  .attention-ping {
+    position: relative;
+  }
+  [data-look="first"] .attention-ping::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: inherit;
+    animation: ping-once 900ms var(--motion-ease-out) 500ms 2 backwards;
+  }
+
   /* A tab's panel arriving (keyed per tab, so it replays). Opacity only, 160ms —
      tabs are the frequent tier; movement here would read as lag. */
   .tab-in {

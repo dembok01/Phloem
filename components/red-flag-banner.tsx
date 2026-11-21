@@ -34,7 +34,9 @@ export function RedFlagBanner({ flags, className }: { flags: RedFlag[]; classNam
                 aria-hidden
                 className={cn(
                   "mt-1.5 size-2 shrink-0 rounded-full",
-                  f.severity === "high" ? "bg-danger" : "bg-warning",
+                  // A high flag pings twice the first time the record is opened
+                  // this session, then rests — attention, never a loop.
+                  f.severity === "high" ? "attention-ping bg-danger" : "bg-warning",
                 )}
               />
               <span>
