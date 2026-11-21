@@ -12,39 +12,50 @@ clinicians on repeat work → the coordinator all day.
 
 ---
 
-## 1 · Palette — "under the canopy"
+## 1 · Palette — brand-true (owner decision 2026-11-22)
 
-Six named colors. Everything on screen derives from these plus white.
+The UI now wears the logo. Until this date the interface ran on a forest green
+(`#1E6B4E`, "Loam/Paper/Phloem") that appeared nowhere in the mark, so the logo in
+the header and the screens below it read as two companies. The logo's two colours
+now carry meaning: **blue is action and trust, leaf green is life and progress.**
 
 | Name | Hex | Role |
 |---|---|---|
-| **Loam** | `#1F2A24` | Ink. All primary text and icons — a green-black like wet forest soil; warmer than #000, still 13:1 on Paper. |
-| **Paper** | `#F5F8F5` | App background — white with a breath of leaf; cards sit on it in pure white. Cool, not cream. |
-| **Phloem** | `#1E6B4E` | The brand green. Primary actions, active states, links in portal, the growth ring's living arc. 6.4:1 with white text. |
-| **Moss** | `#5A6B60` | Muted ink — secondary text, labels, borders at 25% strength. ≥5:1 on white (fixes audit G-4). |
-| **Honey** | `#8A5A0B` | Warmth + caution. Amber family for red-flag banners (per §11), pending states, pause badges. Deep enough to be AA as text. |
-| **Clay** | `#A63A24` | Danger only: high red flags, adverse events, destructive actions. An earth red, not an alarm red. |
+| **Ink** | `#0F1B2D` | All primary text and icons. 17.3:1 on white, 16.1:1 on Canvas. |
+| **Canvas** | `#F4F7FB` | App background — a cool white with a breath of the brand blue; cards sit on it in pure white. |
+| **Phloem Blue** | `#0052F7` | Straight from the logo. Primary actions, links, focus, selection, the current tab. 5.9:1 with white text; hover darkens to `#0043CC` (7.9:1). |
+| **Leaf** | `#00CC66` | The logo's green. **Never text on a light ground** (2.1:1) — a fill only: growth rings, progress, the mark; or under ink (8.1:1). |
+| **Success** | `#007A3D` | Leaf deepened for text: "done", "improved", "report in". 5.5:1. |
+| **Muted ink** | `#526175` | Secondary text and labels. 6.3:1 on white, 5.6:1 on the muted ground. |
+| **Warning** | `#9A5800` | Caution, pending, paused, ending soon. 5.6:1. |
+| **Danger** | `#C0352B` | High red flags, incidents, destructive actions. 5.6:1. |
 
-Supporting semantics (derived, not new hues): tints of each at 8–12% for fills
-(`#1E6B4E` → `#E7F1EC` chip fill), and **Water** `#2F6DB5` as the one non-earth
-exception — informational/link color on clinical surfaces and the doctor's role hue
-(it echoes the blue in the existing logo).
+Control edges (inputs, selects, toggle chips) use `#75839A` (3.8:1, WCAG 1.4.11);
+`--border` `#DDE3EC` is structure only. Every text pair above was measured on white
+**and** on the Canvas. The blue→leaf blend (`--brand-gradient`) is spent only on the
+signature: the growth ring's live arc, the sign-in panel, the one hero figure per
+staff screen (`.brand-text`), the wait bar.
 
-**Role hues** (shell context, chips, avatars — always tint + deep text, never
-saturated fills): doctor Water `#2F6DB5` · nutritionist Phloem `#1E6B4E` ·
-trainer Ochre `#96610F` · psychologist Plum `#6D4A78` · coordinator Teal
-`#20707A` · admin Slate `#4B5563` · family portal Phloem.
+**Role hues** (avatars, chips — always tint + deep text, always beside the role's
+name): doctor Indigo `#5B3FD0` (moved off blue now that blue means "act") ·
+nutritionist `#00703A` · trainer `#9A5800` · psychologist `#A23E8C` · coordinator
+`#0B6A85` · admin `#475569` · family portal Phloem Blue. Each is ≥5:1 on white and on
+its own 12% avatar tint.
 
-Dark mode keeps the same relationships on deep loam (`#141C17` bg, `#1B2620`
-cards); tokens flip, components never know.
+**Charts:** `#0F8A55` · `#0052F7` · `#A35F00` · `#A23E8C`, with `#64748B` as the
+"Other" slot. Checked all-pairs in OKLab under normal vision and simulated protan,
+deutan and tritan: worst pair ΔE 4.6 (the set it replaced: 3.5).
+
+Dark tokens exist for parity (deep navy `#0A1120`, cards `#111A2C`) but dark mode is
+not switched on anywhere.
 
 ## 2 · Typography — a voice that reassures, a hand that records
 
 | Role | Face | Why this one |
 |---|---|---|
 | **Display** — page titles, member names, report headings, big numbers | **Bricolage Grotesque** (600/700, tight leading) | Warm, slightly compressed grotesque with real personality at size; reads "modern institution with a heart", not "startup landing page". Used with restraint: one display moment per screen. |
-| **Body** — everything readable | **Atkinson Hyperlegible** (400/700) | Designed by the Braille Institute for low-vision readers: unmistakable I/l/1, open apertures, sturdy at 16–20px. The most audience-true body face this product could have — accessibility as the aesthetic. |
-| **Data** — timestamps, doses, IDs, eyebrows, chips | **IBM Plex Mono** (400/500) | Clinical texture: tabular numbers for vitals and dates, quiet institutional voice for section eyebrows (`PLAN`, `BASELINE`). Small sizes only, never paragraphs. |
+| **Body** — everything readable | **Atkinson Hyperlegible Next** (variable 200–800, since 2026-11-22) | Designed by the Braille Institute for low-vision readers: unmistakable I/l/1, open apertures, sturdy at 16–20px. The most audience-true body face this product could have — accessibility as the aesthetic. The 2025 "Next" release adds the 500/600 weights UI labels need. |
+| **Data** — timestamps, doses, IDs, eyebrows, chips | **Atkinson Hyperlegible Mono** (variable, since 2026-11-22; was IBM Plex Mono) | Clinical texture: tabular numbers for vitals and dates, quiet institutional voice for section eyebrows (`PLAN`, `BASELINE`). Shares the body face's low-vision letterforms (0/O, 1/l/I). Small sizes only, never paragraphs. |
 
 Scale (rem): 12 data-small · 14 data/captions · 16 body (app) · 18 body (portal) ·
 20 elderly body · 22/28/34/44 display steps. Line-height 1.5 body, 1.15 display.
@@ -87,9 +98,10 @@ Eyebrows: 12px Plex Mono, uppercase, +0.08em tracking, Moss.
 
 **One element the product is remembered by: the growth ring.** A tree records each
 season as a ring; a PHLOEM member records each 30-day cycle. The `GrowthRings` mark
-draws one concentric ring per cycle of the package: completed rings solid Phloem,
-the current cycle an arc swept to today's day-count, future rings faint Moss,
-a pause shown as a soft Honey gap. It is not decoration — it is the package state,
+draws one concentric ring per cycle of the package: completed rings solid in the
+success green (done), the current cycle an arc swept to today's day-count in the
+logo's blue→leaf blend (growing), future rings faint, a pause or a programme ending
+soon shown in the warning amber. It is not decoration — it is the package state,
 readable at every size:
 
 - **Portal hero (96px):** the family's journey at a glance, day count centered,
@@ -142,8 +154,24 @@ state with no animation. Everything else moves 150–250ms ease-out or not at al
 - **Feedback motion on staff screens (2026-10-08):** only in answer to the user's own
   action, 120–200ms — a row action confirms on itself ("✓ Revoked") before the row
   refreshes; a read lands at once (dot shrinks, tint fades); the tab pill glides; ticks
-  and dots grow in (`.mark-in`); popovers grow from their trigger. No entrance
-  choreography on pages seen many times a day.
+  and dots grow in (`.mark-in`); popovers grow from their trigger.
+- **The first-look tier (owner decision 2026-11-22)** replaces "no entrance
+  choreography on staff pages". A page's arrival plays the **first time that route is
+  opened in a browser session**, then the page simply appears. `html[data-look]` is
+  `first | again | done`, decided before paint (boot script in `app/layout.tsx` for a
+  hard load; `components/first-look.tsx` for client navigations); one key per route,
+  so the twentieth member page of the morning is as quiet as the second. Utilities:
+  `.fl-rise`, `.fl-stagger` (40ms steps, capped at 8), `.fl-draw` (lines),
+  `.fl-reveal-x` (charts), `.fl-grow-x` (bars and tracks), `.fl-d1–3` (delays).
+  `<CountUp>` is for **operational counts only** — never a blood pressure, weight,
+  WHO-5 or adherence figure; charts may draw in, their numbers never move. On every
+  other visit, page content settles with a 180ms fade and 4px rise under the tab
+  rail, which never moves.
+- **The frequency ladder** decides every animation: ⌘K and keyboard movement —
+  none (the palette opens instantly); hover, tabs, route changes — 120–180ms colour,
+  fade, at most 4px; sheets, menus, toasts, saving — 150–280ms from their trigger;
+  first look — 420–700ms once per route per session; rare moments (sign-in, program
+  start) — the mark assembling, the ring drawing.
 - **A disabled control says why**, beside itself (`aria-describedby` to the reason).
 
 ## 6 · Self-critique (against the generic-default test)
