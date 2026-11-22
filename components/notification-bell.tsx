@@ -70,7 +70,7 @@ export function NotificationBell() {
   }, [load, supabase]);
 
   const unread = items.filter((i) => !i.read_at).length;
-  // The count pops (a small overshoot, once) only when it RISES — something new
+  // The count grows in (once) only when it RISES — something new
   // arrived. Reading things down just changes the number.
   const prevUnread = React.useRef(0);
   const [bump, setBump] = React.useState(0);

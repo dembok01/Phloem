@@ -33,8 +33,9 @@ now carry meaning: **blue is action and trust, leaf green is life and progress.*
 Control edges (inputs, selects, toggle chips) use `#75839A` (3.8:1, WCAG 1.4.11);
 `--border` `#DDE3EC` is structure only. Every text pair above was measured on white
 **and** on the Canvas. The blue→leaf blend (`--brand-gradient`) is spent only on the
-signature: the growth ring's live arc, the sign-in panel, the one hero figure per
-staff screen (`.brand-text`), the wait bar.
+signature: the growth ring's live arc, the sign-in panel, the wait bar, progress
+bars. **Never on text:** it ends in the leaf at 2.1:1, so the
+hero figure (`.brand-text`) is solid Phloem Blue.
 
 **Role hues** (avatars, chips — always tint + deep text, always beside the role's
 name): doctor Indigo `#5B3FD0` (moved off blue now that blue means "act") ·

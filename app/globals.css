@@ -185,8 +185,6 @@
   --motion-stagger: 40ms;
   --motion-count: 600ms; /* operational counts only — NEVER a clinical value */
   --motion-draw: 600ms; /* chart lines and sparklines drawing in */
-  /* A gentle overshoot for things that arrive to be noticed (a new unread count). */
-  --motion-ease-pop: cubic-bezier(0.34, 1.56, 0.64, 1);
   --sidebar: #eef2f7;
   --sidebar-foreground: #0f1b2d;
   --sidebar-primary: #0052f7;
@@ -746,8 +744,9 @@
     }
   }
 
-  /* Something arriving to be noticed — a new unread count. A small overshoot,
-     once, on mount (re-keyed when the count rises). */
+  /* Something arriving to be noticed — a new unread count. It grows in once, on
+     mount (re-keyed when the count rises), on the strong ease-out: no overshoot,
+     because a bounce is the opposite of the calm this product promises. */
   @keyframes pop-in {
     from {
       opacity: 0;
@@ -755,7 +754,7 @@
     }
   }
   .pop-in {
-    animation: pop-in 280ms var(--motion-ease-pop) backwards;
+    animation: pop-in var(--motion-pop) var(--motion-ease-out) backwards;
   }
 
   /* A row that arrived live (a new notification while the list is open): it
@@ -845,21 +844,12 @@
     animation: leaf-bottom-in 620ms var(--motion-ease-out) 80ms backwards;
   }
 
-  /* Text set in the brand blend — reserved for the one signature figure on a
-     screen. Falls back to solid primary where background-clip:text is missing. */
+  /* The one signature figure on a staff screen, in solid Phloem Blue (5.9:1).
+     Deliberately NOT the blue→leaf blend: the blend ends in the logo's leaf at
+     2.1:1, so the last digits of a figure would fall below even the 3:1 large
+     text needs — and gradient text on a metric is decoration, not meaning. */
   .brand-text {
     color: var(--primary);
-    /* Shrink the box to the glyphs, or a short figure in a full-width block only
-       ever shows the blue end of the blend. */
-    width: fit-content;
-  }
-  @supports (-webkit-background-clip: text) or (background-clip: text) {
-    .brand-text {
-      background: var(--brand-gradient);
-      -webkit-background-clip: text;
-      background-clip: text;
-      color: transparent;
-    }
   }
 }
 

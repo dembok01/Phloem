@@ -2765,8 +2765,11 @@ only — no migration, RLS, RPC or permission change. Plan and decisions:
   signed in as the seeded admin, incl. a borrowed doctor desk: no console errors, no hydration
   warnings, no horizontal overflow; first-look states observed (`first` on hard load, settling
   to `done`); member tabs pill glides (4px → 208px) when the server-decided tab changes.
-  Fixes from that pass: hero figures showed only the blue end of the blend; sign-in rings
-  crossed the body copy; pipeline progress was flat blue.
+  Fixes from that pass: sign-in rings crossed the body copy; pipeline progress was flat blue.
+  The hero figures first wore the blue→leaf blend as gradient text; dropped after a design
+  review — the blend ends in the leaf at 2.1:1, below even the 3:1 large text needs, so they
+  are solid Phloem Blue. The unread badge's overshoot easing was likewise replaced by the
+  strong ease-out (calm over bounce).
 - **Not verified in a browser:** the family portal (no caregiver login exists on the hosted
   project — see the Portal Elevation note), and the "feel" items (curves, the count-up, the
   mark assembling) which the owner judges on a preview deploy.

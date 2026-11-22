@@ -288,7 +288,7 @@ export default async function AdminOverviewPage() {
                   next="This is the honest size of the programme. It is deliberately larger than 'Programmes running', which counts only the ones already started."
                 />
               </p>
-              {/* The one figure on this screen set in the brand blend; it counts
+              {/* The one figure on this screen in the brand blue; it counts
                   up on the page's first look (an operational count, never a
                   clinical value). */}
               <p className="stat-figure brand-text">
