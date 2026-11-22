@@ -14,15 +14,23 @@ const display = Bricolage_Grotesque({
 // now a variable font 200–800, so UI labels get real 500/600 weights instead of the
 // 400/700 the original offered. Its Mono sibling replaces IBM Plex Mono, so the data
 // face shares the body's letterforms (unmistakable 0/O, 1/l/I) — one family.
+// next/font has no size-adjust metrics for these 2025 faces yet (the build logs
+// "Failed to find font override values"), so the metric-matched fallback is off
+// by declaration rather than by accident. Both are preloaded with swap: until the
+// web font arrives the system face shows, and text may reflow slightly when it does.
 const body = Atkinson_Hyperlegible_Next({
   variable: "--font-brand-body",
   subsets: ["latin"],
   style: ["normal", "italic"],
+  adjustFontFallback: false,
+  fallback: ["system-ui", "-apple-system", "Segoe UI", "sans-serif"],
 });
 
 const data = Atkinson_Hyperlegible_Mono({
   variable: "--font-brand-data",
   subsets: ["latin"],
+  adjustFontFallback: false,
+  fallback: ["ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
 });
 
 export const metadata: Metadata = {
