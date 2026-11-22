@@ -128,8 +128,9 @@ export function DocumentUploader({
       onDragLeave={() => setDragging(false)}
       onDrop={onDrop}
       className={cn(
-        "rounded-xl border border-dashed p-5 transition-colors",
-        dragging ? "border-primary bg-secondary" : "border-input bg-muted/30",
+        "rounded-xl border border-dashed p-5 transition-[background-color,border-color,box-shadow] duration-(--motion-pop) ease-out",
+        // A file held over the zone: it lights up and grows a halo — "let go here".
+        dragging ? "border-primary bg-secondary ring-4 ring-primary/15" : "border-input bg-muted/30",
         className,
       )}
     >

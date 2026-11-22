@@ -113,7 +113,8 @@ export function ClinicalForm({
                 )}
               >
                 {s.requiredCount > 0 && s.missingCount === 0 ? (
-                  <CircleCheck className="size-3.5 shrink-0 text-success" aria-hidden />
+                  // Mounted the moment the section is complete, so the tick grows in.
+                  <CircleCheck className="mark-in size-3.5 shrink-0 text-success" aria-hidden />
                 ) : (
                   <Circle
                     className={cn("size-3.5 shrink-0", s.hasError ? "text-danger" : "text-border")}
@@ -188,9 +189,14 @@ export function ClinicalForm({
               <span className="block h-1.5 w-24 overflow-hidden rounded-full bg-muted">
                 {/* scaleX rather than width (and `transition-all`, which animated
                     every animatable property it could find). */}
+                {/* Filling in the brand blend (growth); green once every required
+                    field is in. */}
                 <span
-                  className="block h-full w-full origin-left bg-primary transition-transform duration-300 ease-out"
-                  style={{ transform: `scaleX(${progress / 100})` }}
+                  className="block h-full w-full origin-left transition-[transform,background-color] duration-300 ease-out"
+                  style={{
+                    transform: `scaleX(${progress / 100})`,
+                    background: progress === 100 ? "var(--success)" : "var(--brand-gradient)",
+                  }}
                 />
               </span>
               <span className="font-data text-xs text-muted-foreground">{progress}%</span>
@@ -198,10 +204,12 @@ export function ClinicalForm({
             <Button
               type="button"
               onClick={submit}
-              disabled={locked || submitting}
+              loading={submitting}
+              disabled={locked}
               aria-describedby={locked ? "form-locked-reason" : undefined}
+              // Every required field in: a soft halo eases in — "ready when you are".
+              className={cn(progress === 100 && !locked && "ring-4 ring-primary/20")}
             >
-              {submitting ? <Loader2 className="animate-spin" aria-hidden /> : null}
               {submitting ? "Submitting…" : "Submit & generate report"}
             </Button>
           </div>

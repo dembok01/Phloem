@@ -6,7 +6,7 @@
 // one tap records it and opens a chat with the message written.
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Copy, MessageCircle } from "lucide-react";
+import { Check, Copy, MessageCircle } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
@@ -28,6 +28,7 @@ export function AskFamilyButton({
   const router = useRouter();
   const { toast } = useToast();
   const [pending, start] = React.useTransition();
+  const [copied, setCopied] = React.useState(false);
 
   function record(after?: string) {
     start(async () => {
@@ -44,6 +45,8 @@ export function AskFamilyButton({
   async function copy() {
     try {
       await navigator.clipboard.writeText(message);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
       record("Copied — send it to the family. They also get a notification in their dashboard.");
     } catch {
       toast("error", "Couldn't copy the message. Try again.");
@@ -70,7 +73,8 @@ export function AskFamilyButton({
         </Button>
       )}
       <Button type="button" variant="ghost" size="sm" onClick={copy} disabled={pending}>
-        <Copy className="size-3.5" aria-hidden /> Copy message
+        {copied ? <Check className="mark-in size-3.5" aria-hidden /> : <Copy className="size-3.5" aria-hidden />}
+        {copied ? "Copied" : "Copy message"}
       </Button>
     </span>
   );
