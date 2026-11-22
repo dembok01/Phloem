@@ -2729,3 +2729,45 @@ should be able to provide it" — admin only (the coordinator may not read clini
 - **Not yet applied:** 0061. It is additive (a new function; the restated one only skips period
   reports), so apply it BEFORE the push — the card's Create needs it.
 
+
+## Brand-true palette + first-look motion (2026-11-22, branch `ui/brand-motion-elevation`)
+
+Owner: "elevate the UI of the entire dashboard … animations, micro interactions … rework the
+colours" for showing it to startups and hospitals; then chose **match the logo** and **a
+first-look motion tier**, and ruled dark mode and a demo environment out of scope. Presentation
+only — no migration, RLS, RPC or permission change. Plan and decisions:
+`docs/UI-SHOWCASE-ELEVATION-PLAN.md`; rules: `DESIGN-SYSTEM.md` §1–2 and §5a.
+
+- **Branches:** a Codex session's uncommitted "dashboard design refresh" (69 files) was parked
+  unchanged on `codex/dashboard-design-refresh` (`2e12808`) at the owner's request; this work
+  starts from a clean `main` (`beadfc9`).
+- **Palette:** Phloem Blue `#0052F7` (action), the logo's leaf `#00CC66` (fill only — 2.1:1 on
+  white), ink `#0F1B2D`, canvas `#F4F7FB`; every text pair measured ≥4.5:1 on white and canvas.
+  Doctor's hue moved off blue. Chart series re-checked all-pairs under simulated CVD (worst
+  ΔE 4.6 vs 3.5 before). Elderly mode now AAA for every text colour (7.0–9.0:1). Report/PDF
+  stylesheet and the global error page moved too (new PDFs only; issued reports unchanged).
+- **Type:** Atkinson Hyperlegible Next + Mono (variable) replace Atkinson + IBM Plex Mono.
+- **First look:** `html[data-look]` first | again | done (`lib/first-look.ts` boot script,
+  `components/first-look.tsx`); one key per route; ordered arrivals, operational count-ups
+  (never clinical values), chart draw-ins, ring blend. Every other visit: 180ms settle under
+  the tab rail. ⌘K opens instantly.
+- **Micro-interactions:** button light + growing spinner + label cross-fade; global 120ms hover
+  ease (not in listboxes/menus); field focus ease incl. native selects; skeleton shimmer; bell
+  pop/shrink/arrive; gliding member-page tabs; turning sort arrows and disclosure chevrons;
+  disclosures ease open; pipeline drag ghost + lit drop column; solid-blue own messages and a
+  growing composer; in-place copy ticks; clinical-form readiness halo; high-flag attention ping
+  (twice, first look only); brand mark traced from the logo, assembling on the sign-in door.
+- **Bugs fixed on the way:** funnel counts ink on deep blue (2.9:1 → white 4.7:1+);
+  `.pressable` + `.liftable` transition race (press-scale snapped); three hand-rolled primary
+  buttons that faded on hover; hover lift now fine-pointer only.
+- **Verification:** tsc 0 and eslint 0 on every changed file; unit 176/176; `next build` 0
+  (webpack; PDF route still traces the 4 Chromium `.br` files). Local render at 1440 and 390,
+  signed in as the seeded admin, incl. a borrowed doctor desk: no console errors, no hydration
+  warnings, no horizontal overflow; first-look states observed (`first` on hard load, settling
+  to `done`); member tabs pill glides (4px → 208px) when the server-decided tab changes.
+  Fixes from that pass: hero figures showed only the blue end of the blend; sign-in rings
+  crossed the body copy; pipeline progress was flat blue.
+- **Not verified in a browser:** the family portal (no caregiver login exists on the hosted
+  project — see the Portal Elevation note), and the "feel" items (curves, the count-up, the
+  mark assembling) which the owner judges on a preview deploy.
+- **Not pushed, not merged.** `main` is production for live patients.
