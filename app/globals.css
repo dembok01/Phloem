@@ -836,6 +836,9 @@
      screen. Falls back to solid primary where background-clip:text is missing. */
   .brand-text {
     color: var(--primary);
+    /* Shrink the box to the glyphs, or a short figure in a full-width block only
+       ever shows the blue end of the blend. */
+    width: fit-content;
   }
   @supports (-webkit-background-clip: text) or (background-clip: text) {
     .brand-text {

@@ -278,7 +278,13 @@ function ProgressLine({ progress: p }: { progress: ActiveProgress }) {
           role="img"
           aria-label={`Day ${p.day} of ${p.days}`}
         >
-          <span className="block h-full rounded-full bg-primary/70" style={{ width: `${(p.day / p.days) * 100}%` }} />
+          {/* Progress through the cycle — the same blue→leaf blend as the growth
+              ring's live arc (blue means "act"; growth wears the brand blend). It
+              grows from the start of the cycle on the board's first look. */}
+          <span
+            className="fl-grow-x block h-full rounded-full"
+            style={{ width: `${(p.day / p.days) * 100}%`, background: "var(--brand-gradient)" }}
+          />
         </span>
         <span className="shrink-0">
           Day {p.day}/{p.days}

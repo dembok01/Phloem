@@ -20,7 +20,10 @@ function CycleRings({ className }: { className?: string }) {
       {[92, 74, 56, 38].map((r) => (
         <circle key={r} cx="100" cy="100" r={r} fill="none" stroke="currentColor" strokeOpacity="0.09" strokeWidth="1.4" />
       ))}
-      {/* Two finished cycles and the current one, two-thirds of the way round. */}
+      {/* Two finished cycles and the current one, two-thirds of the way round.
+          The rings are centred on the panel's bottom-right corner, so only their
+          upper-left quarter shows; the live arc starts at 9 o'clock to draw
+          through that visible quarter first. */}
       <circle cx="100" cy="100" r="38" fill="none" stroke="url(#auth-ring)" strokeWidth="3" />
       <circle cx="100" cy="100" r="56" fill="none" stroke="url(#auth-ring)" strokeWidth="3" />
       <circle
@@ -34,7 +37,7 @@ function CycleRings({ className }: { className?: string }) {
         strokeLinecap="round"
         pathLength={1}
         strokeDasharray="0.68 1"
-        transform="rotate(-90 100 100)"
+        transform="rotate(180 100 100)"
       />
     </svg>
   );
@@ -61,8 +64,9 @@ export function AuthShell({
               "radial-gradient(60% 50% at 15% 0%, color-mix(in oklab, var(--primary) 45%, transparent), transparent 70%), radial-gradient(50% 45% at 90% 100%, color-mix(in oklab, var(--leaf) 30%, transparent), transparent 70%)",
           }}
         />
-        <CycleRings className="pointer-events-none absolute -right-40 top-1/2 -z-10 size-[620px] -translate-y-1/2 text-background" />
-        <BrandMark className="h-14" assemble />
+        {/* Centred on the corner: the arcs frame the panel and never cross the text. */}
+        <CycleRings className="pointer-events-none absolute -right-[380px] -bottom-[380px] -z-10 size-[760px] text-background" />
+        <BrandMark className="h-14 self-start" assemble />
         <div className="fl-rise fl-d2 max-w-md space-y-5">
           <p className="font-display text-5xl leading-[1.05] font-semibold tracking-tight text-balance">
             One care team.
