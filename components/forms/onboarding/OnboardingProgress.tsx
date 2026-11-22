@@ -55,10 +55,14 @@ export function OnboardingProgress({
               Rounding lives on the clipping parent so the scale cannot squash
               the cap radius. */}
           <span className="block h-1.5 overflow-hidden rounded-full bg-muted">
+            {/* A chapter in progress fills in the brand blend; a finished one is
+                solid success green (the logo's own leaf is too light to read as
+                a bar on this track). */}
             <span
-              className="block h-full w-full origin-left bg-primary transition-transform duration-300 ease-out"
+              className="block h-full w-full origin-left transition-[transform,background-color] duration-300 ease-out"
               style={{
                 transform: `scaleX(${Math.max(ch.progress, ch.current ? 0.08 : 0)})`,
+                background: ch.progress >= 1 ? "var(--success)" : "var(--brand-gradient)",
               }}
             />
           </span>

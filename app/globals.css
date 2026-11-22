@@ -261,6 +261,19 @@
   --muted-foreground: #3a4659; /* 9.5:1 on white — AAA */
   --border: #c3ccd8; /* firmer edges for low vision */
   --input: #526175; /* control edges at 6.3:1 */
+  /* AAA for every text colour, not only the muted one: the brand blue and the
+     semantic hues are AA (≈5.5–5.9:1) everywhere else. These deeper steps keep
+     ≥7:1 on white, on the canvas AND on their own tints (badges), measured. */
+  --primary: #003cb8; /* 9.0:1 white, 7.9:1 on its tint; white text on it 9.0:1 */
+  --primary-hover: #002f91;
+  --ring: #003cb8;
+  --info: #003cb8;
+  --success: #00592c; /* 8.5:1 */
+  --warning: #7a4400; /* 7.9:1 */
+  --danger: #8e241d; /* 8.7:1 */
+  --destructive: #8e241d;
+  --role-caregiver: #003cb8;
+  --role-member: #003cb8;
   font-size: 20px;
 }
 
